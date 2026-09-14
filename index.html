@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-07ZVHY3BBN"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-07ZVHY3BBN');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="624 Siteworks provides high-converting, lightning-fast static websites for local service businesses in Northeast Wisconsin. Stop losing leads to slow, generic agency sites.">
+    <meta name="keywords"
+        content="web design Northeast Wisconsin, local business websites, fast static websites, web design agency">
+    <title>624 Siteworks | High-Converting Websites for Local Businesses in Northeast Wisconsin</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb', // blue-600
+                        primaryHover: '#1d4ed8', // blue-700
+                        dark: '#0f172a', // slate-900
+                        darker: '#020617', // slate-950
+                        light: '#f8fafc', // slate-50
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            /* Matches darker theme */
+            color: #f8fafc;
+        }
+    </style>
+</head>
+
+<body class="antialiased selection:bg-primary selection:text-white">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 bg-darker/90 backdrop-blur-md border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center">
+                    <a href="#" class="block">
+                        <!-- Adjust the height value below (e.g., 60px, 80px) to change the logo size -->
+                        <img src="img/624SWLogoSmall.webp" alt="624 Siteworks Logo" class="w-auto"
+                            style="height: 80px;">
+                    </a>
+                </div>
+
+                <!-- Desktop Nav Links  -->
+                <div class="hidden md:flex space-x-8 items-center">
+                    <a href="#problem" class="text-gray-300 hover:text-white transition-colors text-sm font-medium">The
+                        Solution</a>
+                    <a href="#portfolio"
+                        class="text-gray-300 hover:text-white transition-colors text-sm font-medium">Our Recent Work</a>
+                    <a href="#pricing"
+                        class="text-gray-300 hover:text-white transition-colors text-sm font-medium">Pricing</a>
+                </div>
+
+                <!-- CTA Button -->
+                <div class="flex items-center">
+                    <a href="https://forms.gle/nxPUNbKfZFgYV4hd8" target="_blank" rel="noopener noreferrer"
+                        class="bg-primary hover:bg-primaryHover text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-lg shadow-primary/30">Start
+                        Your Build</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section
+        class="pt-32 pb-20 md:pt-40 md:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col items-center text-center">
+        <div
+            class="inline-block mb-4 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm text-sm font-medium text-gray-300">
+            Based in Appleton Wisconsin
+        </div>
+
+        <h1
+            class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-tight max-w-4xl mb-6">
+            Websites that actually <span
+                class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-400">work</span> for your
+            local business.
+        </h1>
+
+        <p class="text-lg md:text-xl text-gray-400 max-w-2xl mb-10 leading-relaxed">
+            Stop losing leads to slow, generic templates. We build custom, blazing-fast static sites designed
+            exclusively to convert your visitors into paying customers.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 mb-16 w-full sm:w-auto px-4 sm:px-0">
+            <a href="https://forms.gle/nxPUNbKfZFgYV4hd8" target="_blank" rel="noopener noreferrer"
+                class="bg-primary hover:bg-primaryHover text-white px-8 py-4 rounded-lg font-bold text-lg transition-all shadow-xl shadow-primary/30 flex items-center justify-center w-full sm:w-auto">
+                Start Your Project
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3">
+                    </path>
+                </svg>
+            </a>
+            <a href="#portfolio"
+                class="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center border border-white/10 w-full sm:w-auto">
+                View Our Work
+            </a>
+        </div>
+
+    </section>
+
+    <!-- Problem/Solution Section -->
+    <section id="problem" class="py-20 bg-dark border-y border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Why traditional agency sites fail you.</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">Most web agencies sell you bloated Wordpress themes that are
+                    slow, expensive, and vulnerable to hacks. We do things differently.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Column 1 -->
+                <div class="bg-white/5 border border-white/10 p-8 rounded-xl hover:bg-white/10 transition-colors">
+                    <div
+                        class="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center mb-6 border border-red-500/20">
+                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-white">Too Slow</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-4">Slow loading times kill your search rankings
+                        and bounce potential customers before they even see your services.</p>
+                    <div class="pt-4 border-t border-white/10">
+                        <p class="text-green-400 text-sm font-semibold flex items-start"><span class="mr-2">✓</span> We
+                            write clean, static HTML/CSS that loads instantly, giving you a massive SEO advantage.</p>
+                    </div>
+                </div>
+
+                <!-- Column 2 -->
+                <div class="bg-white/5 border border-white/10 p-8 rounded-xl hover:bg-white/10 transition-colors">
+                    <div
+                        class="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center mb-6 border border-red-500/20">
+                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-white">Too Expensive</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-4">Agencies charge $5,000+ for sites built on
+                        free templates, then nickel-and-dime you for basic changes and maintenance.</p>
+                    <div class="pt-4 border-t border-white/10">
+                        <p class="text-green-400 text-sm font-semibold flex items-start"><span class="mr-2">✓</span>
+                            Transparent, flat-rate pricing for builds, and a simple monthly plan that covers everything
+                            else.</p>
+                    </div>
+                </div>
+
+                <!-- Column 3 -->
+                <div class="bg-white/5 border border-white/10 p-8 rounded-xl hover:bg-white/10 transition-colors">
+                    <div
+                        class="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center mb-6 border border-red-500/20">
+                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-white">Too Complex</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-4">Clunky page builders and constant plugin
+                        updates lead to broken sites and massive security vulnerabilities over time.</p>
+                    <div class="pt-4 border-t border-white/10">
+                        <p class="text-green-400 text-sm font-semibold flex items-start"><span class="mr-2">✓</span> No
+                            databases, no plugins, no hacks. Just secure, reliable code that never breaks or needs
+                            updating.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="py-24 bg-darker border-t border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-extrabold mb-4 text-white">Our Simple Process</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto text-lg">We respect your time. Get a high-performing digital
+                    storefront without the endless agency meetings.</p>
+            </div>
+
+            <ol class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 list-none m-0 p-0 relative">
+                <!-- Step 1 -->
+                <li class="relative flex flex-col items-center text-center">
+                    <div class="hidden lg:block absolute top-12 left-1/2 w-full h-0.5 bg-white/10 -z-10"></div>
+                    <div class="flex items-center justify-center mb-6">
+                        <div
+                            class="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center border-4 border-dark hover:scale-105 transition-transform duration-300 shadow-lg shadow-primary/20">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-white">Project Discovery</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">We start by learning about your business. Send over
+                        your details and branding, and our team will review your specific needs.</p>
+                </li>
+                <!-- Step 2 -->
+                <li class="relative flex flex-col items-center text-center">
+                    <div class="hidden lg:block absolute top-12 left-1/2 w-full h-0.5 bg-white/10 -z-10"></div>
+                    <div class="flex items-center justify-center mb-6">
+                        <div
+                            class="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center border-4 border-dark hover:scale-105 transition-transform duration-300 shadow-lg shadow-primary/20">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-white">Custom Development</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Our developers hand-code your lightning-fast
+                        website from scratch, ensuring it perfectly aligns with your brand.</p>
+                </li>
+                <!-- Step 3 -->
+                <li class="relative flex flex-col items-center text-center">
+                    <div class="hidden lg:block absolute top-12 left-1/2 w-full h-0.5 bg-white/10 -z-10"></div>
+                    <div class="flex items-center justify-center mb-6">
+                        <div
+                            class="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center border-4 border-dark hover:scale-105 transition-transform duration-300 shadow-lg shadow-primary/20">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-white">Review & Launch</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">We'll share a staging link for your feedback. Once
+                        you're completely satisfied, our team handles the live deployment.</p>
+                </li>
+                <!-- Step 4 -->
+                <li class="relative flex flex-col items-center text-center">
+                    <div class="flex items-center justify-center mb-6">
+                        <div
+                            class="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center border-4 border-dark hover:scale-105 transition-transform duration-300 shadow-lg shadow-primary/20">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-white">Ongoing Partnership</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">We stick around. Our monthly plan means our team
+                        handles your hosting, security, and updates while you run your business.</p>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- Portfolio Section -->
+    <section id="portfolio" class="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4">Recent Work</h2>
+            <p class="text-gray-400 max-w-2xl mx-auto">High-performance digital storefronts built specifically for local
+                service contractors.</p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-8">
+            <!-- Project 1 -->
+            <div class="bg-dark rounded-xl overflow-hidden border border-white/10 group flex flex-col">
+                <div class="relative overflow-hidden aspect-video bg-[#0f172a]">
+                    <img src="img/624Films-Screenshot.webp" alt="624 Films Project"
+                        class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500">
+                    <div
+                        class="absolute inset-0 bg-primary/20 group-hover:bg-transparent transition-colors duration-500">
+                    </div>
+                </div>
+                <div class="p-6 flex-1 flex flex-col">
+                    <h3 class="text-lg md:text-xl font-bold mb-2 min-h-[3.5rem] line-clamp-2">624 Films</h3>
+                    <p class="text-gray-400 text-sm mb-6 flex-1">A media production company specializing in Real Estate
+                        Media, Dance Recitals, and Wedding Videos. Specialty pages for each.</p>
+                    <a href="https://624films.com" target="_blank" rel="noopener noreferrer"
+                        class="inline-flex items-center justify-center w-full bg-white/10 hover:bg-primary text-white py-3 rounded-lg font-semibold transition-colors mt-auto">
+                        View Live Site
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Project 2 -->
+            <div class="bg-dark rounded-xl overflow-hidden border border-white/10 group flex flex-col">
+                <div class="relative overflow-hidden aspect-video bg-[#0f172a]">
+                    <img src="img/ForeverMoments-Screenshot.webp" alt="Forever Moments Project"
+                        class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500">
+                    <div
+                        class="absolute inset-0 bg-primary/20 group-hover:bg-transparent transition-colors duration-500">
+                    </div>
+                </div>
+                <div class="p-6 flex-1 flex flex-col">
+                    <h3 class="text-lg md:text-xl font-bold mb-2 min-h-[3.5rem] line-clamp-2">Forever Moments Photo
+                        Booths</h3>
+                    <p class="text-gray-400 text-sm mb-6 flex-1">An Appleton WI based photo booth rental business with a
+                        seamless inquiry flow.</p>
+                    <a href="https://forevermomentswi.com" target="_blank" rel="noopener noreferrer"
+                        class="inline-flex items-center justify-center w-full bg-white/10 hover:bg-primary text-white py-3 rounded-lg font-semibold transition-colors mt-auto">
+                        View Live Site
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Project 3 -->
+            <div class="bg-dark rounded-xl overflow-hidden border border-white/10 group flex flex-col">
+                <div class="relative overflow-hidden aspect-video bg-[#0f172a]">
+                    <img src="img/JKB-Screenshot.webp" alt="Joseph Kain Builders Project"
+                        class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500">
+                    <div
+                        class="absolute inset-0 bg-primary/20 group-hover:bg-transparent transition-colors duration-500">
+                    </div>
+                </div>
+                <div class="p-6 flex-1 flex flex-col">
+                    <h3 class="text-lg md:text-xl font-bold mb-2 min-h-[3.5rem] line-clamp-2">Joseph Kain Builders</h3>
+                    <p class="text-gray-400 text-sm mb-6 flex-1">High-end portfolio showcase focusing on large project
+                        imagery and clean typography.</p>
+                    <a href="https://thewoodrows.us/JKB/index.html" target="_blank" rel="noopener noreferrer"
+                        class="inline-flex items-center justify-center w-full bg-white/10 hover:bg-primary text-white py-3 rounded-lg font-semibold transition-colors mt-auto">
+                        View Live Site
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-24 bg-dark relative border-t border-white/5">
+        <div
+            class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none">
+        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Clear, Upfront Pricing</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">No hidden fees, no surprise invoices. Just high-quality web
+                    development priced fairly.</p>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-8 mb-12 max-w-6xl mx-auto">
+                <!-- Starter Plan -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col">
+                    <h3 class="text-2xl font-bold mb-2">Starter</h3>
+                    <p class="text-gray-400 text-sm mb-6">Perfect for new businesses needing a professional web presence
+                        quickly.</p>
+                    <div class="mb-6">
+                        <span class="text-4xl font-extrabold">$595</span>
+                        <span class="text-gray-400 text-sm"> / one-time</span>
+                    </div>
+                    <ul class="space-y-4 mb-8 flex-1">
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Home page + up to 3 additional pages</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Mobile optimized</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Lead capture form</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Basic local SEO setup</span></li>
+                    </ul>
+                </div>
+
+                <!-- Pro Plan -->
+                <div
+                    class="bg-primary/10 border-2 border-primary rounded-2xl p-8 flex flex-col relative transform lg:-translate-y-4 shadow-2xl shadow-primary/20">
+                    <div
+                        class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-primary text-white text-xs font-bold uppercase tracking-wider py-1 px-4 rounded-full">
+                        Most Popular
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2">Pro</h3>
+                    <p class="text-blue-200/80 text-sm mb-6">The standard for established local service companies
+                        looking to grow.</p>
+                    <div class="mb-6">
+                        <span class="text-4xl font-extrabold">$995</span>
+                        <span class="text-blue-200/60 text-sm"> / one-time</span>
+                    </div>
+                    <ul class="space-y-4 mb-8 flex-1">
+                        <li class="flex items-start"><svg class="w-5 h-5 text-primary mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-100">Home page + up to 6 additional pages</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-primary mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-100">Advanced local SEO optimized</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-primary mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-100">Lighthouse performance tuning</span></li>
+                    </ul>
+                </div>
+
+                <!-- Premium Plan -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col">
+                    <h3 class="text-2xl font-bold mb-2">Premium</h3>
+                    <p class="text-gray-400 text-sm mb-6">Complete market dominance for industry leaders in the region.
+                    </p>
+                    <div class="mb-6">
+                        <span class="text-4xl font-extrabold">$1,695</span>
+                        <span class="text-gray-400 text-sm"> / one-time</span>
+                    </div>
+                    <ul class="space-y-4 mb-8 flex-1">
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Up to 10 custom pages</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Google Business Profile setup</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Custom on-site drone photography</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">Professional team & service photos</span></li>
+                        <li class="flex items-start"><svg class="w-5 h-5 text-green-400 mr-3 shrink-0" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg><span class="text-sm text-gray-300">6 Months "Peace of Mind" Plan Included</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Optional Add-Ons -->
+            <div class="max-w-5xl mx-auto mb-12">
+                <h3 class="text-2xl font-bold mb-6 text-white text-center md:text-left">Optional Add-Ons</h3>
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between">
+                    <div class="md:w-2/3 mb-6 md:mb-0 md:pr-8">
+                        <div class="flex items-center mb-3">
+                            <svg class="w-6 h-6 text-primary mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <h4 class="text-xl font-bold text-white">Professional Brand Photography</h4>
+                        </div>
+                        <p class="text-gray-400 text-sm leading-relaxed mb-4">
+                            Stock photos make you look like a faceless corporation. Authentic photos of you, your team, and your workspace build immediate trust with your customers.
+                        </p>
+                        <ul class="grid sm:grid-cols-2 gap-3">
+                            <li class="flex items-center text-sm text-gray-300"><span class="text-primary mr-2 font-bold">+</span> Up to 2 hours on-site</li>
+                            <li class="flex items-center text-sm text-gray-300"><span class="text-primary mr-2 font-bold">+</span> 15–25 edited, high-res images</li>
+                            <li class="flex items-center text-sm text-gray-300"><span class="text-primary mr-2 font-bold">+</span> Team headshots & action shots</li>
+                            <li class="flex items-center text-sm text-gray-300"><span class="text-primary mr-2 font-bold">+</span> Full usage rights included</li>
+                        </ul>
+                    </div>
+                    <div class="md:w-1/3 text-left md:text-center border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
+                        <div class="text-4xl font-extrabold text-white mb-2">$495</div>
+                        <p class="text-sm text-gray-400">One-time flat rate</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center mb-20">
+                <a href="https://forms.gle/nxPUNbKfZFgYV4hd8" target="_blank" rel="noopener noreferrer"
+                    class="bg-primary hover:bg-primaryHover text-white px-10 py-4 rounded-lg font-bold text-lg transition-all shadow-xl shadow-primary/30 inline-flex items-center justify-center">
+                    Start Your Project
+                </a>
+            </div>
+
+            <!-- Monthly Care Plan Banner -->
+            <div
+                class="bg-gradient-to-br from-slate-800 to-darker border border-white/20 rounded-2xl p-8 md:p-12 max-w-5xl mx-auto shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-primary/20 rounded-full blur-3xl"></div>
+                <div class="relative z-10 md:flex items-center justify-between">
+                    <div class="md:w-2/3 pr-0 md:pr-8 mb-8 md:mb-0">
+                        <h3 class="text-2xl md:text-3xl font-bold mb-4 text-white">The "Peace of Mind" Plan</h3>
+                        <p class="text-gray-300 mb-6 leading-relaxed">
+                            Websites shouldn't be a second job. After your site is built, our flat-rate management plan
+                            keeps everything running perfectly behind the scenes so you can focus on your business.
+                        </p>
+                        <ul class="grid sm:grid-cols-2 gap-3">
+                            <li class="flex items-center text-sm text-gray-300"><span
+                                    class="text-primary mr-2 font-bold">+</span> Premium global hosting</li>
+                            <li class="flex items-center text-sm text-gray-300"><span
+                                    class="text-primary mr-2 font-bold">+</span> Enterprise SSL security</li>
+                            <li class="flex items-center text-sm text-gray-300"><span
+                                    class="text-primary mr-2 font-bold">+</span> Domain name management</li>
+                            <li class="flex items-center text-sm text-gray-300"><span
+                                    class="text-primary mr-2 font-bold">+</span> Minor monthly content updates</li>
+                        </ul>
+                    </div>
+                    <div
+                        class="md:w-1/3 text-left md:text-center border-t md:border-t-0 md:border-l border-white/10 pt-8 md:pt-0 md:pl-8">
+                        <div class="text-5xl font-extrabold text-white mb-2">$89<span
+                                class="text-xl font-normal text-gray-400">/mo</span></div>
+                        <p class="text-sm text-gray-400 mb-4">Flat monthly fee. No surprises.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA Section -->
+    <section class="py-24 bg-primary relative overflow-hidden">
+        <div
+            class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9InJnYmEoMjU1LCAyNTUsIDI1NSwgMC4xKSIvPjwvc3ZnPg==')] opacity-30">
+        </div>
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+            <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">Ready to upgrade your digital
+                presence?</h2>
+            <p class="text-blue-100 text-lg md:text-xl mb-10 max-w-2xl mx-auto">
+                Fill out our quick intake form. We'll review your current online footprint and reach out to discuss how
+                we can help your business grow.
+            </p>
+            <a href="https://forms.gle/nxPUNbKfZFgYV4hd8" target="_blank" rel="noopener noreferrer"
+                class="inline-flex items-center justify-center bg-white text-primary hover:bg-gray-100 px-10 py-5 rounded-lg font-bold text-xl transition-all shadow-2xl hover:scale-105 transform duration-200">
+                Start Your Build Now
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-darker py-12 border-t border-white/10 text-center md:text-left">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-6 md:mb-0">
+                <a href="#" class="text-2xl font-bold text-white tracking-tight">624<span
+                        class="text-primary">Siteworks</span></a>
+                <p class="text-gray-500 text-sm mt-2">Engineered in Northeast Wisconsin.</p>
+            </div>
+            <div class="text-gray-500 text-sm flex flex-col md:items-end">
+                <p>&copy; 2026 624 Siteworks. All rights reserved.</p>
+                <a href="mailto:contact@624siteworks.com"
+                    class="hover:text-white transition-colors mt-1">hello@624siteworks.com</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

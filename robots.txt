@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://624siteworks.com/sitemap.xml
+
+# Specifically welcoming AI Bots for AI Search Engines
+User-agent: GPTBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: CCBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: Omgilibot
+Allow: /
