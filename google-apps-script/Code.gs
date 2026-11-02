@@ -1,9 +1,9 @@
 /**
  * ============================================================================
- * 624 SITEWORKS — AUTOMATED LEAD & SPEC-SITE PIPELINE (Google Apps Script)
+ * 624 SITEWORKS - AUTOMATED LEAD & SPEC-SITE PIPELINE (Google Apps Script)
  * ============================================================================
  * Location: Appleton, WI (Fox Valley & Northeast Wisconsin)
- * Owner: Jason Woodrow — 624 Siteworks (https://624siteworks.com)
+ * Owner: Jason Woodrow - 624 Siteworks (https://624siteworks.com)
  *
  * SUPPORTED GOOGLE MAPS SCRAPERS (Gate 1):
  *   Option A (Recommended Free / No Credit Card): Serper.dev (https://serper.dev)
@@ -11,11 +11,11 @@
  *   Option B: Outscraper (https://outscraper.com)
  *
  * PIPELINE GATES:
- *   Gate 1: promptAndScrapeLeads()         -> Status: "1. Scraped"
+ *   Gate 1: promptAndScrapeLeads()          -> Status: "1. Scraped"
  *   (Human Review: Change Col R to "Approve Research")
- *   Gate 2: enrichApprovedLeadsWithAI()    -> Status: "2. Prompt Ready" (Col Q auto-builds prompt)
+ *   Gate 2: enrichApprovedLeadsWithAI()     -> Status: "2. Prompt Ready" (Col Q auto-builds prompt)
  *   (Human Build: Paste Col Q into Antigravity IDE, run 624deploy, paste .pages.dev URL in Col T, set Col R to "Ready to Email")
- *   Gate 4: createDraftsForApprovedBuilds()-> Status: "5. Draft Created" (HTML Gmail draft + inline screenshot)
+ *   Gate 4: createDraftsForApprovedBuilds() -> Status: "5. Draft Created" (HTML Gmail draft + inline screenshot)
  * ============================================================================
  */
 
@@ -70,17 +70,18 @@ const STATUS = {
 };
 
 /**
- * Adds the custom "🚀 624 Lead Engine" menu on spreadsheet open.
+ * Adds the custom "624 Lead Engine" menu on spreadsheet open.
+ * Uses Unicode escapes so Windows/browser copy-paste never garbles icons.
  */
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('🚀 624 Lead Engine')
-    .addItem('1️⃣ Gate 1: Scrape Local Leads (Serper / Outscraper)', 'promptAndScrapeLeads')
-    .addItem('2️⃣ Gate 2: Enrich Approved Leads (Gemini AI)', 'enrichApprovedLeadsWithAI')
-    .addItem('4️⃣ Gate 4: Create Gmail Drafts for Previews', 'createDraftsForApprovedBuilds')
+    .createMenu('\uD83D\uDE80 624 Lead Engine')
+    .addItem('1. Gate 1: Scrape Local Leads (Serper / Outscraper)', 'promptAndScrapeLeads')
+    .addItem('2. Gate 2: Enrich Approved Leads (Gemini AI)', 'enrichApprovedLeadsWithAI')
+    .addItem('4. Gate 4: Create Gmail Drafts for Previews', 'createDraftsForApprovedBuilds')
     .addSeparator()
-    .addItem('🛠️ Initialize / Repair "Prospect Pipeline" Tab', 'initializeProspectPipelineSheet')
-    .addItem('🔑 Configure API Keys (Serper / Outscraper & Gemini)', 'configureApiKeysPrompt')
+    .addItem('Initialize / Repair "Prospect Pipeline" Tab', 'initializeProspectPipelineSheet')
+    .addItem('Configure API Keys (Serper & Gemini)', 'configureApiKeysPrompt')
     .addToUi();
 }
 
@@ -93,7 +94,7 @@ function configureApiKeysPrompt() {
   const props = PropertiesService.getScriptProperties();
 
   const serperResp = ui.prompt(
-    '🔑 Step 1 of 2: Serper.dev API Key (FREE — No Credit Card)',
+    'Step 1 of 2: Serper.dev API Key (FREE - No Credit Card)',
     'Sign up at https://serper.dev for 2,500 free Google Maps searches.\nPaste your Serper API Key here (leave blank to keep existing):',
     ui.ButtonSet.OK_CANCEL
   );
@@ -103,7 +104,7 @@ function configureApiKeysPrompt() {
   }
 
   const geminiResp = ui.prompt(
-    '🔑 Step 2 of 2: Google Gemini API Key (FREE at aistudio.google.com)',
+    'Step 2 of 2: Google Gemini API Key (FREE at aistudio.google.com)',
     'Enter your Google Gemini API Key (leave blank to keep existing):',
     ui.ButtonSet.OK_CANCEL
   );
@@ -111,7 +112,7 @@ function configureApiKeysPrompt() {
     props.setProperty('GEMINI_API_KEY', geminiResp.getResponseText().trim());
   }
 
-  ui.alert('✅ API Keys saved! You can now run Gate 1.');
+  ui.alert('API Keys saved! You can now run Gate 1.');
 }
 
 /**
@@ -216,8 +217,8 @@ function promptAndScrapeLeads() {
 
   if (!serperKey && !outscraperKey) {
     ui.alert(
-      '⚠️ Missing Scraper API Key',
-      'Please run "🚀 624 Lead Engine -> 🔑 Configure API Keys" first.\n\nTip: Get a free API key with 2,500 searches (no credit card required) at https://serper.dev',
+      'Missing Scraper API Key',
+      'Please run "624 Lead Engine -> Configure API Keys" first.\n\nTip: Get a free API key with 2,500 searches (no credit card required) at https://serper.dev',
       ui.ButtonSet.OK
     );
     return;
@@ -225,8 +226,8 @@ function promptAndScrapeLeads() {
 
   const providerLabel = serperKey ? 'Serper.dev (Free Tier)' : 'Outscraper';
   const promptResp = ui.prompt(
-    `🔍 Gate 1: Scrape Local Service Leads via ${providerLabel}`,
-    'Enter Google Maps search query (e.g., "Roofing contractor, Appleton, WI"):',
+    'Gate 1: Scrape Local Service Leads via ' + providerLabel,
+    'Enter Google Maps search query (e.g., "Concrete contractor, Appleton, WI"):',
     ui.ButtonSet.OK_CANCEL
   );
   if (promptResp.getSelectedButton() !== ui.Button.OK) return;
@@ -238,15 +239,18 @@ function promptAndScrapeLeads() {
   }
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME) || initializeProspectPipelineSheet();
+  sheet.activate();
 
-  // Collect existing business names to prevent duplicates
-  const lastRow = sheet.getLastRow();
+  // Find true last populated row in Column B (Business Name) & collect existing names
+  const colBValues = sheet.getRange(1, COL.BUSINESS_NAME, Math.max(sheet.getLastRow(), 1), 1).getValues();
   const existingNames = new Set();
-  if (lastRow >= 2) {
-    const names = sheet.getRange(2, COL.BUSINESS_NAME, lastRow - 1, 1).getValues();
-    names.forEach(r => {
-      if (r[0]) existingNames.add(String(r[0]).trim().toLowerCase());
-    });
+  let lastPopulatedRow = 1;
+  for (let r = 1; r < colBValues.length; r++) {
+    const cellVal = String(colBValues[r][0] || '').trim();
+    if (cellVal) {
+      existingNames.add(cellVal.toLowerCase());
+      lastPopulatedRow = r + 1;
+    }
   }
 
   let normalizedPlaces = [];
@@ -257,7 +261,7 @@ function promptAndScrapeLeads() {
       normalizedPlaces = fetchLeadsFromOutscraper_(outscraperKey, query);
     }
   } catch (err) {
-    ui.alert('❌ Scraper Error:\n' + err.message);
+    ui.alert('Scraper Error:\n' + err.message);
     return;
   }
 
@@ -285,7 +289,7 @@ function promptAndScrapeLeads() {
     let email = (item.email || '').trim();
     let logoUrl = (item.logo || '').trim();
 
-    // Crawl website for email (and fallback Facebook/logo if using Serper)
+    // Crawl website for email (and fallback Facebook if using Serper)
     if (!email && siteUrl && !siteUrl.includes('facebook.com')) {
       const crawled = crawlWebsiteForContactInfo_(siteUrl);
       if (crawled.email) {
@@ -301,7 +305,7 @@ function promptAndScrapeLeads() {
     const hoursStr = formatWorkingHours_(item.working_hours);
     const ratingVal = item.rating ? Number(item.rating).toFixed(1) : '5.0';
     const tradeType = item.type || query.split(',')[0].trim();
-    const ratingBadge = `${ratingVal} ★ (${reviewsCount} reviews) - ${tradeType}`;
+    const ratingBadge = ratingVal + ' \u2605 (' + reviewsCount + ' reviews) - ' + tradeType;
 
     // Build 21-column row (leaving Col Q blank so ARRAYFORMULA in Q1 populates it)
     const row = new Array(21).fill('');
@@ -320,18 +324,23 @@ function promptAndScrapeLeads() {
   }
 
   if (!rowsToInsert.length) {
-    ui.alert('ℹ️ No new leads matched the filter (reviews >= ' + CONFIG.MIN_REVIEWS + ').');
+    ui.alert('No new leads matched the filter (reviews >= ' + CONFIG.MIN_REVIEWS + ').');
     return;
   }
 
-  const startRow = sheet.getLastRow() + 1;
-  sheet.getRange(startRow, 1, rowsToInsert.length, 21).setValues(rowsToInsert);
+  const startRow = lastPopulatedRow + 1;
+  const leftCols = rowsToInsert.map(r => r.slice(0, 16));   // Cols A-P (1..16)
+  const rightCols = rowsToInsert.map(r => r.slice(17, 21)); // Cols R-U (18..21), leaving Col Q untouched for ARRAYFORMULA
+  sheet.getRange(startRow, 1, rowsToInsert.length, 16).setValues(leftCols);
+  sheet.getRange(startRow, 18, rowsToInsert.length, 4).setValues(rightCols);
+  sheet.activate();
+  sheet.getRange(startRow, COL.BUSINESS_NAME).activate();
 
   ui.alert(
-    `✅ Gate 1 Complete (${providerLabel})`,
-    `Added ${rowsToInsert.length} qualified leads to "${CONFIG.SHEET_NAME}".\n` +
-    `Website crawler extracted ${crawledEmailCount} email(s) directly from business websites.\n\n` +
-    `Next Step: Review new rows and change Column R (Lead Status) to "${STATUS.APPROVE_RESEARCH}" for the leads you want Gemini AI to enrich.`,
+    'Gate 1 Complete (' + providerLabel + ')',
+    'Added ' + rowsToInsert.length + ' qualified leads to "' + CONFIG.SHEET_NAME + '".\n' +
+    'Website crawler extracted ' + crawledEmailCount + ' email(s) directly from business websites.\n\n' +
+    'Next Step: Review new rows and change Column R (Lead Status) to "' + STATUS.APPROVE_RESEARCH + '" for the leads you want Gemini AI to enrich.',
     ui.ButtonSet.OK
   );
 }
@@ -352,7 +361,7 @@ function fetchLeadsFromSerper_(apiKey, query) {
   const code = resp.getResponseCode();
   const text = resp.getContentText();
   if (code < 200 || code >= 300) {
-    throw new Error(`Serper.dev HTTP ${code}: ${text.slice(0, 300)}`);
+    throw new Error('Serper.dev HTTP ' + code + ': ' + text.slice(0, 300));
   }
 
   const data = JSON.parse(text);
@@ -399,7 +408,7 @@ function fetchLeadsFromOutscraper_(apiKey, query) {
   const code = resp.getResponseCode();
   const text = resp.getContentText();
   if (code < 200 || code >= 300) {
-    throw new Error(`Outscraper HTTP ${code}: ${text.slice(0, 300)}`);
+    throw new Error('Outscraper HTTP ' + code + ': ' + text.slice(0, 300));
   }
 
   const payload = JSON.parse(text);
@@ -428,7 +437,7 @@ function enrichApprovedLeadsWithAI() {
   const ui = SpreadsheetApp.getUi();
   const geminiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   if (!geminiKey) {
-    ui.alert('⚠️ Missing Gemini API Key', 'Please run "🚀 624 Lead Engine -> 🔑 Configure API Keys" first.', ui.ButtonSet.OK);
+    ui.alert('Missing Gemini API Key', 'Please run "624 Lead Engine -> Configure API Keys" first.', ui.ButtonSet.OK);
     return;
   }
 
@@ -486,14 +495,14 @@ function enrichApprovedLeadsWithAI() {
       enrichedCount++;
       SpreadsheetApp.flush();
     } catch (err) {
-      errors.push(`Row ${rowNumber} (${bizName}): ${err.message}`);
+      errors.push('Row ' + rowNumber + ' (' + bizName + '): ' + err.message);
     }
   }
 
-  let summary = `✅ Gate 2 Complete: Enriched ${enrichedCount} lead(s) to "${STATUS.PROMPT_READY}".\n` +
-    `Column Q now contains the ready-to-paste Antigravity IDE prompts.`;
+  let summary = 'Gate 2 Complete: Enriched ' + enrichedCount + ' lead(s) to "' + STATUS.PROMPT_READY + '".\n' +
+    'Column Q now contains the ready-to-paste Antigravity IDE prompts.';
   if (errors.length) {
-    summary += `\n\n⚠️ Errors (${errors.length}):\n` + errors.join('\n');
+    summary += '\n\nErrors (' + errors.length + '):\n' + errors.join('\n');
   }
   ui.alert(summary);
 }
@@ -503,26 +512,26 @@ function enrichApprovedLeadsWithAI() {
  * trade-specific brand vibe, 3 core services with 2-sentence local SEO copy, and a primary trust factor.
  */
 function callGeminiForLeadEnrichment_(apiKey, context) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + CONFIG.GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
 
   const systemPrompt =
-    `You are a senior local-SEO conversion copywriter for 624 Siteworks in Appleton, Wisconsin.\n` +
-    `Generate website intake fields for the following local service contractor:\n` +
-    `- Business Name: ${context.bizName}\n` +
-    `- Service Area: ${context.serviceArea}\n` +
-    `- Google Rating & Trade Info: ${context.ratingBadge}\n` +
-    `- Current Domain / Web Presence: ${context.domainStatus}\n\n` +
-    `Return ONLY a JSON object with these exact keys:\n` +
-    `{\n` +
-    `  "vibe": "Specific brand color palette (hex codes + color names) and aesthetic vibe tailored to their trade",\n` +
-    `  "service1Name": "Core Service 1 Title",\n` +
-    `  "service1Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy mentioning Fox Valley / Appleton area.",\n` +
-    `  "service2Name": "Core Service 2 Title",\n` +
-    `  "service2Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy mentioning Northeast Wisconsin.",\n` +
-    `  "service3Name": "Core Service 3 Title",\n` +
-    `  "service3Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy emphasizing craftsmanship and reliability.",\n` +
-    `  "trustFactor": "Punchy trust subheadline highlighting their exact Google star rating, review count, and local reputation"\n` +
-    `}`;
+    'You are a senior local-SEO conversion copywriter for 624 Siteworks in Appleton, Wisconsin.\n' +
+    'Generate website intake fields for the following local service contractor:\n' +
+    '- Business Name: ' + context.bizName + '\n' +
+    '- Service Area: ' + context.serviceArea + '\n' +
+    '- Google Rating & Trade Info: ' + context.ratingBadge + '\n' +
+    '- Current Domain / Web Presence: ' + context.domainStatus + '\n\n' +
+    'Return ONLY a JSON object with these exact keys:\n' +
+    '{\n' +
+    '  "vibe": "Specific brand color palette (hex codes + color names) and aesthetic vibe tailored to their trade",\n' +
+    '  "service1Name": "Core Service 1 Title",\n' +
+    '  "service1Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy mentioning Fox Valley / Appleton area.",\n' +
+    '  "service2Name": "Core Service 2 Title",\n' +
+    '  "service2Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy mentioning Northeast Wisconsin.",\n' +
+    '  "service3Name": "Core Service 3 Title",\n' +
+    '  "service3Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy emphasizing craftsmanship and reliability.",\n' +
+    '  "trustFactor": "Punchy trust subheadline highlighting their exact Google star rating, review count, and local reputation"\n' +
+    '}';
 
   const requestBody = {
     contents: [{ parts: [{ text: systemPrompt }] }],
@@ -540,7 +549,7 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
   });
 
   if (resp.getResponseCode() < 200 || resp.getResponseCode() >= 300) {
-    throw new Error(`Gemini API HTTP ${resp.getResponseCode()}: ${resp.getContentText().slice(0, 250)}`);
+    throw new Error('Gemini API HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().slice(0, 250));
   }
 
   const parsed = JSON.parse(resp.getContentText());
@@ -584,28 +593,28 @@ function createDraftsForApprovedBuilds() {
 
     if (status !== STATUS.READY_TO_EMAIL) continue;
     if (!previewUrl || !previewUrl.includes('.pages.dev')) {
-      errors.push(`Row ${rowNumber}: Missing valid .pages.dev URL in Column T.`);
+      errors.push('Row ' + rowNumber + ': Missing valid .pages.dev URL in Column T.');
       continue;
     }
 
     const bizName = String(row[COL.BUSINESS_NAME - 1] || '').trim();
     const recipientEmail = String(row[COL.EMAIL - 1] || '').trim();
     if (!recipientEmail) {
-      errors.push(`Row ${rowNumber} (${bizName}): Missing recipient email in Column N.`);
+      errors.push('Row ' + rowNumber + ' (' + bizName + '): Missing recipient email in Column N.');
       continue;
     }
 
     try {
       const screenshotBlob = captureSiteScreenshotBlob_(previewUrl, bizName);
-      const claimUrl = `${CONFIG.CLAIM_BASE_URL}?business=${encodeURIComponent(bizName)}&preview=${encodeURIComponent(previewUrl)}`;
+      const claimUrl = CONFIG.CLAIM_BASE_URL + '?business=' + encodeURIComponent(bizName) + '&preview=' + encodeURIComponent(previewUrl);
 
-      const subject = `I built a custom website concept for ${bizName} (Preview inside)`;
+      const subject = 'I built a custom website concept for ' + bizName + ' (Preview inside)';
       const plainBody =
-        `Hi ${bizName} team,\n\n` +
-        `I'm Jason Woodrow with 624 Siteworks right here in Appleton. I noticed your strong local reputation and put together a live, mobile-optimized 4-page website concept tailored specifically for ${bizName}.\n\n` +
-        `View your live interactive preview here:\n${previewUrl}\n\n` +
-        `If you like the direction, we can customize any text, photos, or branding and launch it on your domain for a flat one-time build fee:\n${claimUrl}\n\n` +
-        `Best regards,\nJason Woodrow\n624 Siteworks — Appleton, WI\n${CONFIG.AGENCY_URL}`;
+        'Hi ' + bizName + ' team,\n\n' +
+        'I\'m Jason Woodrow with 624 Siteworks right here in Appleton. I noticed your strong local reputation and put together a live, mobile-optimized 4-page website concept tailored specifically for ' + bizName + '.\n\n' +
+        'View your live interactive preview here:\n' + previewUrl + '\n\n' +
+        'If you like the direction, we can customize any text, photos, or branding and launch it on your domain for a flat one-time build fee:\n' + claimUrl + '\n\n' +
+        'Best regards,\nJason Woodrow\n624 Siteworks - Appleton, WI\n' + CONFIG.AGENCY_URL;
 
       const htmlBody = buildHtmlPitchEmail_({
         bizName: bizName,
@@ -625,18 +634,18 @@ function createDraftsForApprovedBuilds() {
 
       const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
       sheet.getRange(rowNumber, COL.LEAD_STATUS).setValue(STATUS.DRAFT_CREATED);
-      sheet.getRange(rowNumber, COL.NOTES).setValue(`Draft created ${timestamp} -> ${recipientEmail} (${previewUrl})`);
+      sheet.getRange(rowNumber, COL.NOTES).setValue('Draft created ' + timestamp + ' -> ' + recipientEmail + ' (' + previewUrl + ')');
 
       draftCount++;
       SpreadsheetApp.flush();
     } catch (err) {
-      errors.push(`Row ${rowNumber} (${bizName}): ${err.message}`);
+      errors.push('Row ' + rowNumber + ' (' + bizName + '): ' + err.message);
     }
   }
 
-  let msg = `✅ Gate 4 Complete: Created ${draftCount} HTML Gmail draft(s) with embedded preview screenshots.`;
+  let msg = 'Gate 4 Complete: Created ' + draftCount + ' HTML Gmail draft(s) with embedded preview screenshots.';
   if (errors.length) {
-    msg += `\n\n⚠️ Skipped / Errors (${errors.length}):\n` + errors.join('\n');
+    msg += '\n\nSkipped / Errors (' + errors.length + '):\n' + errors.join('\n');
   }
   ui.alert(msg);
 }
@@ -656,7 +665,7 @@ function captureSiteScreenshotBlob_(previewUrl, bizName) {
   });
 
   if (response.getResponseCode() >= 200 && response.getResponseCode() < 300) {
-    return response.getBlob().setName(`${safeSlug}-preview.png`);
+    return response.getBlob().setName(safeSlug + '-preview.png');
   }
   return null;
 }
@@ -666,43 +675,37 @@ function captureSiteScreenshotBlob_(previewUrl, bizName) {
  */
 function buildHtmlPitchEmail_(data) {
   const screenshotMarkup = data.hasInlineScreenshot
-    ? `<div style="margin: 24px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);">
-         <a href="${data.previewUrl}" target="_blank" style="display: block; text-decoration: none;">
-           <img src="cid:sitePreview" alt="${data.bizName} Concept Website Preview" style="display: block; width: 100%; max-width: 640px; height: auto; border: 0;" />
-         </a>
-       </div>`
+    ? '<div style="margin: 24px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);">' +
+        '<a href="' + data.previewUrl + '" target="_blank" style="display: block; text-decoration: none;">' +
+          '<img src="cid:sitePreview" alt="' + data.bizName + ' Concept Website Preview" style="display: block; width: 100%; max-width: 640px; height: auto; border: 0;" />' +
+        '</a>' +
+      '</div>'
     : '';
 
-  return `
-  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 640px; line-height: 1.6; font-size: 16px;">
-    <p style="margin-top: 0;">Hi <strong>${data.bizName}</strong> team,</p>
-
-    <p>I'm Jason Woodrow, founder of <strong>624 Siteworks</strong> right here in Appleton. While looking at top-rated local contractors in the Fox Valley, I noticed your strong Google reviews and decided to build a custom, blazing-fast 4-page website concept specifically for <strong>${data.bizName}</strong>.</p>
-
-    <p style="margin: 22px 0;">
-      <a href="${data.previewUrl}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 26px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">
-        👉 View Your Live Interactive Website Preview
-      </a>
-    </p>
-
-    ${screenshotMarkup}
-
-    <p style="font-size: 14px; color: #475569; margin-top: 8px;">
-      <em>Click the image above or visit <a href="${data.previewUrl}" style="color: #2563eb;">${data.previewUrl}</a> to test it on your phone or computer.</em>
-    </p>
-
-    <p>Unlike bloated WordPress templates that load slowly and require constant plugin updates, we hand-craft clean static websites engineered to rank locally in Northeast Wisconsin and turn visitors into phone calls.</p>
-
-    <p><strong>What happens if you like it?</strong><br/>
-    There's zero obligation. If you'd like to claim this site, we hop on a quick call to tweak any photos, services, or wording, and connect it to your domain. You can view our flat-rate build options or lock in this design directly here: <a href="${data.claimUrl}" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>
-
-    <p style="margin-top: 28px; margin-bottom: 4px;">Best regards,</p>
-    <p style="margin: 0;">
-      <strong>Jason Woodrow</strong><br/>
-      624 Siteworks | Appleton, WI<br/>
-      <a href="${CONFIG.AGENCY_URL}" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>
-    </p>
-  </div>`;
+  return (
+    '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 640px; line-height: 1.6; font-size: 16px;">' +
+      '<p style="margin-top: 0;">Hi <strong>' + data.bizName + '</strong> team,</p>' +
+      '<p>I\'m Jason Woodrow, founder of <strong>624 Siteworks</strong> right here in Appleton. While looking at top-rated local contractors in the Fox Valley, I noticed your strong Google reviews and decided to build a custom, blazing-fast 4-page website concept specifically for <strong>' + data.bizName + '</strong>.</p>' +
+      '<p style="margin: 22px 0;">' +
+        '<a href="' + data.previewUrl + '" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 26px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">' +
+          'View Your Live Interactive Website Preview &rarr;' +
+        '</a>' +
+      '</p>' +
+      screenshotMarkup +
+      '<p style="font-size: 14px; color: #475569; margin-top: 8px;">' +
+        '<em>Click the image above or visit <a href="' + data.previewUrl + '" style="color: #2563eb;">' + data.previewUrl + '</a> to test it on your phone or computer.</em>' +
+      '</p>' +
+      '<p>Unlike bloated WordPress templates that load slowly and require constant plugin updates, we hand-craft clean static websites engineered to rank locally in Northeast Wisconsin and turn visitors into phone calls.</p>' +
+      '<p><strong>What happens if you like it?</strong><br/>' +
+      'There\'s zero obligation. If you\'d like to claim this site, we hop on a quick call to tweak any photos, services, or wording, and connect it to your domain. You can view our flat-rate build options or lock in this design directly here: <a href="' + data.claimUrl + '" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>' +
+      '<p style="margin-top: 28px; margin-bottom: 4px;">Best regards,</p>' +
+      '<p style="margin: 0;">' +
+        '<strong>Jason Woodrow</strong><br/>' +
+        '624 Siteworks | Appleton, WI<br/>' +
+        '<a href="' + CONFIG.AGENCY_URL + '" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>' +
+      '</p>' +
+    '</div>'
+  );
 }
 
 /* ============================================================================
@@ -796,15 +799,15 @@ function isValidBusinessEmail_(email, ignoredExtensions, ignoredDomains) {
  * Formats working_hours object, array, or string into a clean 1-line summary.
  */
 function formatWorkingHours_(workingHours) {
-  if (!workingHours) return 'Mon–Fri: 7:00 AM – 5:00 PM';
+  if (!workingHours) return 'Mon-Fri: 7:00 AM - 5:00 PM';
   if (typeof workingHours === 'string') return workingHours;
   if (Array.isArray(workingHours)) return workingHours.join(' | ');
   if (typeof workingHours === 'object') {
     return Object.entries(workingHours)
-      .map(([day, hrs]) => `${day}: ${hrs}`)
+      .map(([day, hrs]) => day + ': ' + hrs)
       .join(' | ');
   }
-  return 'Mon–Fri: 7:00 AM – 5:00 PM';
+  return 'Mon-Fri: 7:00 AM - 5:00 PM';
 }
 
 /**
@@ -815,10 +818,10 @@ function buildFallbackEmail_(bizName, domainStatus) {
     try {
       const host = domainStatus.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
       if (host && host.includes('.')) {
-        return `info@${host.toLowerCase()}`;
+        return 'info@' + host.toLowerCase();
       }
     } catch (e) {}
   }
   const slug = bizName.toLowerCase().replace(/[^a-z0-9]+/g, '');
-  return `info@${slug || 'business'}.com`;
+  return 'info@' + (slug || 'business') + '.com';
 }
