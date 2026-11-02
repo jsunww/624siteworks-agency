@@ -1,14 +1,12 @@
 <#
 .SYNOPSIS
-    624 Siteworks 1-Click Cloudflare Pages Deployment CLI (Windows PowerShell)
+    624 Siteworks 1-Click Cloudflare Deployment CLI (Windows PowerShell)
 .DESCRIPTION
-    Deploys a static spec-website directory to Cloudflare Pages (.pages.dev),
-    automatically creates the project if needed, strips deployment-hash subdomains,
-    and copies the clean root https://<slug>.pages.dev URL directly to your clipboard.
+    Deploys a static spec-website directory to the latest version of Cloudflare Pages
+    (now part of Cloudflare Workers), automatically creates the project config if needed,
+    and copies the clean live URL directly to your clipboard.
 .EXAMPLE
-    .\624deploy.ps1 "Fox Valley Roofing LLC"
-.EXAMPLE
-    .\624deploy.ps1 -BusinessName "Fox Valley Roofing LLC" -Directory "F:\624 SITEWORKS\Client Sites\FoxValleyRoofing"
+    .\624deploy.ps1 "Delrar Inc." "F:\624 SITEWORKS\Client Sites\delrar-inc"
 #>
 
 param(
@@ -42,38 +40,56 @@ if ([string]::IsNullOrWhiteSpace($Slug)) {
 }
 
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host " 🚀 624 Siteworks — Deploying Spec Site to Cloudflare Pages" -ForegroundColor Cyan
+Write-Host " 624 Siteworks - Deploying Spec Site to Cloudflare" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host " Business Name : $BusinessName"
 Write-Host " Project Slug  : $Slug"
 Write-Host " Source Folder : $ResolvedDir"
 Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
 
-# Step 1: Ensure Cloudflare Pages project exists (ignore error if it already exists)
-Write-Host "`n[1/2] Ensuring Cloudflare Pages project '$Slug' exists..." -ForegroundColor Yellow
-npx wrangler pages project create $Slug --production-branch=main 2>$null | Out-Null
+Push-Location $ResolvedDir
+try {
+    # Ensure wrangler.jsonc exists for static assets deployment
+    $WranglerConfigPath = Join-Path $ResolvedDir "wrangler.jsonc"
+    if (-not (Test-Path $WranglerConfigPath)) {
+        $CompatDate = (Get-Date).ToString("yyyy-MM-dd")
+        $ConfigJson = @"
+{
+  "name": "$Slug",
+  "compatibility_date": "$CompatDate",
+  "assets": {
+    "directory": "."
+  }
+}
+"@
+        Set-Content -Path $WranglerConfigPath -Value $ConfigJson -Encoding UTF8
+    }
 
-# Step 2: Deploy static directory to production branch
-Write-Host "[2/2] Deploying static files to '$Slug'..." -ForegroundColor Yellow
-$DeployOutput = npx wrangler pages deploy "$ResolvedDir" --project-name="$Slug" --branch=main --commit-dirty=true 2>&1
-$DeployOutput | ForEach-Object { Write-Host $_ }
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "❌ Cloudflare Pages deployment failed. Make sure you are logged in via 'npx wrangler login'."
-    exit $LASTEXITCODE
+    Write-Host "`nDeploying static files for '$Slug' via wrangler deploy..." -ForegroundColor Yellow
+    $DeployLines = cmd /c "npx wrangler deploy 2>&1"
+    $DeployExitCode = $LASTEXITCODE
+    $DeployText = $DeployLines -join "`n"
+    Write-Host $DeployText
+} finally {
+    Pop-Location
 }
 
-# Step 3: Extract root https://<slug>.pages.dev URL (stripping any deployment hash subdomain)
-$RootUrl = "https://$Slug.pages.dev"
-if ($DeployOutput -match 'https://(?:[a-z0-9]+\.)?([a-z0-9-]+\.pages\.dev)') {
-    $RootUrl = "https://$($Matches[1])"
+if ($DeployExitCode -ne 0) {
+    Write-Error "Cloudflare deployment failed. Make sure you are logged in via 'npx wrangler login'."
+    exit $DeployExitCode
+}
+
+# Extract live URL (.workers.dev or .pages.dev)
+$LiveUrl = "https://$Slug.jsunww.workers.dev"
+$RegexMatch = [regex]::Match($DeployText, 'https://[a-z0-9.-]+\.(?:workers|pages)\.dev')
+if ($RegexMatch.Success) {
+    $LiveUrl = $RegexMatch.Value
 }
 
 # Copy directly to Windows clipboard
-Set-Clipboard -Value $RootUrl
+Set-Clipboard -Value $LiveUrl
 
 Write-Host "`n============================================================" -ForegroundColor Green
-Write-Host " ✅ LIVE SPEC PREVIEW READY: $RootUrl" -ForegroundColor Green
-Write-Host " 📋 Copied to clipboard! Paste directly into Column T of your Google Sheet." -ForegroundColor Green
+Write-Host " LIVE SPEC PREVIEW READY: $LiveUrl" -ForegroundColor Green
+Write-Host " Copied to clipboard! Paste directly into Column T of your Google Sheet." -ForegroundColor Green
 Write-Host "============================================================`n" -ForegroundColor Green
-

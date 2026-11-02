@@ -927,8 +927,8 @@ function createDraftsForApprovedBuilds() {
     const previewUrl = String(row[COL.PREVIEW_URL - 1] || '').trim();
 
     if (status !== STATUS.READY_TO_EMAIL) continue;
-    if (!previewUrl || !previewUrl.includes('.pages.dev')) {
-      errors.push('Row ' + rowNumber + ': Missing valid .pages.dev URL in Column T.');
+    if (!previewUrl || (!previewUrl.includes('.pages.dev') && !previewUrl.includes('.workers.dev'))) {
+      errors.push('Row ' + rowNumber + ': Missing valid .pages.dev or .workers.dev URL in Column T.');
       continue;
     }
 
