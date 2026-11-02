@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-07ZVHY3BBN"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-07ZVHY3BBN');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Claim and finalize your custom website preview from 624 Siteworks. Lock in your build and optional Peace of Mind monthly maintenance plan.">
+    <title>Claim & Finalize Your Website | 624 Siteworks</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        primaryHover: '#1d4ed8',
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        light: '#f8fafc',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+        }
+    </style>
+</head>
+
+<body class="antialiased selection:bg-primary selection:text-white min-h-screen flex flex-col">
+
+    <!-- =====================================================================
+         STRIPE PAYMENT LINKS CONFIGURATION
+         Paste your Stripe Payment Link URLs from https://dashboard.stripe.com/payment-links
+         Tip: In Stripe, when creating a Payment Link for a recurring $89/mo subscription,
+         click "+ Add one-time item" to include the $595 or $995 build fee on the first invoice!
+         ===================================================================== -->
+    <script>
+        const STRIPE_PAYMENT_LINKS = {
+            // Starter ($595 one-time build)
+            starterWithCarePlan: 'https://buy.stripe.com/REPLACE_STARTER_PLUS_89_MO',    // $595 one-time + $89/mo recurring
+            starterBuildOnly:    'https://buy.stripe.com/REPLACE_STARTER_ONLY_595',      // $595 one-time only
+
+            // Pro ($995 one-time build — Most Popular)
+            proWithCarePlan:     'https://buy.stripe.com/REPLACE_PRO_PLUS_89_MO',        // $995 one-time + $89/mo recurring
+            proBuildOnly:        'https://buy.stripe.com/REPLACE_PRO_ONLY_995',          // $995 one-time only
+
+            // Premium ($1,695 one-time — Includes 6 Months Peace of Mind Plan)
+            premiumBuild:        'https://buy.stripe.com/REPLACE_PREMIUM_1695',          // $1,695 one-time
+
+            // Standalone "Peace of Mind" Monthly Plan ($89/mo) for existing clients
+            standaloneCarePlan:  'https://buy.stripe.com/REPLACE_CARE_PLAN_89_MO'
+        };
+    </script>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 bg-darker/90 backdrop-blur-md border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <div class="flex-shrink-0 flex items-center">
+                    <a href="index.html" class="block">
+                        <img src="img/624SWLogoSmall.webp" alt="624 Siteworks Logo" class="w-auto" style="height: 72px;">
+                    </a>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a id="nav-preview-link" href="#" target="_blank" rel="noopener noreferrer"
+                        class="hidden text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                        ← Back to Your Live Preview
+                    </a>
+                    <a href="mailto:hello@624siteworks.com"
+                        class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all border border-white/10">
+                        Questions? Email Jason
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero / Personalization Header -->
+    <main class="flex-1 pt-32 pb-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full">
+        <div class="text-center max-w-3xl mx-auto mb-12">
+            <div class="inline-flex items-center gap-2 mb-4 px-3.5 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-sm font-semibold text-blue-300">
+                <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                <span id="badge-text">Client Build &amp; Launch Portal</span>
+            </div>
+
+            <h1 class="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-5">
+                Claim &amp; Customize <span id="DynamicBusinessHeading" class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-400">Your New Website</span>
+            </h1>
+
+            <p class="text-gray-400 text-lg leading-relaxed">
+                Lock in your preview design below. Once payment is complete, we'll schedule a quick 1-on-1 kickoff call to refine your wording, swap in your preferred photos, and connect your domain.
+            </p>
+        </div>
+
+        <!-- Step-by-Step What Happens Next Banner -->
+        <div class="grid md:grid-cols-3 gap-4 mb-12 bg-dark/90 border border-white/10 rounded-2xl p-6">
+            <div class="flex items-start gap-3.5">
+                <div class="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 text-blue-300 font-bold flex items-center justify-center shrink-0">1</div>
+                <div>
+                    <h2 class="font-bold text-white text-sm">Select Your Build Package</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Choose your page tier and whether you want us to handle hosting &amp; monthly updates.</p>
+                </div>
+            </div>
+            <div class="flex items-start gap-3.5">
+                <div class="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 text-blue-300 font-bold flex items-center justify-center shrink-0">2</div>
+                <div>
+                    <h2 class="font-bold text-white text-sm">1-on-1 Customization Session</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Jason reaches out within 1 business day to dial in every photo, service detail, and color.</p>
+                </div>
+            </div>
+            <div class="flex items-start gap-3.5">
+                <div class="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 text-blue-300 font-bold flex items-center justify-center shrink-0">3</div>
+                <div>
+                    <h2 class="font-bold text-white text-sm">Go Live on Your Domain</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">We handle the DNS, SSL security, and launch—zero technical headaches on your end.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Plan Toggle -->
+        <div class="max-w-3xl mx-auto mb-12 bg-gradient-to-r from-slate-900 via-dark to-slate-900 border border-primary/40 rounded-2xl p-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <span class="bg-green-500/20 text-green-300 border border-green-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">Recommended</span>
+                        <h3 class="text-lg font-bold text-white">Include the "Peace of Mind" Monthly Plan (+$89/mo)</h3>
+                    </div>
+                    <p class="text-sm text-gray-300 mt-1.5">
+                        Includes enterprise global hosting, SSL security, domain management, and minor monthly text/photo updates handled for you. Cancel anytime.
+                    </p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 self-end sm:self-center">
+                    <input type="checkbox" id="care-plan-toggle" class="sr-only peer" checked onchange="updatePricingDisplay()">
+                    <div class="w-14 h-8 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Pricing & Checkout Cards -->
+        <div class="grid lg:grid-cols-3 gap-8 mb-16">
+            <!-- Starter Plan -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col">
+                <h3 class="text-2xl font-bold mb-2">Starter</h3>
+                <p class="text-gray-400 text-sm mb-6">Complete 4-page custom static build (matches your live concept preview).</p>
+                <div class="mb-6">
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-4xl font-extrabold text-white">$595</span>
+                        <span class="text-gray-400 text-sm">one-time build</span>
+                    </div>
+                    <p class="care-plan-PriceNote text-xs text-blue-300 font-medium mt-1">+ $89/mo Peace of Mind hosting &amp; care</p>
+                </div>
+                <ul class="space-y-3.5 mb-8 flex-1 text-sm text-gray-300">
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Home page + up to 3 additional pages</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Full customization of your preview design</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Mobile-first &amp; click-to-call ready</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Lead capture form routed to your email</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Local SEO setup for Northeast WI</li>
+                </ul>
+                <a id="btn-starter" href="#" onclick="return handleCheckout(event, 'starter')"
+                    class="w-full bg-white/10 hover:bg-primary text-white text-center py-3.5 px-6 rounded-xl font-bold transition-all border border-white/10">
+                    Claim Starter Build →
+                </a>
+            </div>
+
+            <!-- Pro Plan -->
+            <div class="bg-primary/10 border-2 border-primary rounded-2xl p-8 flex flex-col relative transform lg:-translate-y-3 shadow-2xl shadow-primary/20">
+                <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-primary text-white text-xs font-bold uppercase tracking-wider py-1 px-4 rounded-full">
+                    Most Popular
+                </div>
+                <h3 class="text-2xl font-bold mb-2">Pro</h3>
+                <p class="text-blue-200/80 text-sm mb-6">Expanded multi-service presence for growing local contractors.</p>
+                <div class="mb-6">
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-4xl font-extrabold text-white">$995</span>
+                        <span class="text-blue-200/70 text-sm">one-time build</span>
+                    </div>
+                    <p class="care-plan-PriceNote text-xs text-blue-300 font-medium mt-1">+ $89/mo Peace of Mind hosting &amp; care</p>
+                </div>
+                <ul class="space-y-3.5 mb-8 flex-1 text-sm text-gray-100">
+                    <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Home page + up to 6 additional pages</li>
+                    <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Dedicated pages for each core service</li>
+                    <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Advanced local SEO &amp; JSON-LD schema</li>
+                    <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Lighthouse 95+ speed tuning</li>
+                    <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Priority turnaround &amp; launch</li>
+                </ul>
+                <a id="btn-pro" href="#" onclick="return handleCheckout(event, 'pro')"
+                    class="w-full bg-primary hover:bg-primaryHover text-white text-center py-4 px-6 rounded-xl font-bold transition-all shadow-lg shadow-primary/30">
+                    Claim Pro Build →
+                </a>
+            </div>
+
+            <!-- Premium Plan -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col">
+                <h3 class="text-2xl font-bold mb-2">Premium</h3>
+                <p class="text-gray-400 text-sm mb-6">Complete market dominance with on-site photography &amp; drone media.</p>
+                <div class="mb-6">
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-4xl font-extrabold text-white">$1,695</span>
+                        <span class="text-gray-400 text-sm">one-time build</span>
+                    </div>
+                    <p class="text-xs text-green-400 font-semibold mt-1">★ Includes 6 Months "Peace of Mind" Plan Free</p>
+                </div>
+                <ul class="space-y-3.5 mb-8 flex-1 text-sm text-gray-300">
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Up to 10 custom pages</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Custom on-site drone &amp; team photography</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Google Business Profile optimization</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>6 Months Peace of Mind Plan included ($534 value)</li>
+                </ul>
+                <a id="btn-premium" href="#" onclick="return handleCheckout(event, 'premium')"
+                    class="w-full bg-white/10 hover:bg-primary text-white text-center py-3.5 px-6 rounded-xl font-bold transition-all border border-white/10">
+                    Claim Premium Build →
+                </a>
+            </div>
+        </div>
+
+        <!-- Existing Client / Standalone Subscription Box -->
+        <div class="max-w-3xl mx-auto text-center bg-white/5 border border-white/10 rounded-xl p-6">
+            <p class="text-sm text-gray-300">
+                Already paid for your build and just want to activate the <strong>$89/mo Peace of Mind Plan</strong>?
+                <a href="#" onclick="return handleCheckout(event, 'standaloneCare')" class="text-blue-400 hover:text-blue-300 font-semibold underline ml-1">
+                    Subscribe to Monthly Care Only →
+                </a>
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-darker py-8 border-t border-white/10 text-center text-sm text-gray-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p>&copy; 2026 624 Siteworks (Appleton, WI). Secure payments powered by Stripe.</p>
+            <a href="mailto:hello@624siteworks.com" class="hover:text-white transition-colors">hello@624siteworks.com</a>
+        </div>
+    </footer>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const businessName = (urlParams.get('business') || '').trim();
+        const previewUrl = (urlParams.get('preview') || '').trim();
+
+        // Personalize page if ?business= parameter is present
+        if (businessName) {
+            document.getElementById('DynamicBusinessHeading').textContent = 'the Website for ' + businessName;
+            document.getElementById('badge-text').textContent = 'Prepared Exclusively for ' + businessName;
+            document.title = 'Claim Website for ' + businessName + ' | 624 Siteworks';
+        }
+
+        if (previewUrl && /^https?:\/\//i.test(previewUrl)) {
+            const previewLink = document.getElementById('nav-preview-link');
+            previewLink.href = previewUrl;
+            previewLink.classList.remove('hidden');
+        }
+
+        function updatePricingDisplay() {
+            const includeCare = document.getElementById('care-plan-toggle').checked;
+            const notes = document.querySelectorAll('.care-plan-PriceNote');
+            notes.forEach(el => {
+                if (includeCare) {
+                    el.textContent = '+ $89/mo Peace of Mind hosting & care';
+                    el.className = 'care-plan-PriceNote text-xs text-blue-300 font-medium mt-1';
+                } else {
+                    el.textContent = 'One-time build only (self-managed hosting)';
+                    el.className = 'care-plan-PriceNote text-xs text-gray-500 font-medium mt-1';
+                }
+            });
+        }
+
+        function handleCheckout(event, tier) {
+            event.preventDefault();
+            const includeCare = document.getElementById('care-plan-toggle').checked;
+            let targetUrl = '';
+
+            if (tier === 'starter') {
+                targetUrl = includeCare ? STRIPE_PAYMENT_LINKS.starterWithCarePlan : STRIPE_PAYMENT_LINKS.starterBuildOnly;
+            } else if (tier === 'pro') {
+                targetUrl = includeCare ? STRIPE_PAYMENT_LINKS.proWithCarePlan : STRIPE_PAYMENT_LINKS.proBuildOnly;
+            } else if (tier === 'premium') {
+                targetUrl = STRIPE_PAYMENT_LINKS.premiumBuild;
+            } else if (tier === 'standaloneCare') {
+                targetUrl = STRIPE_PAYMENT_LINKS.standaloneCarePlan;
+            }
+
+            if (!targetUrl || targetUrl.includes('REPLACE_')) {
+                alert('Stripe Payment Link not configured yet! Open claim.html and paste your Stripe Payment Link URLs into the STRIPE_PAYMENT_LINKS object.');
+                return false;
+            }
+
+            // Pass client_reference_id so Stripe shows which business paid
+            if (businessName) {
+                const refSlug = businessName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
+                const sep = targetUrl.includes('?') ? '&' : '?';
+                targetUrl = targetUrl + sep + 'client_reference_id=' + encodeURIComponent(refSlug);
+            }
+
+            window.location.href = targetUrl;
+            return false;
+        }
+    </script>
+</body>
+
+</html>
+
