@@ -1,112 +1,143 @@
 # 624 Siteworks — Automated Lead, Spec-Site & Stripe Checkout Pipeline
 
-This workspace (`f:\624 SITEWORKS\My Sites\624siteworks.com`) contains both your main agency website (`index.html`), your client checkout portal (`claim.html`), and the complete **624 Siteworks Automated Lead & Spec-Site Pipeline**.
+This workspace (`f:\624 SITEWORKS\My Sites\624siteworks.com`) contains your main agency website (`index.html`), your client checkout portal (`claim.html`), and the complete **624 Siteworks Automated Lead & Spec-Site Pipeline**.
 
 ---
 
-## 📁 Folder Structure Explained
-
-Everything lives inside your `624siteworks.com` folder so that shared web files (`claim.html` and `assets/preview-banner.js`) are automatically hosted on `https://624siteworks.com`:
+## 📁 Folder Structure
 
 ```text
 f:\624 SITEWORKS\My Sites\624siteworks.com\
 ├── index.html                    # Main 624 Siteworks website ("Start Your Build" -> Google Form)
 ├── claim.html                    # Client payment page (One-time build + optional $89/mo care plan)
+├── 624deploy.ps1                 # 1-Click Cloudflare Pages deploy script (Windows PowerShell)
+├── 624deploy.sh                  # 1-Click Cloudflare Pages deploy script (macOS / zsh)
 ├── assets/
 │   └── preview-banner.js         # Floating bottom bar injected into client preview sites
 ├── google-apps-script/
 │   └── Code.gs                   # Google Sheets "🚀 624 Lead Engine" automation script
-├── scripts/
-│   ├── 624deploy.ps1             # 1-Click Cloudflare Pages deploy script (Windows PowerShell)
-│   └── 624deploy.sh              # 1-Click Cloudflare Pages deploy script (macOS / zsh)
-└── README.md                     # Setup & daily workflow guide
-```
-
-> **Where do individual client preview sites go?**
-> Keep building each client's preview site in its own subfolder inside `f:\624 SITEWORKS\Client Sites\<ClientName>`. When a preview site is ready to deploy, run `624deploy.ps1` against that client folder!
-
----
-
-## 💳 Part 1: Setting Up Stripe Payment Links (Build Fee + Monthly Care Plan)
-
-Because `624siteworks.com` is a fast static site, **Stripe Payment Links** let you collect a **one-time build fee (`$595` / `$995` / `$1,695`) AND a recurring `$89/mo` subscription** in a single checkout with zero backend servers to maintain.
-
-### Step 1: Create Your Products in Stripe
-1. Log in to your [Stripe Dashboard → Products](https://dashboard.stripe.com/products).
-2. Create these 4 products:
-   - **Starter Website Build** — `$595.00` (**One-off**)
-   - **Pro Website Build** — `$995.00` (**One-off**)
-   - **Premium Website Build** — `$1,695.00` (**One-off**)
-   - **"Peace of Mind" Hosting & Care Plan** — `$89.00` (**Recurring / Monthly**)
-   - *(Optional)* **Professional Brand Photography Add-On** — `$495.00` (**One-off**)
-
-### Step 2: Create the Payment Links in Stripe
-Go to [Stripe Dashboard → Payment Links → + New](https://dashboard.stripe.com/payment-links) and create:
-
-1. **Starter + $89/mo Care Plan** (`starterWithCarePlan`):
-   - Select **"Peace of Mind" Hosting & Care Plan ($89/mo)** as the main item.
-   - Click **"+ Add product"** and select **Starter Website Build ($595 one-time)**. *(Stripe automatically charges `$595 + $89` today, and `$89/mo` going forward!)*
-   - *(Optional)* Under **Optional items**, add **Professional Brand Photography ($495)** so clients can check a box at checkout to add photography.
-2. **Starter Build Only** (`starterBuildOnly`):
-   - Select **Starter Website Build ($595 one-time)**.
-3. **Pro + $89/mo Care Plan** (`proWithCarePlan`):
-   - Select **"Peace of Mind" Hosting & Care Plan ($89/mo)** + **Pro Website Build ($995 one-time)**.
-4. **Pro Build Only** (`proBuildOnly`):
-   - Select **Pro Website Build ($995 one-time)**.
-5. **Premium Build** (`premiumBuild`):
-   - Select **Premium Website Build ($1,695 one-time)**.
-6. **Standalone Care Plan** (`standaloneCarePlan`):
-   - Select **"Peace of Mind" Hosting & Care Plan ($89/mo)**.
-
-### Step 3: Paste Your URLs into `claim.html`
-Open [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html) and replace the `https://buy.stripe.com/REPLACE_...` placeholders inside `STRIPE_PAYMENT_LINKS` near the top of the file.
-
-When you send a preview client a link like:
-`https://624siteworks.com/claim.html?business=Fox+Valley+Roofing&preview=https://fox-valley-roofing.pages.dev`
-*(or when they click the floating banner at the bottom of their preview site)*, `claim.html` automatically greets them by business name and passes their business name to Stripe!
-
----
-
-## 📊 Part 2: Google Sheet Setup & Column Q `ARRAYFORMULA`
-
-### Step 1: Add the Google Apps Script (`Code.gs`)
-1. Open your **624 Siteworks Client Intake Responses** Google Sheet.
-2. Click **Extensions → Apps Script**.
-3. Replace the contents of `Code.gs` with the full code from [`google-apps-script/Code.gs`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/google-apps-script/Code.gs) and click **Save (💾)**.
-4. Reload your Google Sheet. A new menu **`🚀 624 Lead Engine`** will appear at the top.
-5. Click **`🚀 624 Lead Engine → 🛠️ Initialize / Repair "Prospect Pipeline" Tab`** to automatically create the `Prospect Pipeline` tab with all 21 columns (`A–U`), status dropdowns, and the Column Q `ARRAYFORMULA`.
-6. Click **`🚀 624 Lead Engine → 🔑 Configure API Keys`** and paste your **Outscraper API Key** and **Google Gemini API Key**.
-
-### Column Q `ARRAYFORMULA` (Reference)
-If you ever want to paste the Column Q formula manually into cell **`Q1`** (row 1 header cell of Column Q) on either your `Prospect Pipeline` tab or your Google Form intake tab, paste this into **`Q1`** and make sure `Q2:Q` below it are empty:
-
-```excel
-=ARRAYFORMULA(IF(ROW(A:A)=1, "Generated AI Prompt", IF(B:B="", "", "Build a high-converting, blazing-fast 4-page static Tailwind CSS website (index.html, services.html, about.html, contact.html) for " & B:B & ". " & CHAR(10) & CHAR(10) & "BUSINESS PROFILE:" & CHAR(10) & "- Business Name: " & B:B & CHAR(10) & "- Target Service Area: " & C:C & CHAR(10) & "- Phone Number: " & D:D & CHAR(10) & "- Email Address: " & N:N & CHAR(10) & "- Operating Hours: " & O:O & CHAR(10) & "- Existing Domain / Reference: " & M:M & CHAR(10) & "- Logo URL: " & L:L & CHAR(10) & "- Brand Colors & Vibe: " & E:E & CHAR(10) & "- Primary Trust Badge / Subheadline: " & P:P & " (" & S:S & ")" & CHAR(10) & CHAR(10) & "CORE SERVICES TO FEATURE:" & CHAR(10) & "1. " & F:F & ": " & G:G & CHAR(10) & "2. " & H:H & ": " & I:I & CHAR(10) & "3. " & J:J & ": " & K:K & CHAR(10) & CHAR(10) & "TECHNICAL REQUIREMENTS:" & CHAR(10) & "- Pure static HTML5 + Tailwind CSS via CDN, mobile-first sticky header with click-to-call phone button (" & D:D & "), local SEO schema markup, and clear lead-capture forms." & CHAR(10) & "- Include the 624 Siteworks floating concept banner right before </body> on every page: <script src=""https://624siteworks.com/assets/preview-banner.js"" data-business=""" & B:B & """ defer></script>")))
+└── README.md                     # Complete setup & daily workflow guide
 ```
 
 ---
 
-## 🚀 Part 3: Daily 4-Gate Workflow
+## 🆓 Free-Tier Alternative to Outscraper (No Credit Card Required)
 
-1. **Gate 1 — Scrape Local Leads (`1. Scraped`)**
-   - In Google Sheets, click **`🚀 624 Lead Engine → 1️⃣ Gate 1: Scrape Local Leads (Outscraper)`**.
-   - Enter a trade & city (e.g., `"Roofing contractor, Appleton, WI"`).
-   - The script pulls Google Maps results with `5+` reviews, crawls their websites for missing emails, and logs them as `1. Scraped`.
-2. **Human Review → `Approve Research`**
-   - Scan the new rows. For businesses you want to target, change Column R (`Lead Status`) to **`Approve Research`**.
-3. **Gate 2 — AI Enrichment (`2. Prompt Ready`)**
-   - Click **`🚀 624 Lead Engine → 2️⃣ Gate 2: Enrich Approved Leads (Gemini AI)`**.
-   - Gemini 2.5 Flash populates their trade colors/vibe, 3 core services with local SEO copy, and trust badge, then flips status to **`2. Prompt Ready`**.
-4. **Gate 3 — Build in Antigravity IDE & 1-Click Deploy to `.pages.dev`**
-   - Copy the generated prompt from **Column Q** and paste it into Antigravity IDE inside a new client folder (e.g., `f:\624 SITEWORKS\Client Sites\FoxValleyRoofing`).
-   - Once you like the local build, deploy it with 1 command in PowerShell:
-     ```powershell
-     & "f:\624 SITEWORKS\My Sites\624siteworks.com\scripts\624deploy.ps1" "Fox Valley Roofing" "f:\624 SITEWORKS\Client Sites\FoxValleyRoofing"
-     ```
-     *(Or `cd` into the client folder first and run `& "f:\624 SITEWORKS\My Sites\624siteworks.com\scripts\624deploy.ps1"`)*
-   - The root `https://<slug>.pages.dev` URL is automatically copied to your clipboard!
-   - Paste that URL into **Column T (`Spec Preview URL`)** and set **Column R (`Lead Status`)** to **`Ready to Email`**.
-5. **Gate 4 — Generate HTML Gmail Drafts (`5. Draft Created`)**
-   - Click **`🚀 624 Lead Engine → 4️⃣ Gate 4: Create Gmail Drafts for Previews`**.
-   - The script captures a `1200x800` desktop screenshot of the live `.pages.dev` site and creates a ready-to-send HTML draft in your Gmail with the clickable preview image and your personalized `claim.html` payment link.
+**Yes!** [**Serper.dev**](https://serper.dev) gives you **2,500 free Google Maps / Places searches** immediately upon signup with **no credit card or billing info required**.
 
+1. Go to [https://serper.dev](https://serper.dev) and sign up with your Google account (no credit card asked).
+2. Click **API Key** on the left sidebar and copy your key.
+3. [`google-apps-script/Code.gs`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/google-apps-script/Code.gs) has been updated to support **Serper.dev** natively!
+   - When you click **`🚀 624 Lead Engine → 🔑 Configure API Keys`** in your Google Sheet, paste your **Serper API Key** into the first prompt (and just leave Outscraper blank).
+   - Serper fetches the Google Maps listing (name, phone, website, rating, review count, hours, trade type, thumbnail), and our built-in website crawler (`crawlWebsiteForContactInfo_`) automatically visits `/`, `/contact`, `/contact-us`, and `/about` on each business's website to extract their email address and Facebook page for free.
+
+---
+
+## 💳 Complete Click-by-Click Stripe Setup Guide
+
+Below is every exact click and setting needed in your [Stripe Dashboard](https://dashboard.stripe.com) to configure your 5 products and 6 Payment Links for [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html).
+
+### Part A: Create Your 5 Products in Stripe
+
+Log in to [https://dashboard.stripe.com/products](https://dashboard.stripe.com/products) and click **`+ Add product`** (top-right button) for each of the 5 items below:
+
+#### Product 1: Starter Website Build ($595 One-Off)
+1. Click **`+ Add product`**.
+2. **Name:** `Starter Website Build`
+3. **Description:** `Custom 4-page mobile-optimized static website build (Home + up to 3 additional pages), lead capture form, and local SEO setup.`
+4. **Pricing model:** Leave on `Flat rate`.
+5. Select **`One-off`** (NOT Recurring).
+6. **Amount:** `$595.00` (`USD`).
+7. Click **`Add product`** (bottom right).
+
+#### Product 2: Pro Website Build ($995 One-Off)
+1. Click **`+ Add product`**.
+2. **Name:** `Pro Website Build`
+3. **Description:** `Custom website build (Home + up to 6 additional pages), advanced local SEO & JSON-LD schema, and Lighthouse performance tuning.`
+4. Select **`One-off`**.
+5. **Amount:** `$995.00` (`USD`).
+6. Click **`Add product`**.
+
+#### Product 3: Premium Website Build ($1,695 One-Off)
+1. Click **`+ Add product`**.
+2. **Name:** `Premium Website Build`
+3. **Description:** `Up to 10 custom pages, on-site drone & team photography, Google Business Profile setup, and 6 months of the Peace of Mind Plan included.`
+4. Select **`One-off`**.
+5. **Amount:** `$1,695.00` (`USD`).
+6. Click **`Add product`**.
+
+#### Product 4: "Peace of Mind" Monthly Care Plan ($89/mo Recurring)
+1. Click **`+ Add product`**.
+2. **Name:** `"Peace of Mind" Website Hosting & Care Plan`
+3. **Description:** `Global CDN hosting, enterprise SSL security, domain management, and minor monthly content updates.`
+4. Select **`Recurring`**.
+5. **Amount:** `$89.00` (`USD`).
+6. **Billing period:** `Monthly`.
+7. Click **`Add product`**.
+
+#### Product 5: Professional Brand Photography Add-On ($495 One-Off)
+1. Click **`+ Add product`**.
+2. **Name:** `Professional Brand Photography Add-On`
+3. **Description:** `Up to 2 hours on-site in Northeast WI, 15–25 edited high-res photos, team headshots & action shots with full usage rights.`
+4. Select **`One-off`**.
+5. **Amount:** `$495.00` (`USD`).
+6. Click **`Add product`**.
+
+---
+
+### Part B: Create Your 6 Payment Links in Stripe
+
+Now go to [https://dashboard.stripe.com/payment-links](https://dashboard.stripe.com/payment-links) and click **`+ New`** (top-right) for each of the 6 links below.
+
+#### Link 1: `starterWithCarePlan` ($595 Build + $89/mo Subscription)
+1. Click **`+ New`** payment link.
+2. Under **Select type**, leave it on **`Products or subscriptions`**.
+3. Under **Product**:
+   - Search and select **`Starter Website Build ($595.00)`** (`Qty: 1`).
+   - Click **`+ Add another product`** right below it, and select **`"Peace of Mind" Website Hosting & Care Plan ($89.00 / month)`** (`Qty: 1`).
+   - *(Stripe automatically combines them: the client pays `$684.00` today for the build + first month, and then `$89.00/month` starting month 2!)*
+4. *(Optional Upsell)* Expand **`Optional items`** → click **`+ Add optional product`** → select **`Professional Brand Photography Add-On ($495.00)`**. This gives the client a 1-click checkbox right on the checkout page to add photography!
+5. Under **Options**:
+   - Check **`Collect customers' phone numbers`** (so you always have their direct cell for the kickoff call).
+   - Check **`Limit to 1 subscription per customer`** (if shown).
+6. Click the **`After payment`** tab at the top of the preview pane:
+   - Select **`Show confirmation page`**.
+   - Check **`Replace default with custom message`** and enter:
+     `Thank you! Jason from 624 Siteworks will reach out within 1 business day to schedule your customization & domain launch call.`
+7. Click **`Create link`** (top right), click **`Copy`**, and paste that URL into `starterWithCarePlan` in [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html#L49-L66).
+
+#### Link 2: `starterBuildOnly` ($595 Build Only — No Monthly Plan)
+1. Click **`+ New`** payment link.
+2. Under **Product**, select **`Starter Website Build ($595.00)`**.
+3. *(Optional)* Under **`Optional items`**, add **`Professional Brand Photography Add-On ($495.00)`**.
+4. Under **Options**, check **`Collect customers' phone numbers`**.
+5. Under **`After payment`**, set the same custom confirmation message.
+6. Click **`Create link`**, copy the URL, and paste it into `starterBuildOnly` in [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html#L49-L66).
+
+#### Link 3: `proWithCarePlan` ($995 Build + $89/mo Subscription)
+1. Click **`+ New`** payment link.
+2. Under **Product**:
+   - Select **`Pro Website Build ($995.00)`**.
+   - Click **`+ Add another product`** and select **`"Peace of Mind" Website Hosting & Care Plan ($89.00 / month)`**.
+3. *(Optional)* Under **`Optional items`**, add **`Professional Brand Photography Add-On ($495.00)`**.
+4. Check **`Collect customers' phone numbers`** and set your custom confirmation message under **`After payment`**.
+5. Click **`Create link`**, copy the URL, and paste it into `proWithCarePlan` in [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html#L49-L66).
+
+#### Link 4: `proBuildOnly` ($995 Build Only — No Monthly Plan)
+1. Click **`+ New`** payment link.
+2. Under **Product**, select **`Pro Website Build ($995.00)`**.
+3. *(Optional)* Under **`Optional items`**, add **`Professional Brand Photography Add-On ($495.00)`**.
+4. Check **`Collect customers' phone numbers`** and set your confirmation message.
+5. Click **`Create link`**, copy the URL, and paste it into `proBuildOnly` in [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html#L49-L66).
+
+#### Link 5: `premiumBuild` ($1,695 Build — Includes Photography & 6 Mos Care)
+1. Click **`+ New`** payment link.
+2. Under **Product**, select **`Premium Website Build ($1,695.00)`**.
+3. Check **`Collect customers' phone numbers`** and set your confirmation message.
+4. Click **`Create link`**, copy the URL, and paste it into `premiumBuild` in [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html#L49-L66).
+
+#### Link 6: `standaloneCarePlan` ($89/mo Standalone Subscription)
+1. Click **`+ New`** payment link.
+2. Under **Product**, select **`"Peace of Mind" Website Hosting & Care Plan ($89.00 / month)`**.
+3. Check **`Collect customers' phone numbers`**.
+4. Click **`Create link`**, copy the URL, and paste it into `standaloneCarePlan` in [`claim.html`](file:///f:/624%20SITEWORKS/My%20Sites/624siteworks.com/claim.html#L49-L66).

@@ -5,6 +5,11 @@
  * Location: Appleton, WI (Fox Valley & Northeast Wisconsin)
  * Owner: Jason Woodrow — 624 Siteworks (https://624siteworks.com)
  *
+ * SUPPORTED GOOGLE MAPS SCRAPERS (Gate 1):
+ *   Option A (Recommended Free / No Credit Card): Serper.dev (https://serper.dev)
+ *            -> 2,500 free searches on sign-up, no credit card required!
+ *   Option B: Outscraper (https://outscraper.com)
+ *
  * PIPELINE GATES:
  *   Gate 1: promptAndScrapeLeads()         -> Status: "1. Scraped"
  *   (Human Review: Change Col R to "Approve Research")
@@ -24,12 +29,12 @@ const CONFIG = {
   AGENCY_NAME: '624 Siteworks',
   AGENCY_URL: 'https://624siteworks.com',
   CLAIM_BASE_URL: 'https://624siteworks.com/claim.html',
-  AGENCY_PHONE: '(920) 555-0624', // Update with your preferred direct callback number
-   screenshotBaseUrl: 'https://image.thum.io/get/width/1200/crop/800/noanimate/'
+  AGENCY_PHONE: '(920) 555-0624',
+  screenshotBaseUrl: 'https://image.thum.io/get/width/1200/crop/800/noanimate/'
 };
 
 /**
- * Column Index Map (1-based for Apps Script getRange, 0-based offset noted)
+ * Column Index Map (1-based for Apps Script getRange)
  * Preserves 624 Siteworks Client Intake Responses (A-Q) + Pipeline Control (R-U)
  */
 const COL = {
@@ -47,7 +52,7 @@ const COL = {
   LOGO_URL: 12,        // Col L
   DOMAIN_STATUS: 13,   // Col M
   EMAIL: 14,           // Col N
-  HOURS: 15,          // Col O
+  HOURS: 15,           // Col O
   TRUST_FACTOR: 16,    // Col P
   AI_PROMPT: 17,       // Col Q (Formula-driven)
   LEAD_STATUS: 18,     // Col R
@@ -70,34 +75,35 @@ const STATUS = {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('🚀 624 Lead Engine')
-    .addItem('1️⃣ Gate 1: Scrape Local Leads (Outscraper)', 'promptAndScrapeLeads')
+    .addItem('1️⃣ Gate 1: Scrape Local Leads (Serper / Outscraper)', 'promptAndScrapeLeads')
     .addItem('2️⃣ Gate 2: Enrich Approved Leads (Gemini AI)', 'enrichApprovedLeadsWithAI')
     .addItem('4️⃣ Gate 4: Create Gmail Drafts for Previews', 'createDraftsForApprovedBuilds')
     .addSeparator()
     .addItem('🛠️ Initialize / Repair "Prospect Pipeline" Tab', 'initializeProspectPipelineSheet')
-    .addItem('🔑 Configure API Keys (Outscraper & Gemini)', 'configureApiKeysPrompt')
+    .addItem('🔑 Configure API Keys (Serper / Outscraper & Gemini)', 'configureApiKeysPrompt')
     .addToUi();
 }
 
 /**
- * Prompts the user to save their Outscraper and Gemini API keys in ScriptProperties
- * so keys never have to be hardcoded in source files.
+ * Prompts the user to save their Serper.dev and Gemini API keys
+ * in ScriptProperties so keys never have to be hardcoded.
  */
 function configureApiKeysPrompt() {
   const ui = SpreadsheetApp.getUi();
   const props = PropertiesService.getScriptProperties();
 
-  const outscraperResp = ui.prompt(
-    '🔑 Outscraper API Key',
-    'Enter your Outscraper API Key (leave blank to keep existing):',
+  const serperResp = ui.prompt(
+    '🔑 Step 1 of 2: Serper.dev API Key (FREE — No Credit Card)',
+    'Sign up at https://serper.dev for 2,500 free Google Maps searches.\nPaste your Serper API Key here (leave blank to keep existing):',
     ui.ButtonSet.OK_CANCEL
   );
-  if (outscraperResp.getSelectedButton() === ui.Button.OK && outscraperResp.getResponseText().trim()) {
-    props.setProperty('OUTSCRAPER_API_KEY', outscraperResp.getResponseText().trim());
+  if (serperResp.getSelectedButton() === ui.Button.OK && serperResp.getResponseText().trim()) {
+    props.setProperty('SERPER_API_KEY', serperResp.getResponseText().trim());
+    props.deleteProperty('OUTSCRAPER_API_KEY');
   }
 
   const geminiResp = ui.prompt(
-    '🔑 Gemini API Key',
+    '🔑 Step 2 of 2: Google Gemini API Key (FREE at aistudio.google.com)',
     'Enter your Google Gemini API Key (leave blank to keep existing):',
     ui.ButtonSet.OK_CANCEL
   );
@@ -105,7 +111,7 @@ function configureApiKeysPrompt() {
     props.setProperty('GEMINI_API_KEY', geminiResp.getResponseText().trim());
   }
 
-  ui.alert('✅ API Key configuration saved to Script Properties.');
+  ui.alert('✅ API Keys saved! You can now run Gate 1.');
 }
 
 /**
@@ -192,19 +198,34 @@ function initializeProspectPipelineSheet() {
 }
 
 /* ============================================================================
- * GATE 1: SCRAPE LOCAL LEADS VIA OUTSCRAPER + WEBSITE EMAIL CRAWLER FALLBACK
+ * GATE 1: SCRAPE LOCAL LEADS (SUPPORTS SERPER.DEV FREE TIER OR OUTSCRAPER)
  * ============================================================================ */
 
 function promptAndScrapeLeads() {
   const ui = SpreadsheetApp.getUi();
-  const apiKey = PropertiesService.getScriptProperties().getProperty('OUTSCRAPER_API_KEY');
-  if (!apiKey) {
-    ui.alert('⚠️ Missing Outscraper API Key', 'Please run "🚀 624 Lead Engine -> 🔑 Configure API Keys" first.', ui.ButtonSet.OK);
+  const props = PropertiesService.getScriptProperties();
+  let serperKey = props.getProperty('SERPER_API_KEY');
+  const outscraperKey = props.getProperty('OUTSCRAPER_API_KEY');
+
+  // If the user previously pasted a Serper key into the old Outscraper prompt, auto-migrate it
+  if (!serperKey && outscraperKey && /^[a-f0-9]{32,64}$/i.test(outscraperKey.trim())) {
+    serperKey = outscraperKey.trim();
+    props.setProperty('SERPER_API_KEY', serperKey);
+    props.deleteProperty('OUTSCRAPER_API_KEY');
+  }
+
+  if (!serperKey && !outscraperKey) {
+    ui.alert(
+      '⚠️ Missing Scraper API Key',
+      'Please run "🚀 624 Lead Engine -> 🔑 Configure API Keys" first.\n\nTip: Get a free API key with 2,500 searches (no credit card required) at https://serper.dev',
+      ui.ButtonSet.OK
+    );
     return;
   }
 
+  const providerLabel = serperKey ? 'Serper.dev (Free Tier)' : 'Outscraper';
   const promptResp = ui.prompt(
-    '🔍 Gate 1: Scrape Local Service Leads',
+    `🔍 Gate 1: Scrape Local Service Leads via ${providerLabel}`,
     'Enter Google Maps search query (e.g., "Roofing contractor, Appleton, WI"):',
     ui.ButtonSet.OK_CANCEL
   );
@@ -228,48 +249,19 @@ function promptAndScrapeLeads() {
     });
   }
 
-  const fields = [
-    'name', 'full_address', 'phone', 'site', 'rating',
-    'reviews', 'working_hours', 'type', 'logo',
-    'email_1', 'email_2', 'facebook'
-  ].join(',');
-
-  const endpoint = 'https://api.app.outscraper.com/maps/search-v2'
-    + '?query=' + encodeURIComponent(query)
-    + '&limit=' + encodeURIComponent(CONFIG.DEFAULT_SCRAPE_LIMIT)
-    + '&async=false'
-    + '&enrichment=domains_service'
-    + '&fields=' + encodeURIComponent(fields);
-
-  let response;
+  let normalizedPlaces = [];
   try {
-    response = UrlFetchApp.fetch(endpoint, {
-      method: 'get',
-      headers: { 'X-API-KEY': apiKey },
-      muteHttpExceptions: true
-    });
+    if (serperKey) {
+      normalizedPlaces = fetchLeadsFromSerper_(serperKey, query);
+    } else {
+      normalizedPlaces = fetchLeadsFromOutscraper_(outscraperKey, query);
+    }
   } catch (err) {
-    ui.alert('❌ Outscraper Network Error: ' + err.message);
+    ui.alert('❌ Scraper Error:\n' + err.message);
     return;
   }
 
-  const statusCode = response.getResponseCode();
-  const bodyText = response.getContentText();
-  if (statusCode < 200 || statusCode >= 300) {
-    ui.alert('❌ Outscraper API Error (' + statusCode + '):\n' + bodyText.slice(0, 500));
-    return;
-  }
-
-  let payload;
-  try {
-    payload = JSON.parse(bodyText);
-  } catch (err) {
-    ui.alert('❌ Failed to parse Outscraper JSON response.');
-    return;
-  }
-
-  const results = (payload && payload.data && Array.isArray(payload.data[0])) ? payload.data[0] : [];
-  if (!results.length) {
+  if (!normalizedPlaces.length) {
     ui.alert('No businesses returned for query: "' + query + '".');
     return;
   }
@@ -277,8 +269,8 @@ function promptAndScrapeLeads() {
   const rowsToInsert = [];
   let crawledEmailCount = 0;
 
-  for (let i = 0; i < results.length; i++) {
-    const item = results[i];
+  for (let i = 0; i < normalizedPlaces.length; i++) {
+    const item = normalizedPlaces[i];
     const bizName = (item.name || '').trim();
     const reviewsCount = Number(item.reviews || 0);
 
@@ -289,15 +281,23 @@ function promptAndScrapeLeads() {
     existingNames.add(bizName.toLowerCase());
 
     const siteUrl = (item.site || '').trim();
-    const fbUrl = (item.facebook || '').trim();
-    const domainStatus = siteUrl || fbUrl || 'No Website Listed';
+    let fbUrl = (item.facebook || '').trim();
+    let email = (item.email || '').trim();
+    let logoUrl = (item.logo || '').trim();
 
-    let email = (item.email_1 || item.email_2 || '').trim();
-    if (!email && siteUrl) {
-      email = extractEmailFromWebsite_(siteUrl);
-      if (email) crawledEmailCount++;
+    // Crawl website for email (and fallback Facebook/logo if using Serper)
+    if (!email && siteUrl && !siteUrl.includes('facebook.com')) {
+      const crawled = crawlWebsiteForContactInfo_(siteUrl);
+      if (crawled.email) {
+        email = crawled.email;
+        crawledEmailCount++;
+      }
+      if (!fbUrl && crawled.facebook) {
+        fbUrl = crawled.facebook;
+      }
     }
 
+    const domainStatus = siteUrl || fbUrl || 'No Website Listed';
     const hoursStr = formatWorkingHours_(item.working_hours);
     const ratingVal = item.rating ? Number(item.rating).toFixed(1) : '5.0';
     const tradeType = item.type || query.split(',')[0].trim();
@@ -309,7 +309,7 @@ function promptAndScrapeLeads() {
     row[COL.BUSINESS_NAME - 1] = bizName;
     row[COL.SERVICE_AREA - 1] = CONFIG.DEFAULT_SERVICE_AREA;
     row[COL.PHONE - 1] = item.phone || '';
-    row[COL.LOGO_URL - 1] = item.logo || '';
+    row[COL.LOGO_URL - 1] = logoUrl;
     row[COL.DOMAIN_STATUS - 1] = domainStatus;
     row[COL.EMAIL - 1] = email;
     row[COL.HOURS - 1] = hoursStr;
@@ -328,12 +328,96 @@ function promptAndScrapeLeads() {
   sheet.getRange(startRow, 1, rowsToInsert.length, 21).setValues(rowsToInsert);
 
   ui.alert(
-    '✅ Gate 1 Complete',
+    `✅ Gate 1 Complete (${providerLabel})`,
     `Added ${rowsToInsert.length} qualified leads to "${CONFIG.SHEET_NAME}".\n` +
-    `Website crawler recovered ${crawledEmailCount} additional email(s).\n\n` +
+    `Website crawler extracted ${crawledEmailCount} email(s) directly from business websites.\n\n` +
     `Next Step: Review new rows and change Column R (Lead Status) to "${STATUS.APPROVE_RESEARCH}" for the leads you want Gemini AI to enrich.`,
     ui.ButtonSet.OK
   );
+}
+
+/**
+ * Fetches Google Maps results via Serper.dev (https://google.serper.dev/maps)
+ * Free tier: 2,500 searches with no credit card required.
+ */
+function fetchLeadsFromSerper_(apiKey, query) {
+  const resp = UrlFetchApp.fetch('https://google.serper.dev/maps', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'X-API-KEY': apiKey },
+    payload: JSON.stringify({ q: query, gl: 'us', hl: 'en' }),
+    muteHttpExceptions: true
+  });
+
+  const code = resp.getResponseCode();
+  const text = resp.getContentText();
+  if (code < 200 || code >= 300) {
+    throw new Error(`Serper.dev HTTP ${code}: ${text.slice(0, 300)}`);
+  }
+
+  const data = JSON.parse(text);
+  const places = Array.isArray(data.places) ? data.places : [];
+
+  return places.map(p => ({
+    name: p.title || '',
+    full_address: p.address || '',
+    phone: p.phoneNumber || '',
+    site: p.website || '',
+    rating: p.rating || '',
+    reviews: p.ratingCount || 0,
+    working_hours: p.openingHours || '',
+    type: p.type || (Array.isArray(p.types) ? p.types[0] : ''),
+    logo: p.thumbnailUrl || '',
+    email: '',
+    facebook: (p.website && p.website.includes('facebook.com')) ? p.website : ''
+  }));
+}
+
+/**
+ * Fetches Google Maps results via Outscraper v2 API (optional fallback).
+ */
+function fetchLeadsFromOutscraper_(apiKey, query) {
+  const fields = [
+    'name', 'full_address', 'phone', 'site', 'rating',
+    'reviews', 'working_hours', 'type', 'logo',
+    'email_1', 'email_2', 'facebook'
+  ].join(',');
+
+  const endpoint = 'https://api.app.outscraper.com/maps/search-v2'
+    + '?query=' + encodeURIComponent(query)
+    + '&limit=' + encodeURIComponent(CONFIG.DEFAULT_SCRAPE_LIMIT)
+    + '&async=false'
+    + '&enrichment=domains_service'
+    + '&fields=' + encodeURIComponent(fields);
+
+  const resp = UrlFetchApp.fetch(endpoint, {
+    method: 'get',
+    headers: { 'X-API-KEY': apiKey },
+    muteHttpExceptions: true
+  });
+
+  const code = resp.getResponseCode();
+  const text = resp.getContentText();
+  if (code < 200 || code >= 300) {
+    throw new Error(`Outscraper HTTP ${code}: ${text.slice(0, 300)}`);
+  }
+
+  const payload = JSON.parse(text);
+  const results = (payload && payload.data && Array.isArray(payload.data[0])) ? payload.data[0] : [];
+
+  return results.map(item => ({
+    name: item.name || '',
+    full_address: item.full_address || '',
+    phone: item.phone || '',
+    site: item.site || '',
+    rating: item.rating || '',
+    reviews: item.reviews || 0,
+    working_hours: item.working_hours || '',
+    type: item.type || '',
+    logo: item.logo || '',
+    email: item.email_1 || item.email_2 || '',
+    facebook: item.facebook || ''
+  }));
 }
 
 /* ============================================================================
@@ -622,15 +706,24 @@ function buildHtmlPitchEmail_(data) {
 }
 
 /* ============================================================================
- * HELPER UTILITIES: EMAIL CRAWLER & FORMATTERS
+ * HELPER UTILITIES: WEBSITE EMAIL & FACEBOOK CRAWLER
  * ============================================================================ */
 
 /**
- * Crawls /, /contact, /contact-us, and /about on a business's website to extract
- * a valid business email address via mailto: links or regex.
+ * Backwards-compatible wrapper that returns only the crawled email string.
  */
 function extractEmailFromWebsite_(rawSiteUrl) {
-  if (!rawSiteUrl) return '';
+  return crawlWebsiteForContactInfo_(rawSiteUrl).email;
+}
+
+/**
+ * Crawls /, /contact, /contact-us, and /about on a business's website to extract
+ * a valid business email address and Facebook page URL.
+ */
+function crawlWebsiteForContactInfo_(rawSiteUrl) {
+  const result = { email: '', facebook: '' };
+  if (!rawSiteUrl) return result;
+
   let baseUrl = String(rawSiteUrl).trim();
   if (!/^https?:\/\//i.test(baseUrl)) {
     baseUrl = 'https://' + baseUrl;
@@ -642,6 +735,7 @@ function extractEmailFromWebsite_(rawSiteUrl) {
   const ignoredDomains = /(sentry\.io|wixpress\.com|example\.com|domain\.com|email\.com|yoursite\.com|wordpress\.org|w3\.org|schema\.org|googleapis\.com)/i;
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g;
   const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi;
+  const fbRegex = /https?:\/\/(?:www\.)?facebook\.com\/[a-zA-Z0-9._-]+/i;
 
   for (let i = 0; i < paths.length; i++) {
     const targetUrl = baseUrl + paths[i];
@@ -657,12 +751,20 @@ function extractEmailFromWebsite_(rawSiteUrl) {
       const html = resp.getContentText();
       if (!html) continue;
 
+      if (!result.facebook) {
+        const fbMatch = html.match(fbRegex);
+        if (fbMatch && !fbMatch[0].includes('facebook.com/sharer') && !fbMatch[0].includes('facebook.com/tr')) {
+          result.facebook = fbMatch[0];
+        }
+      }
+
       // 1. Prioritize explicit mailto: links
       let mailtoMatch;
       while ((mailtoMatch = mailtoRegex.exec(html)) !== null) {
         const candidate = mailtoMatch[1].trim().toLowerCase();
         if (isValidBusinessEmail_(candidate, ignoredExtensions, ignoredDomains)) {
-          return candidate;
+          result.email = candidate;
+          return result;
         }
       }
 
@@ -671,30 +773,32 @@ function extractEmailFromWebsite_(rawSiteUrl) {
       for (let j = 0; j < matches.length; j++) {
         const candidate = matches[j].trim().toLowerCase();
         if (isValidBusinessEmail_(candidate, ignoredExtensions, ignoredDomains)) {
-          return candidate;
+          result.email = candidate;
+          return result;
         }
       }
     } catch (e) {
       // Ignore individual page fetch errors and try next path
     }
   }
-  return '';
+  return result;
 }
 
 function isValidBusinessEmail_(email, ignoredExtensions, ignoredDomains) {
   if (!email || email.length > 80) return false;
   if (ignoredExtensions.test(email)) return false;
   if (ignoredDomains.test(email)) return false;
-  if (/^\d+x\d+/i.test(email)) return false; // Exclude retina image filenames like logo@2x.png
+  if (/^\d+x\d+/i.test(email)) return false;
   return true;
 }
 
 /**
- * Formats Outscraper working_hours object or string into a clean 1-line summary.
+ * Formats working_hours object, array, or string into a clean 1-line summary.
  */
 function formatWorkingHours_(workingHours) {
   if (!workingHours) return 'Mon–Fri: 7:00 AM – 5:00 PM';
   if (typeof workingHours === 'string') return workingHours;
+  if (Array.isArray(workingHours)) return workingHours.join(' | ');
   if (typeof workingHours === 'object') {
     return Object.entries(workingHours)
       .map(([day, hrs]) => `${day}: ${hrs}`)
@@ -704,7 +808,7 @@ function formatWorkingHours_(workingHours) {
 }
 
 /**
- * Generates a sensible placeholder email if both Outscraper and crawler find none.
+ * Generates a sensible placeholder email if both scraper and website crawler find none.
  */
 function buildFallbackEmail_(bizName, domainStatus) {
   if (domainStatus && /^https?:\/\//i.test(domainStatus) && !domainStatus.includes('facebook.com')) {
@@ -718,4 +822,3 @@ function buildFallbackEmail_(bizName, domainStatus) {
   const slug = bizName.toLowerCase().replace(/[^a-z0-9]+/g, '');
   return `info@${slug || 'business'}.com`;
 }
-
