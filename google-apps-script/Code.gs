@@ -241,8 +241,9 @@ function updateLeadStatusCore(rowNumber, updates) {
   const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
   if (!sheet) throw new Error('Sheet not found');
 
-  if (updates.status) {
-    sheet.getRange(rowNumber, COL.LEAD_STATUS).setValue(updates.status);
+  const statusVal = updates.status || updates.leadStatus;
+  if (statusVal) {
+    sheet.getRange(rowNumber, COL.LEAD_STATUS).setValue(statusVal);
   }
   if (updates.previewUrl !== undefined && updates.previewUrl !== null) {
     sheet.getRange(rowNumber, COL.PREVIEW_URL).setValue(updates.previewUrl);
