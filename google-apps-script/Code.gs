@@ -119,6 +119,11 @@ function handleLeadEngineApiRequest_(params) {
     } else if (action === 'initialize') {
       initializeProspectPipelineSheet();
       res = { success: true, message: 'Prospect Pipeline sheet initialized successfully' };
+    } else if (action === 'researchSocials') {
+      const bizName = params.bizName || '';
+      const city = params.city || '';
+      const domain = params.domain || '';
+      res = researchBusinessSocialsAndWeb_(bizName, city, domain);
     } else if (action === 'saveKeys') {
       const props = PropertiesService.getScriptProperties();
       if (params.serperKey) props.setProperty('SERPER_API_KEY', params.serperKey.trim());
@@ -1422,4 +1427,137 @@ function buildFallbackEmail_(bizName, domainStatus) {
   }
   const slug = bizName.toLowerCase().replace(/[^a-z0-9]+/g, '');
   return 'info@' + (slug || 'business') + '.com';
+}
+
+/**
+ * Researches social profiles, real website images, brand colors, and company facts
+ * for deep bespoke spec-site generation.
+ */
+function researchBusinessSocialsAndWeb_(bizName, city, domain) {
+  const props = PropertiesService.getScriptProperties();
+  const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY');
+  
+  const result = {
+    success: true,
+    bizName: bizName,
+    socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
+    websiteImages: [],
+    extractedColors: [],
+    snippets: []
+  };
+
+  if (!bizName) return result;
+
+  // 1. Google Serper Search for Social Profiles & Reviews
+  if (serperKey) {
+    try {
+      const cleanCity = city || 'Fox Valley, WI';
+      const searchQuery = '"' + bizName + '" ' + cleanCity;
+      const searchResp = UrlFetchApp.fetch('https://google.serper.dev/search', {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { 'X-API-KEY': serperKey },
+        payload: JSON.stringify({ q: searchQuery, gl: 'us', hl: 'en', num: 10 }),
+        muteHttpExceptions: true
+      });
+
+      if (searchResp.getResponseCode() >= 200 && searchResp.getResponseCode() < 300) {
+        const data = JSON.parse(searchResp.getContentText());
+        const organic = Array.isArray(data.organic) ? data.organic : [];
+        for (let i = 0; i < organic.length; i++) {
+          const item = organic[i];
+          const link = item.link || '';
+          const snippet = item.snippet || '';
+          if (snippet) result.snippets.push(snippet);
+
+          if (/facebook\.com\/[a-zA-Z0-9._-]+/i.test(link) && !link.includes('sharer') && !result.socials.facebook) {
+            result.socials.facebook = link;
+          } else if (/instagram\.com\/[a-zA-Z0-9._-]+/i.test(link) && !result.socials.instagram) {
+            result.socials.instagram = link;
+          } else if (/linkedin\.com\/(?:company|in)\/[a-zA-Z0-9._-]+/i.test(link) && !result.socials.linkedin) {
+            result.socials.linkedin = link;
+          } else if (/bbb\.org\//i.test(link) && !result.socials.bbb) {
+            result.socials.bbb = link;
+          } else if (/yelp\.com\/biz\//i.test(link) && !result.socials.yelp) {
+            result.socials.yelp = link;
+          }
+        }
+
+        if (data.knowledgeGraph) {
+          result.knowledgeGraph = {
+            title: data.knowledgeGraph.title || '',
+            type: data.knowledgeGraph.type || '',
+            imageUrl: data.knowledgeGraph.imageUrl || '',
+            description: data.knowledgeGraph.description || ''
+          };
+          if (data.knowledgeGraph.imageUrl) {
+            result.websiteImages.unshift(data.knowledgeGraph.imageUrl);
+          }
+        }
+      }
+    } catch (err) {}
+  }
+
+  // 2. If domain provided, fetch homepage to extract real images and colors
+  if (domain && !domain.toLowerCase().includes('no website') && !domain.toLowerCase().includes('facebook.com')) {
+    try {
+      const cleanUrl = domain.startsWith('http') ? domain : 'https://' + domain;
+      const resp = UrlFetchApp.fetch(cleanUrl, {
+        method: 'get',
+        muteHttpExceptions: true,
+        followRedirects: true,
+        validateHttpsCertificates: false
+      });
+
+      if (resp.getResponseCode() >= 200 && resp.getResponseCode() < 400) {
+        const html = resp.getContentText() || '';
+        
+        // Extract images
+        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+        let match;
+        const seenImgs = new Set();
+        while ((match = imgRegex.exec(html)) !== null && seenImgs.size < 12) {
+          let src = match[1].trim();
+          if (!src || src.startsWith('data:') || src.includes('.svg') || src.includes('icon') || src.includes('pixel')) continue;
+          if (src.startsWith('//')) src = 'https:' + src;
+          else if (src.startsWith('/')) {
+            const domainBase = cleanUrl.replace(/\/+$/, '');
+            src = domainBase + src;
+          } else if (!src.startsWith('http')) {
+            src = cleanUrl.replace(/\/[^\/]*$/, '/') + src;
+          }
+          if (!seenImgs.has(src)) {
+            seenImgs.add(src);
+            result.websiteImages.push(src);
+          }
+        }
+
+        // Extract og:image
+        const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+        if (ogMatch && ogMatch[1]) {
+          result.websiteImages.unshift(ogMatch[1].trim());
+        }
+
+        // Extract brand colors
+        const themeMatch = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i);
+        if (themeMatch && themeMatch[1]) {
+          result.extractedColors.push(themeMatch[1].trim());
+        }
+
+        const colorMatches = html.match(/#(?:[0-9a-fA-F]{3}){1,2}\b/g) || [];
+        const uniqueColors = [...new Set(colorMatches.map(c => c.toLowerCase()))];
+        const brandHexes = uniqueColors.filter(c => !['#fff', '#ffffff', '#000', '#000000', '#eee', '#eeeeee', '#ccc', '#cccccc'].includes(c));
+        result.extractedColors.push(...brandHexes.slice(0, 8));
+
+        // Extract any social links on homepage
+        const fbMatch = html.match(/https?:\/\/(?:www\.)?facebook\.com\/[a-zA-Z0-9._-]+/i);
+        if (fbMatch && !result.socials.facebook) result.socials.facebook = fbMatch[0];
+
+        const igMatch = html.match(/https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._-]+/i);
+        if (igMatch && !result.socials.instagram) result.socials.instagram = igMatch[0];
+      }
+    } catch (err) {}
+  }
+
+  return result;
 }

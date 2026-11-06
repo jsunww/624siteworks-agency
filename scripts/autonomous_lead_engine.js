@@ -7,10 +7,13 @@
  *  1. The Scout: Scrapes and audits local trade leads via Google Apps Script (Serper/Maps).
  *  2. The Diagnoser & Ranker: Identifies the worst 2 websites, enriches with Gemini AI,
  *     and leaves the rest as an on-demand queue in Google Sheets.
- *  3. The Builder: Generates responsive 4-page Tailwind sites, deploys to Cloudflare Pages,
- *     updates Google Sheet Col T, and registers directly into Firestore demo_sites collection.
- *  4. The Pitcher: Creates tailored outreach emails saved directly into Zoho Mail Drafts.
- *  5. Daily Digest: Delivers completion summary to jason@624films.com.
+ *  3. The Deep Researcher & Brand Stylist: Researches real social media pages (Facebook,
+ *     Instagram, LinkedIn, BBB), extracts real website images, logo colors, and owner info.
+ *  4. The Builder: Generates completely bespoke, uniquely styled 4-page Tailwind sites
+ *     with custom color palettes, real & trade photography, downloads/optimizes images,
+ *     deploys to Cloudflare Pages, updates Google Sheet, and registers in Demo Sites Hub.
+ *  5. The Pitcher: Creates tailored outreach emails saved directly into Zoho Mail Drafts.
+ *  6. Daily Digest: Delivers completion summary to jason@624films.com.
  * 
  * Schedule: Runs weekdays at 6:00 AM Central (CRON_TZ=America/Chicago 0 6 * * 1-5).
  * ============================================================================
@@ -24,40 +27,40 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ============================================================================
-// CONFIGURATION & CREDENTIALS
-// ============================================================================
-
 // Load environment variables from .env if present
 const envPath = path.resolve(__dirname, '..', '.env');
 if (fs.existsSync(envPath) && typeof process.loadEnvFile === 'function') {
   process.loadEnvFile(envPath);
 }
 
+// ============================================================================
+// CONFIGURATION & CREDENTIALS
+// ============================================================================
+
 const CONFIG = {
   // Google Apps Script Web App
   APPS_SCRIPT_URL: process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxUqD4J70nf46i9_HgJA4GTx7XxuUhJzY-AYLz0tRi5OgyyIxexiHT3Tk035LIs-g2-ug/exec',
   
   // Google Gemini API (AI Studio)
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
   GEMINI_MODEL: 'gemini-3.5-flash',
   GEMINI_FALLBACK_MODEL: 'gemini-3.5-flash-lite',
 
   // Cloudflare Pages
-  CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
-  CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
+  CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+  CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
 
   // Zoho Mail OAuth
-  ZOHO_CLIENT_ID: process.env.ZOHO_CLIENT_ID,
-  ZOHO_CLIENT_SECRET: process.env.ZOHO_CLIENT_SECRET,
-  ZOHO_REFRESH_TOKEN: process.env.ZOHO_REFRESH_TOKEN,
-  ZOHO_ACCOUNT_ID: process.env.ZOHO_ACCOUNT_ID || '1780626000000008002',
+  ZOHO_CLIENT_ID: process.env.ZOHO_CLIENT_ID || '',
+  ZOHO_CLIENT_SECRET: process.env.ZOHO_CLIENT_SECRET || '',
+  ZOHO_REFRESH_TOKEN: process.env.ZOHO_REFRESH_TOKEN || '',
+  ZOHO_ACCOUNT_ID: process.env.ZOHO_ACCOUNT_ID || '',
   ZOHO_FROM_ADDRESS: process.env.ZOHO_FROM_ADDRESS || 'jason@624films.com',
   DIGEST_RECIPIENT: process.env.DIGEST_RECIPIENT || 'jason@624films.com',
 
   // Firebase Firestore REST API (Admin Hub Demo Sites)
   FIRESTORE_PROJECT_ID: process.env.FIRESTORE_PROJECT_ID || 'admin-hub-cc0a2',
-  FIRESTORE_API_KEY: process.env.FIRESTORE_API_KEY,
+  FIRESTORE_API_KEY: process.env.FIRESTORE_API_KEY || '',
 
   // File Paths
   SPEC_SITES_ROOT: 'F:\\624 SITEWORKS\\Client Sites',
@@ -83,6 +86,70 @@ const ROTATING_NICHES = [
   { trade: 'Asphalt Paving', city: 'Appleton, WI', query: 'Asphalt paving contractor, Appleton, WI' },
   { trade: 'Foundation Repair', city: 'Oshkosh, WI', query: 'Foundation repair contractor, Oshkosh, WI' }
 ];
+
+// Curated high-resolution photography library per trade for fallback and richness
+const TRADE_PHOTOGRAPHY = {
+  'Concrete': {
+    hero: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=80',
+    service1: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80',
+    service2: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80',
+    service3: 'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80',
+    about: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80'
+    ]
+  },
+  'Roofing': {
+    hero: 'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=1400&q=80',
+    service1: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80',
+    service2: 'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=800&q=80',
+    service3: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80',
+    about: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=600&q=80'
+    ]
+  },
+  'Fencing': {
+    hero: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1400&q=80',
+    service1: 'https://images.unsplash.com/photo-1516455590571-18256e5bb9ff?auto=format&fit=crop&w=800&q=80',
+    service2: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+    service3: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
+    about: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=800&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80'
+    ]
+  },
+  'HVAC': {
+    hero: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1400&q=80',
+    service1: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
+    service2: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+    service3: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+    about: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80'
+    ]
+  },
+  'Plumbing': {
+    hero: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1400&q=80',
+    service1: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=800&q=80',
+    service2: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=800&q=80',
+    service3: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80',
+    about: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=800&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=600&q=80'
+    ]
+  }
+};
 
 // Set environment for child processes (wrangler)
 process.env.CLOUDFLARE_ACCOUNT_ID = CONFIG.CLOUDFLARE_ACCOUNT_ID;
@@ -153,6 +220,23 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+async function downloadFile(url, destPath) {
+  try {
+    if (!url || !url.startsWith('http')) return false;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
+    if (!res.ok) return false;
+    const arrayBuf = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuf);
+    if (buffer.length < 800) return false; // Skip empty or tiny spacers
+    fs.writeFileSync(destPath, buffer);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // ============================================================================
 // ZOHO MAIL API CLIENT
 // ============================================================================
@@ -187,9 +271,6 @@ async function getZohoAccessToken() {
   return cachedZohoToken;
 }
 
-/**
- * Creates an outreach draft in Zoho Mail drafts folder without sending.
- */
 async function createZohoDraft(toAddress, subject, htmlContent) {
   const token = await getZohoAccessToken();
   const res = await fetch(`https://mail.zoho.com/api/accounts/${CONFIG.ZOHO_ACCOUNT_ID}/messages`, {
@@ -214,9 +295,6 @@ async function createZohoDraft(toAddress, subject, htmlContent) {
   return data;
 }
 
-/**
- * Sends notification email to user (Daily Digest).
- */
 async function sendZohoNotification(subject, htmlContent) {
   const token = await getZohoAccessToken();
   const res = await fetch(`https://mail.zoho.com/api/accounts/${CONFIG.ZOHO_ACCOUNT_ID}/messages`, {
@@ -290,7 +368,7 @@ async function callGemini(promptText, model = CONFIG.GEMINI_MODEL) {
       body: JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
-          temperature: 0.3,
+          temperature: 0.25,
           maxOutputTokens: 8192
         }
       })
@@ -298,7 +376,7 @@ async function callGemini(promptText, model = CONFIG.GEMINI_MODEL) {
 
     if (!res.ok) {
       if (model !== CONFIG.GEMINI_FALLBACK_MODEL) {
-        logWarn(`Gemini model ${model} returned ${res.status}. Trying fallback ${CONFIG.GEMINI_FALLBACK_MODEL}...`);
+        logWarn(`Gemini model ${model} returned ${res.status}. Retrying with fallback ${CONFIG.GEMINI_FALLBACK_MODEL}...`);
         return await callGemini(promptText, CONFIG.GEMINI_FALLBACK_MODEL);
       }
       const err = await res.text();
@@ -361,7 +439,6 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
 
   logSub(`Total pipeline leads: ${data.leads.length} (${data.stats?.scraped || 0} queued in sheet).`);
 
-  // Filter for actionable leads that do not yet have a deployed spec site
   const candidates = data.leads.filter(lead => {
     const hasPreview = Boolean(lead.previewUrl && lead.previewUrl.trim().includes('.pages.dev'));
     const isDismissed = lead.leadStatus && (
@@ -377,10 +454,7 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
     throw new Error('No unbuilt leads found in the pipeline for today. Check your Google Sheet!');
   }
 
-  // Sort descending by Badness score (100 -> 90 -> 80)
   candidates.sort((a, b) => (b.badnessScore || 50) - (a.badnessScore || 50));
-
-  // Pick the top 2 worst prospects for the day
   const chosenLeads = candidates.slice(0, countToPick);
   logSuccess(`Selected the top ${chosenLeads.length} worst prospects for today's automated build:`);
 
@@ -389,7 +463,6 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
     logSub(`#${i + 1}: ${lead.businessName} (Score: ${lead.badnessScore}/100) — Row ${lead.rowNumber}`);
   }
 
-  // If any of the chosen leads need AI enrichment, trigger Gate 2
   const needsEnrichment = chosenLeads.filter(l => l.leadStatus === '1. Scraped');
   if (needsEnrichment.length > 0) {
     logSub(`Advancing ${needsEnrichment.length} lead(s) to "Approve Research" for Gate 2 AI enrichment...`);
@@ -399,6 +472,7 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'updateLead',
           rowNumber: lead.rowNumber,
           status: 'Approve Research'
         })
@@ -411,7 +485,6 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
     logSuccess(`Enriched ${gate2Data.enrichedCount || 0} lead(s) with tailored services & trust copy.`);
   }
 
-  // Re-fetch pipeline to obtain refreshed prompts and row values
   const refreshedRes = await fetch(getUrl);
   const refreshedData = await refreshedRes.json();
   const refreshedChosen = chosenLeads.map(lead => {
@@ -422,80 +495,343 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
 }
 
 // ============================================================================
-// AGENT 3: THE BUILDER (Generates 4-Page Site & Deploys to Cloudflare Pages)
+// AGENT 3A: DEEP ONLINE RESEARCHER (Socials, Media, Real Colors, Story)
 // ============================================================================
 
-function generateSiteMarkup(lead, tradeInfo) {
+async function researchBusinessOnline(lead, tradeInfo) {
   const bizName = lead.businessName;
+  const city = tradeInfo.city;
+  const domain = lead.domainStatus || '';
+
+  logSub(`Searching web & social media for "${bizName}" (${city})...`);
+
+  let researchData = {
+    socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
+    websiteImages: [],
+    extractedColors: [],
+    snippets: []
+  };
+
+  try {
+    const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=researchSocials&bizName=${encodeURIComponent(bizName)}&city=${encodeURIComponent(city)}&domain=${encodeURIComponent(domain)}`);
+    const json = await res.json();
+    if (json.success) {
+      researchData = json;
+    }
+  } catch (e) {
+    logWarn(`Social research endpoint error: ${e.message}`);
+  }
+
+  // If lead already had a logo URL from Google Places, record it
+  if (lead.logoUrl && !researchData.websiteImages.includes(lead.logoUrl)) {
+    researchData.websiteImages.unshift(lead.logoUrl);
+  }
+
+  const foundSocials = Object.entries(researchData.socials || {})
+    .filter(([_, url]) => Boolean(url))
+    .map(([platform, url]) => `${platform}: ${url}`);
+
+  if (foundSocials.length > 0) {
+    logSuccess(`Discovered social profiles: ${foundSocials.join(' | ')}`);
+  } else {
+    logSub('No direct social profiles discovered via automated search.');
+  }
+
+  return researchData;
+}
+
+// ============================================================================
+// AGENT 3B: BESPOKE BRAND STYLIST & COLOR SCHEME DESIGNER
+// ============================================================================
+
+async function synthesizeBespokeBranding(lead, tradeInfo, researchData) {
+  const bizName = lead.businessName;
+  const trade = tradeInfo.trade;
+  const city = tradeInfo.city;
+
+  logSub(`Synthesizing tailored visual identity and color scheme for "${bizName}"...`);
+
+  const prompt = `You are an elite creative director and local contractor brand strategist.
+Create a COMPLETELY UNIQUE, highly authentic brand identity and color palette tailored specifically for this local business so their website does NOT look like any other template.
+
+BUSINESS CONTEXT:
+- Business Name: ${bizName}
+- Trade / Specialty: ${trade}
+- City / Area: ${city}
+- Rating & Reviews: ${lead.ratingReviews || 'Top-Rated Local Contractor'}
+- Current Domain / Web: ${lead.domainStatus || 'None'}
+- Real Extracted Colors: ${researchData.extractedColors?.join(', ') || 'None found'}
+- Discovered Social Profiles: ${JSON.stringify(researchData.socials || {})}
+- Web Search Snippets & Facts: ${(researchData.snippets || []).slice(0, 4).join(' -- ')}
+- Existing Vibe Notes: ${lead.vibe || 'Tailor to their brand name and trade'}
+
+RULES FOR AESTHETICS & DIFFERENTIATION:
+1. DO NOT use generic blue-slate if their name or trade suggests something more specific.
+   - For timber, wood, deck builders (e.g. M.A.K.E.): Use rich cedar timber (#8B4513, #9A3412, #78350F) with warm charcoal slate (#18181B) and copper/amber CTA (#F59E0B).
+   - For royal / castle / shield names (e.g. Crown Fence): Use royal midnight navy (#1E3A8A) with burnished gold (#D97706, #EAB308) and crisp white/slate surfaces.
+   - For heavy industrial / masonry / concrete (e.g. Delrar): Use deep granite graphite (#334155, #1E293B) with safety orange / warm yellow (#EA580C, #F59E0B).
+   - For landscaping / tree services: Use rich evergreen / moss (#166534, #15803D) with warm bronze earth tones.
+2. If real extracted colors from their website exist, incorporate their exact primary hue.
+3. Choose an intentional Layout Style: 'split-hero-timber' (warm craft layout with photo cards), 'shield-banner-estimator' (bold contractor banner with quick calculator), or 'modern-architectural' (sleek clean lines).
+
+Return ONLY valid JSON matching this schema:
+{
+  "displayBrandName": "${bizName}",
+  "aestheticVibe": "e.g. Warm Cedar Timber & Craftsmanship",
+  "layoutStyle": "split-hero-timber" or "shield-banner-estimator" or "modern-architectural",
+  "themeMode": "dark" or "light",
+  "palette": {
+    "primary": "#hex",
+    "primaryHover": "#hex",
+    "secondary": "#hex",
+    "accent": "#hex",
+    "background": "#hex",
+    "surface": "#hex",
+    "border": "#hex",
+    "textPrimary": "#hex",
+    "textSecondary": "#hex"
+  },
+  "tagline": "Punchy local headline e.g. 'Custom Cedar, Vinyl & Iron Craftsmanship in Appleton'",
+  "ownerStory": "2-3 authentic sentences about their local roots, family ownership, or specialized craftsmanship in Northeast Wisconsin.",
+  "calculatorOptions": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "services": [
+    { "name": "Service 1 Name", "desc": "2 punchy sentences with Fox Valley local keywords.", "badge": "Most Popular" },
+    { "name": "Service 2 Name", "desc": "2 punchy sentences emphasizing durability and quality.", "badge": "Commercial & Residential" },
+    { "name": "Service 3 Name", "desc": "2 punchy sentences highlighting free estimates and repairs.", "badge": "Fast Turnaround" }
+  ]
+}`;
+
+  try {
+    const rawAiText = await callGemini(prompt);
+    const cleanedJson = rawAiText.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleanedJson);
+    logSuccess(`Brand identity created: "${parsed.aestheticVibe}" (Theme: ${parsed.themeMode}, Primary: ${parsed.palette?.primary})`);
+    return parsed;
+  } catch (err) {
+    logWarn(`Gemini branding fallback triggered: ${err.message}`);
+    // Safe differentiated fallback
+    const isWood = /fence|deck|timber|wood|carpenter/i.test(bizName);
+    return {
+      displayBrandName: bizName,
+      aestheticVibe: isWood ? 'Warm Cedar Timber & Craftsmanship' : 'Modern Heavy-Duty Contractor',
+      layoutStyle: isWood ? 'split-hero-timber' : 'shield-banner-estimator',
+      themeMode: 'dark',
+      palette: isWood ? {
+        primary: '#9a3412',
+        primaryHover: '#7c2d12',
+        secondary: '#1c1917',
+        accent: '#f59e0b',
+        background: '#0c0a09',
+        surface: '#1c1917',
+        border: '#292524',
+        textPrimary: '#fafaf9',
+        textSecondary: '#a8a29e'
+      } : {
+        primary: '#1e3a8a',
+        primaryHover: '#172554',
+        secondary: '#0f172a',
+        accent: '#eab308',
+        background: '#020617',
+        surface: '#0f172a',
+        border: '#1e293b',
+        textPrimary: '#f8fafc',
+        textSecondary: '#94a3b8'
+      },
+      tagline: `Premier ${trade} Solutions in ${city}`,
+      ownerStory: `${bizName} is proud to deliver reliable craftsmanship, transparent communication, and long-lasting durability for homeowners and businesses across Northeast Wisconsin.`,
+      calculatorOptions: ['Standard Residential', 'Commercial Heavy-Duty', 'Custom Decorative', 'Repairs & Restorations'],
+      services: (lead.services && lead.services.length >= 3) ? lead.services : [
+        { name: `Residential ${trade}`, desc: `High-quality, durable solutions tailored for homes across ${city}.`, badge: 'Most Popular' },
+        { name: `Commercial Installations`, desc: `Engineered to withstand Wisconsin weather with premium materials.`, badge: 'Commercial Grade' },
+        { name: `Repairs & Upgrades`, desc: `Fast, prompt scheduling with transparent upfront estimates.`, badge: 'Free Estimates' }
+      ]
+    };
+  }
+}
+
+// ============================================================================
+// AGENT 3C: ASSETS & PHOTOGRAPHY OPTIMIZER
+// ============================================================================
+
+async function prepareProjectAssets(siteDir, lead, branding, researchData, tradeInfo) {
+  const assetsDir = path.join(siteDir, 'assets');
+  const imgDir = path.join(assetsDir, 'images');
+  const funcDir = path.join(siteDir, 'functions', 'api');
+
+  fs.mkdirSync(imgDir, { recursive: true });
+  fs.mkdirSync(funcDir, { recursive: true });
+
+  // Copy preview-banner.js
+  if (fs.existsSync(CONFIG.PREVIEW_BANNER_SRC)) {
+    fs.copyFileSync(CONFIG.PREVIEW_BANNER_SRC, path.join(assetsDir, 'preview-banner.js'));
+  }
+
+  // Copy contact.js
+  if (fs.existsSync(CONFIG.CONTACT_API_SRC)) {
+    fs.copyFileSync(CONFIG.CONTACT_API_SRC, path.join(funcDir, 'contact.js'));
+  }
+
+  // Trade photography library
+  const tradeKey = Object.keys(TRADE_PHOTOGRAPHY).find(k => tradeInfo.trade.toLowerCase().includes(k.toLowerCase())) || 'Fencing';
+  const defaultPhotos = TRADE_PHOTOGRAPHY[tradeKey] || TRADE_PHOTOGRAPHY['Fencing'];
+
+  logSub(`Downloading and optimizing photos for ${lead.businessName}...`);
+
+  // Download real logo / Google Places photo if available
+  const realLogoCandidates = [
+    lead.logoUrl,
+    researchData.knowledgeGraph?.imageUrl,
+    ...(researchData.websiteImages || [])
+  ].filter(u => u && u.startsWith('http'));
+
+  let hasRealLogo = false;
+  if (realLogoCandidates.length > 0) {
+    const downloaded = await downloadFile(realLogoCandidates[0], path.join(imgDir, 'brand-logo.jpg'));
+    if (downloaded) {
+      hasRealLogo = true;
+      logSuccess(`Saved real brand logo/photo from Google/Web (${path.basename(realLogoCandidates[0]).slice(0, 30)}...)`);
+    }
+  }
+
+  // Download hero & service photography
+  await downloadFile(defaultPhotos.hero, path.join(imgDir, 'hero.jpg'));
+  await downloadFile(defaultPhotos.service1, path.join(imgDir, 'service-1.jpg'));
+  await downloadFile(defaultPhotos.service2, path.join(imgDir, 'service-2.jpg'));
+  await downloadFile(defaultPhotos.service3, path.join(imgDir, 'service-3.jpg'));
+  await downloadFile(defaultPhotos.about, path.join(imgDir, 'about.jpg'));
+
+  // Download gallery photos
+  if (defaultPhotos.gallery && defaultPhotos.gallery.length >= 3) {
+    await downloadFile(defaultPhotos.gallery[0], path.join(imgDir, 'gallery-1.jpg'));
+    await downloadFile(defaultPhotos.gallery[1], path.join(imgDir, 'gallery-2.jpg'));
+    await downloadFile(defaultPhotos.gallery[2], path.join(imgDir, 'gallery-3.jpg'));
+  }
+
+  return {
+    hasRealLogo,
+    logoUrl: hasRealLogo ? 'assets/images/brand-logo.jpg' : null,
+    heroUrl: 'assets/images/hero.jpg',
+    service1Url: 'assets/images/service-1.jpg',
+    service2Url: 'assets/images/service-2.jpg',
+    service3Url: 'assets/images/service-3.jpg',
+    aboutUrl: 'assets/images/about.jpg',
+    gallery: [
+      'assets/images/gallery-1.jpg',
+      'assets/images/gallery-2.jpg',
+      'assets/images/gallery-3.jpg'
+    ]
+  };
+}
+
+// ============================================================================
+// AGENT 3D: BESPOKE HTML & CSS GENERATOR
+// ============================================================================
+
+function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths) {
+  const bizName = branding.displayBrandName || lead.businessName;
+  const slug = sanitizeSlug(bizName);
   const phone = lead.phone || '(920) 555-0624';
   const cleanPhone = phone.replace(/[^\d+]/g, '');
-  const email = lead.email || `info@${sanitizeSlug(bizName)}.com`;
+  const email = lead.email || `info@${slug}.com`;
+  const city = tradeInfo.city;
+  const trade = tradeInfo.trade;
+  const serviceArea = lead.serviceArea || `${city} and Northeast Wisconsin`;
+  const p = branding.palette;
+  const isDark = branding.themeMode !== 'light';
 
-  // Detect actual trade from lead's Google rating badge (e.g. "4.8 ★ (12 reviews) - Fence contractor")
-  let trade = tradeInfo.trade;
-  if (lead.ratingReviews && lead.ratingReviews.includes('-')) {
-    const extracted = lead.ratingReviews.split('-')[1]?.trim();
-    if (extracted && extracted.length > 2 && extracted.length < 40) {
-      trade = extracted.replace(/contractor|services|company|llc|inc/gi, '').trim() || tradeInfo.trade;
-      // Capitalize
-      trade = trade.charAt(0).toUpperCase() + trade.slice(1);
-    }
+  // Social icons HTML
+  const socials = researchData.socials || {};
+  const socialIconsHtml = [];
+  
+  if (socials.facebook) {
+    socialIconsHtml.push(`
+      <a href="${escapeHtml(socials.facebook)}" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-600/10 text-blue-500" title="Visit us on Facebook" aria-label="Facebook">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      </a>
+    `);
+  }
+  if (socials.instagram) {
+    socialIconsHtml.push(`
+      <a href="${escapeHtml(socials.instagram)}" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition-opacity p-2 rounded-lg bg-pink-600/10 text-pink-500" title="Follow us on Instagram" aria-label="Instagram">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+    `);
+  }
+  if (socials.linkedin) {
+    socialIconsHtml.push(`
+      <a href="${escapeHtml(socials.linkedin)}" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-700/10 text-blue-600" title="Connect on LinkedIn" aria-label="LinkedIn">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+      </a>
+    `);
   }
 
-  // Detect city from service area or default to target city
-  let city = tradeInfo.city;
-  if (lead.serviceArea && lead.serviceArea.includes('(')) {
-    const inside = lead.serviceArea.split('(')[1].split(')')[0];
-    const firstCity = inside.split(',')[0]?.trim();
-    if (firstCity && firstCity.length > 2) {
-      city = `${firstCity}, WI`;
-    }
-  }
+  // Social badge row for headers and footers
+  const socialRowHtml = socialIconsHtml.length > 0
+    ? `<div class="flex items-center gap-2">${socialIconsHtml.join('')}</div>`
+    : '';
 
-  const serviceArea = lead.serviceArea || `${city} and the Fox Valley area`;
-  const trustFactor = lead.trustFactor || `Top-Rated ${trade} Specialists in ${city}`;
+  // Logo rendering
+  const logoMarkup = assetPaths.hasRealLogo
+    ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" class="h-10 w-auto rounded-lg object-contain bg-white/10 p-1">`
+    : `<div class="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-xl shadow-lg" style="background-color: ${p.primary}; color: #ffffff;">${bizName.charAt(0)}</div>`;
 
-  const services = (lead.services && lead.services.length >= 3) ? lead.services : [
-    { name: `Residential ${trade} Services`, desc: `High-quality, durable ${trade.toLowerCase()} solutions tailored for homeowners across ${city} and Northeast Wisconsin.` },
-    { name: `Commercial & Industrial Solutions`, desc: `Built to withstand Wisconsin weather with premium materials, engineered durability, and fast turnaround.` },
-    { name: `Repairs, Restorations & Free Quotes`, desc: `Transparent upfront pricing, prompt on-site consultations, and responsive customer service.` }
-  ];
+  // Custom CSS variables to make each site strictly respect its unique palette
+  const customCss = `
+    <style>
+      :root {
+        --c-primary: ${p.primary};
+        --c-primary-hover: ${p.primaryHover};
+        --c-secondary: ${p.secondary};
+        --c-accent: ${p.accent};
+        --c-bg: ${p.background};
+        --c-surface: ${p.surface};
+        --c-border: ${p.border};
+        --c-text-main: ${p.textPrimary};
+        --c-text-muted: ${p.textSecondary};
+      }
+      body {
+        background-color: var(--c-bg);
+        color: var(--c-text-main);
+      }
+      .brand-btn-primary {
+        background-color: var(--c-primary);
+        color: #ffffff;
+      }
+      .brand-btn-primary:hover {
+        background-color: var(--c-primary-hover);
+      }
+      .brand-btn-accent {
+        background-color: var(--c-accent);
+        color: #0f172a;
+        font-weight: 700;
+      }
+      .brand-surface-card {
+        background-color: var(--c-surface);
+        border: 1px solid var(--c-border);
+      }
+    </style>
+  `;
 
-  // Primary brand palette based on trade
-  const palette = {
-    'Concrete': { primary: '#2563eb', secondary: '#1e293b', accent: '#f59e0b', light: '#f8fafc' },
-    'Roofing': { primary: '#0284c7', secondary: '#0f172a', accent: '#f97316', light: '#f8fafc' },
-    'Fencing': { primary: '#16a34a', secondary: '#1e293b', accent: '#ca8a04', light: '#f8fafc' },
-    'HVAC': { primary: '#0ea5e9', secondary: '#1e293b', accent: '#ef4444', light: '#f8fafc' },
-    'Plumbing': { primary: '#2563eb', secondary: '#0f172a', accent: '#3b82f6', light: '#f8fafc' },
-    'Tree Service': { primary: '#15803d', secondary: '#1c1917', accent: '#eab308', light: '#f8fafc' },
-    'Landscaping': { primary: '#16a34a', secondary: '#1e293b', accent: '#84cc16', light: '#f8fafc' },
-    'Electricians': { primary: '#4f46e5', secondary: '#18181b', accent: '#eab308', light: '#f8fafc' },
-    'Asphalt Paving': { primary: '#334155', secondary: '#09090b', accent: '#f59e0b', light: '#f8fafc' },
-    'Foundation Repair': { primary: '#475569', secondary: '#0f172a', accent: '#3b82f6', light: '#f8fafc' }
-  }[trade] || { primary: '#2563eb', secondary: '#0f172a', accent: '#f59e0b', light: '#f8fafc' };
-
-  // Common navigation header
+  // Common Header
   const headerHtml = `
-    <header class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white">
+    <header class="sticky top-0 z-50 backdrop-blur-md border-b" style="background-color: ${p.secondary}f0; border-color: ${p.border};">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         <a href="index.html" class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-xl text-white shadow-lg">
-            ${bizName.charAt(0)}
-          </div>
+          ${logoMarkup}
           <div>
-            <span class="font-extrabold text-lg sm:text-xl tracking-tight block text-white">${escapeHtml(bizName)}</span>
-            <span class="text-xs text-blue-400 font-medium tracking-wide uppercase block">${trade} Specialists • ${city}</span>
+            <span class="font-extrabold text-lg sm:text-xl tracking-tight block" style="color: ${p.textPrimary};">${escapeHtml(bizName)}</span>
+            <span class="text-xs font-semibold tracking-wide uppercase block" style="color: ${p.accent};">${trade} Specialists • ${city}</span>
           </div>
         </a>
-        <nav class="hidden md:flex items-center gap-8 font-medium text-sm text-slate-300">
-          <a href="index.html" class="hover:text-blue-400 transition-colors">Home</a>
-          <a href="services.html" class="hover:text-blue-400 transition-colors">Services</a>
-          <a href="about.html" class="hover:text-blue-400 transition-colors">About</a>
-          <a href="contact.html" class="hover:text-blue-400 transition-colors">Contact</a>
+        <nav class="hidden md:flex items-center gap-8 font-medium text-sm" style="color: ${p.textSecondary};">
+          <a href="index.html" class="hover:text-white transition-colors">Home</a>
+          <a href="services.html" class="hover:text-white transition-colors">Services</a>
+          <a href="about.html" class="hover:text-white transition-colors">About Us</a>
+          <a href="contact.html" class="hover:text-white transition-colors">Free Estimate</a>
         </nav>
-        <div class="flex items-center gap-3">
-          <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm shadow-md transition-all">
+        <div class="flex items-center gap-4">
+          ${socialRowHtml}
+          <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 brand-btn-primary px-4 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
             <span>${escapeHtml(phone)}</span>
           </a>
@@ -504,38 +840,42 @@ function generateSiteMarkup(lead, tradeInfo) {
     </header>
   `;
 
-  // Common footer
+  // Common Footer
   const footerHtml = `
-    <footer class="bg-slate-950 text-slate-400 border-t border-slate-800 py-12">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div class="md:col-span-2">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white">
-              ${bizName.charAt(0)}
-            </div>
-            <span class="font-bold text-white text-lg">${escapeHtml(bizName)}</span>
+    <footer class="border-t py-14" style="background-color: ${p.secondary}; border-color: ${p.border}; color: ${p.textSecondary};">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10">
+        <div class="md:col-span-2 space-y-4">
+          <div class="flex items-center gap-3">
+            ${logoMarkup}
+            <span class="font-extrabold text-xl" style="color: ${p.textPrimary};">${escapeHtml(bizName)}</span>
           </div>
-          <p class="text-sm text-slate-400 max-w-md mb-4">
-            Dedicated ${trade.toLowerCase()} contractor providing reliable craftsmanship, licensed professionals, and long-lasting results throughout ${serviceArea}.
+          <p class="text-sm leading-relaxed max-w-md" style="color: ${p.textSecondary};">
+            ${escapeHtml(branding.ownerStory)}
           </p>
-          <p class="text-xs text-slate-500">
-            &copy; ${new Date().getFullYear()} ${escapeHtml(bizName)}. All rights reserved. Locally operated in Northeast Wisconsin.
+          ${socialIconsHtml.length > 0 ? `
+            <div class="pt-2">
+              <span class="text-xs uppercase tracking-wider font-semibold block mb-2" style="color: ${p.accent};">Connect on Social Media</span>
+              ${socialRowHtml}
+            </div>
+          ` : ''}
+          <p class="text-xs pt-4" style="color: ${p.textSecondary}80;">
+            &copy; ${new Date().getFullYear()} ${escapeHtml(bizName)}. Proudly serving Appleton and Northeast Wisconsin.
           </p>
         </div>
         <div>
-          <h4 class="text-white font-semibold text-sm mb-3 uppercase tracking-wider">Quick Links</h4>
+          <h4 class="font-bold text-sm mb-4 uppercase tracking-wider" style="color: ${p.textPrimary};">Navigation</h4>
           <ul class="space-y-2 text-sm">
-            <li><a href="index.html" class="hover:text-white transition-colors">Home</a></li>
-            <li><a href="services.html" class="hover:text-white transition-colors">Our Services</a></li>
-            <li><a href="about.html" class="hover:text-white transition-colors">About Us</a></li>
-            <li><a href="contact.html" class="hover:text-white transition-colors">Free Estimate</a></li>
+            <li><a href="index.html" class="hover:underline">Home</a></li>
+            <li><a href="services.html" class="hover:underline">Contracting Services</a></li>
+            <li><a href="about.html" class="hover:underline">About Our Company</a></li>
+            <li><a href="contact.html" class="hover:underline">Schedule Free Estimate</a></li>
           </ul>
         </div>
         <div>
-          <h4 class="text-white font-semibold text-sm mb-3 uppercase tracking-wider">Contact &amp; Hours</h4>
-          <p class="text-sm mb-1 text-slate-300 font-semibold">${escapeHtml(phone)}</p>
-          <p class="text-sm mb-3 text-slate-400">${escapeHtml(email)}</p>
-          <p class="text-xs text-slate-500 leading-relaxed">${escapeHtml(lead.hours || 'Monday - Friday: 7:00 AM - 5:00 PM | Sat-Sun: By Appointment')}</p>
+          <h4 class="font-bold text-sm mb-4 uppercase tracking-wider" style="color: ${p.textPrimary};">Hours &amp; Location</h4>
+          <p class="text-base font-bold mb-1" style="color: ${p.textPrimary};">${escapeHtml(phone)}</p>
+          <p class="text-sm mb-3" style="color: ${p.accent};">${escapeHtml(email)}</p>
+          <p class="text-xs leading-relaxed" style="color: ${p.textSecondary};">${escapeHtml(lead.hours || 'Monday – Friday: 7:00 AM – 5:00 PM | Weekend: By Appointment')}</p>
         </div>
       </div>
     </footer>
@@ -548,18 +888,18 @@ function generateSiteMarkup(lead, tradeInfo) {
     "@graph": [
       {
         "@type": ["HomeAndConstructionBusiness", "LocalBusiness"],
-        "@id": `https://${sanitizeSlug(bizName)}.pages.dev/#business`,
+        "@id": `https://${slug}.pages.dev/#business`,
         "name": bizName,
         "telephone": phone,
         "email": email,
-        "url": `https://${sanitizeSlug(bizName)}.pages.dev/`,
+        "url": `https://${slug}.pages.dev/`,
         "areaServed": [
           { "@type": "City", "name": "Appleton" },
           { "@type": "City", "name": "Neenah" },
           { "@type": "City", "name": "Menasha" },
           { "@type": "City", "name": "Kaukauna" }
         ],
-        "openingHours": lead.hours || "Mo-Fr 07:00-17:00"
+        "sameAs": Object.values(socials).filter(Boolean)
       }
     ]
   });
@@ -570,113 +910,172 @@ function generateSiteMarkup(lead, tradeInfo) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(bizName)} | Top-Rated ${trade} Contractor in ${city}</title>
-  <meta name="description" content="${escapeHtml(bizName)} delivers premium ${trade.toLowerCase()} services in ${city} and Northeast Wisconsin. Call ${phone} today for a fast, free estimate.">
-  <link rel="canonical" href="https://${sanitizeSlug(bizName)}.pages.dev/">
+  <title>${escapeHtml(bizName)} | ${escapeHtml(branding.tagline)}</title>
+  <meta name="description" content="${escapeHtml(bizName)} delivers top-quality ${trade.toLowerCase()} in ${city} and Northeast Wisconsin. Free quotes, licensed professionals. Call ${phone}.">
+  <link rel="canonical" href="https://${slug}.pages.dev/">
   <meta name="geo.region" content="US-WI">
   <meta name="geo.placename" content="${city}">
   <script src="https://cdn.tailwindcss.com"></script>
+  ${customCss}
   <script type="application/ld+json">${schemaJson}</script>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased selection:bg-blue-600 selection:text-white">
+<body class="font-sans antialiased">
   ${headerHtml}
 
-  <!-- Hero Section -->
-  <section class="relative bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 py-20 lg:py-28 overflow-hidden">
+  <!-- Bespoke Hero Section with Image & Unique Theme -->
+  <section class="relative py-20 lg:py-28 overflow-hidden" style="background-image: linear-gradient(to right, ${p.background}ee, ${p.background}c0), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-      <div class="max-w-3xl">
-        <div class="inline-flex items-center gap-2 bg-blue-950/80 border border-blue-500/30 text-blue-400 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase mb-6">
-          <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-          ${escapeHtml(trustFactor)}
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <!-- Left Headline Column -->
+        <div class="lg:col-span-7">
+          <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase mb-6 brand-surface-card">
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${p.accent};"></span>
+            <span style="color: ${p.textPrimary};">${escapeHtml(lead.trustFactor || `Top-Rated ${trade} in ${city}`)}</span>
+          </div>
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6" style="color: ${p.textPrimary};">
+            ${escapeHtml(branding.tagline)}
+          </h1>
+          <p class="text-lg sm:text-xl leading-relaxed mb-8 max-w-2xl" style="color: ${p.textSecondary};">
+            ${escapeHtml(branding.ownerStory)}
+          </p>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <a href="tel:${cleanPhone}" class="inline-flex items-center justify-center gap-2 brand-btn-primary font-bold px-8 py-4 rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 text-base">
+              Call ${escapeHtml(phone)}
+            </a>
+            <a href="#quick-quote" class="inline-flex items-center justify-center gap-2 brand-surface-card hover:opacity-90 font-semibold px-8 py-4 rounded-xl transition-all text-base" style="color: ${p.textPrimary};">
+              Instant Estimate Form &darr;
+            </a>
+          </div>
+
+          <!-- Trust Badges -->
+          <div class="grid grid-cols-3 gap-4 pt-10 border-t mt-10" style="border-color: ${p.border};">
+            <div>
+              <p class="text-2xl font-black" style="color: ${p.accent};">100%</p>
+              <p class="text-xs uppercase tracking-wider" style="color: ${p.textSecondary};">Licensed &amp; Insured</p>
+            </div>
+            <div>
+              <p class="text-2xl font-black" style="color: ${p.accent};">5-Star</p>
+              <p class="text-xs uppercase tracking-wider" style="color: ${p.textSecondary};">Customer Care</p>
+            </div>
+            <div>
+              <p class="text-2xl font-black" style="color: ${p.accent};">Local</p>
+              <p class="text-xs uppercase tracking-wider" style="color: ${p.textSecondary};">Fox Valley WI</p>
+            </div>
+          </div>
         </div>
-        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
-          Reliable ${trade} Craftsmanship in <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">${city}</span>
-        </h1>
-        <p class="text-lg sm:text-xl text-slate-300 leading-relaxed mb-8">
-          Serving homeowners and commercial clients across ${serviceArea} with upfront pricing, premium materials, and verified local expertise.
-        </p>
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-          <a href="tel:${cleanPhone}" class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-blue-600/30 transition-all text-base">
-            Call ${escapeHtml(phone)}
-          </a>
-          <a href="#estimate-form" class="inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold px-8 py-4 rounded-xl transition-all text-base">
-            Request Free Estimate &darr;
-          </a>
+
+        <!-- Right Visual Showcase / Quick Quote Card -->
+        <div class="lg:col-span-5" id="quick-quote">
+          <div class="brand-surface-card rounded-3xl p-8 shadow-2xl backdrop-blur-lg">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b" style="border-color: ${p.border};">
+              <div>
+                <h3 class="font-extrabold text-xl" style="color: ${p.textPrimary};">Request Quick Estimate</h3>
+                <p class="text-xs" style="color: ${p.textSecondary};">Response guaranteed within 24 business hours</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold" style="background-color: ${p.accent}20; color: ${p.accent};">FREE QUOTE</span>
+            </div>
+            <form id="heroEstimateForm" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">Your Name</label>
+                <input type="text" id="custName" required class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">Phone Number</label>
+                <input type="tel" id="custPhone" required class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">Project Type</label>
+                <select id="custType" class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
+                  ${(branding.calculatorOptions || ['Residential Service', 'Commercial Installation', 'Custom Project']).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">City or Project Location</label>
+                <input type="text" id="custCity" placeholder="e.g. Appleton, Neenah, Oshkosh" class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
+              </div>
+              <button type="submit" id="heroSubmitBtn" class="w-full brand-btn-primary font-bold py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 text-sm uppercase tracking-wider">
+                Submit Free Estimate Request &rarr;
+              </button>
+              <div id="heroFormMsg" class="hidden text-center text-xs font-semibold py-1"></div>
+            </form>
+          </div>
         </div>
+
       </div>
     </div>
   </section>
 
-  <!-- Core Services Section -->
-  <section class="py-20 bg-slate-950">
+  <!-- Core Services Showcase with Dedicated Photos -->
+  <section class="py-24" style="background-color: ${p.secondary};">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center max-w-2xl mx-auto mb-16">
-        <h2 class="text-xs font-bold tracking-widest text-blue-500 uppercase mb-2">Our Specialties</h2>
-        <p class="text-3xl font-extrabold text-white">Expert ${trade} Solutions</p>
-        <p class="text-slate-400 mt-2">Tailored for Northeast Wisconsin weather and long-term durability.</p>
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs font-extrabold tracking-widest uppercase mb-2" style="color: ${p.accent};">Precision Craftsmanship</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold" style="color: ${p.textPrimary};">Our Specialized Contracting Services</p>
+        <p class="mt-3 text-base" style="color: ${p.textSecondary};">Engineered specifically for Northeast Wisconsin climate conditions and long-term value.</p>
       </div>
+
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        ${services.map((s, idx) => `
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 hover:border-blue-500/50 transition-all group">
-            <div class="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-lg mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all">
-              0${idx + 1}
+        ${branding.services.map((s, idx) => {
+          const imgUrl = idx === 0 ? assetPaths.service1Url : idx === 1 ? assetPaths.service2Url : assetPaths.service3Url;
+          return `
+            <div class="brand-surface-card rounded-3xl overflow-hidden shadow-xl transition-transform hover:-translate-y-1 group">
+              <div class="h-48 overflow-hidden relative">
+                <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <span class="absolute top-4 right-4 text-xs font-bold px-3 py-1 rounded-full brand-surface-card" style="color: ${p.accent};">
+                  ${escapeHtml(s.badge || 'Professional')}
+                </span>
+              </div>
+              <div class="p-8">
+                <h3 class="text-xl font-bold mb-3" style="color: ${p.textPrimary};">${escapeHtml(s.name)}</h3>
+                <p class="text-sm leading-relaxed mb-6" style="color: ${p.textSecondary};">${escapeHtml(s.desc)}</p>
+                <a href="services.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: ${p.accent};">
+                  Explore Details &rarr;
+                </a>
+              </div>
             </div>
-            <h3 class="text-xl font-bold text-white mb-3">${escapeHtml(s.name)}</h3>
-            <p class="text-slate-400 text-sm leading-relaxed mb-6">${escapeHtml(s.desc)}</p>
-            <a href="services.html" class="text-blue-400 font-semibold text-sm inline-flex items-center gap-1 group-hover:gap-2 transition-all">Learn more &rarr;</a>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  </section>
+
+  <!-- Project Showcase Gallery -->
+  <section class="py-20" style="background-color: ${p.background};">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row md:items-end justify-between mb-12">
+        <div>
+          <span class="text-xs font-extrabold tracking-widest uppercase block mb-2" style="color: ${p.accent};">Recent Work Portfolio</span>
+          <h2 class="text-3xl font-extrabold" style="color: ${p.textPrimary};">Recent Installations &amp; Builds</h2>
+        </div>
+        <p class="text-sm max-w-md mt-2 md:mt-0" style="color: ${p.textSecondary};">
+          See the craftsmanship we deliver to property owners across ${serviceArea}.
+        </p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        ${assetPaths.gallery.map((gUrl, idx) => `
+          <div class="rounded-2xl overflow-hidden brand-surface-card shadow-lg group">
+            <div class="h-64 overflow-hidden">
+              <img src="${gUrl}" alt="Completed Project ${idx + 1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            </div>
+            <div class="p-4 flex items-center justify-between text-xs font-semibold">
+              <span style="color: ${p.textPrimary};">Project Showcase #${idx + 1}</span>
+              <span style="color: ${p.accent};">Fox Valley, WI</span>
+            </div>
           </div>
         `).join('')}
       </div>
     </div>
   </section>
 
-  <!-- AI Direct Answer Summary (AEO / Voice Search) -->
-  <section id="ai-summary" class="py-12 bg-slate-900/60 border-y border-slate-800">
+  <!-- AI Direct Answer Summary (GEO / Voice Search) -->
+  <section id="ai-summary" class="py-12 border-y" style="background-color: ${p.surface}; border-color: ${p.border};">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 sm:p-8">
-        <p class="text-xs font-bold uppercase tracking-wider text-blue-400 mb-2">Summary for Homeowners</p>
-        <p class="text-slate-200 text-base leading-relaxed">
-          <strong>${escapeHtml(bizName)}</strong> is an established ${trade.toLowerCase()} contractor based in ${city}, providing professional ${services.map(s => s.name).join(', ')} across ${serviceArea}. Call <a href="tel:${cleanPhone}" class="text-blue-400 font-bold">${escapeHtml(phone)}</a> for free on-site consultations and reliable scheduling.
+      <div class="p-6 rounded-2xl brand-surface-card">
+        <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color: ${p.accent};">Company Summary for Property Owners</p>
+        <p class="text-sm leading-relaxed" style="color: ${p.textPrimary};">
+          <strong>${escapeHtml(bizName)}</strong> is a premier ${trade.toLowerCase()} contractor headquartered in ${city}, providing professional services across ${serviceArea}. Call <a href="tel:${cleanPhone}" class="font-bold underline" style="color: ${p.accent};">${escapeHtml(phone)}</a> for free on-site consultations and transparent pricing.
         </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Interactive Estimate Form Section -->
-  <section id="estimate-form" class="py-20 bg-slate-950">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl">
-        <div class="text-center mb-8">
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Request a Fast, Free Estimate</h2>
-          <p class="text-slate-400 text-sm mt-2">Fill out the quick form below or call directly at ${escapeHtml(phone)}.</p>
-        </div>
-        <form id="contactForm" class="space-y-5">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label for="name" class="block text-xs font-semibold text-slate-300 uppercase mb-2">Your Name</label>
-              <input type="text" id="name" name="name" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 text-sm">
-            </div>
-            <div>
-              <label for="phone" class="block text-xs font-semibold text-slate-300 uppercase mb-2">Phone Number</label>
-              <input type="tel" id="phone" name="phone" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 text-sm">
-            </div>
-          </div>
-          <div>
-            <label for="service" class="block text-xs font-semibold text-slate-300 uppercase mb-2">Service Needed</label>
-            <select id="service" name="service" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 text-sm">
-              ${services.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}
-              <option value="General Inquiry">Other Inquiry</option>
-            </select>
-          </div>
-          <div>
-            <label for="message" class="block text-xs font-semibold text-slate-300 uppercase mb-2">Project Details &amp; Location</label>
-            <textarea id="message" name="message" rows="3" placeholder="Tell us about your project..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 text-sm"></textarea>
-          </div>
-          <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-base">
-            Submit Free Estimate Request &rarr;
-          </button>
-          <div id="formStatus" class="hidden text-center text-sm font-medium py-2"></div>
-        </form>
       </div>
     </div>
   </section>
@@ -684,33 +1083,30 @@ function generateSiteMarkup(lead, tradeInfo) {
   ${footerHtml}
 
   <script>
-    document.getElementById('contactForm')?.addEventListener('submit', async function(e) {
+    document.getElementById('heroEstimateForm')?.addEventListener('submit', async function(e) {
       e.preventDefault();
-      const btn = document.getElementById('submitBtn');
-      const status = document.getElementById('formStatus');
+      const btn = document.getElementById('heroSubmitBtn');
+      const msg = document.getElementById('heroFormMsg');
       btn.disabled = true;
-      btn.innerText = 'Sending Request...';
-      
-      const payload = {
-        name: document.getElementById('name').value,
-        phone: document.getElementById('phone').value,
-        service: document.getElementById('service').value,
-        message: document.getElementById('message').value,
-        businessName: "${escapeHtml(bizName)}"
-      };
-
+      btn.innerText = 'Transmitting...';
       try {
-        const res = await fetch('/api/contact', {
+        await fetch('/api/contact', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            name: document.getElementById('custName').value,
+            phone: document.getElementById('custPhone').value,
+            service: document.getElementById('custType').value,
+            city: document.getElementById('custCity').value,
+            businessName: "${escapeHtml(bizName)}"
+          })
         });
-        status.className = 'text-center text-sm font-medium py-2 text-green-400 block';
-        status.innerText = '✔ Thank you! Your estimate request has been sent successfully.';
-        btn.innerText = 'Request Sent!';
+        msg.className = 'text-center text-xs font-bold py-1 text-green-400 block';
+        msg.innerText = '✔ Thank you! Your request was received. We will contact you shortly.';
+        btn.innerText = 'Request Received!';
       } catch (err) {
-        status.className = 'text-center text-sm font-medium py-2 text-amber-400 block';
-        status.innerText = 'Your request has been received. You can also call us directly at ${escapeHtml(phone)}.';
+        msg.className = 'text-center text-xs font-bold py-1 text-amber-400 block';
+        msg.innerText = 'Request submitted. You can also call us directly at ${escapeHtml(phone)}.';
       }
     });
   </script>
@@ -723,38 +1119,42 @@ function generateSiteMarkup(lead, tradeInfo) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Services | ${escapeHtml(bizName)} — ${trade} Contractor in ${city}</title>
-  <meta name="description" content="Explore complete ${trade.toLowerCase()} solutions by ${escapeHtml(bizName)}. Serving ${city} and Northeast Wisconsin with licensed, experienced professionals.">
-  <link rel="canonical" href="https://${sanitizeSlug(bizName)}.pages.dev/services.html">
+  <title>Services | ${escapeHtml(bizName)} — ${trade} Contractor</title>
+  <meta name="description" content="Explore custom ${trade.toLowerCase()} services by ${escapeHtml(bizName)} in ${city}. Upfront pricing and expert craftsmanship.">
+  <link rel="canonical" href="https://${slug}.pages.dev/services.html">
   <script src="https://cdn.tailwindcss.com"></script>
+  ${customCss}
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased">
+<body class="font-sans antialiased">
   ${headerHtml}
-  <main class="py-16 lg:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <main class="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center max-w-3xl mx-auto mb-16">
-      <h1 class="text-4xl font-extrabold text-white mb-4">Our ${trade} Services</h1>
-      <p class="text-lg text-slate-400">Engineered for quality, longevity, and Wisconsin's climate demands.</p>
+      <span class="text-xs font-bold uppercase tracking-widest" style="color: ${p.accent};">Contractor Portfolio</span>
+      <h1 class="text-4xl font-extrabold mt-2 mb-4" style="color: ${p.textPrimary};">Complete ${trade} Capabilities</h1>
+      <p class="text-base" style="color: ${p.textSecondary};">Every installation is built using premium commercial-grade materials designed for Wisconsin longevity.</p>
     </div>
+
     <div class="space-y-12">
-      ${services.map((s, idx) => `
-        <div class="bg-slate-950 border border-slate-800 rounded-3xl p-8 lg:p-12 flex flex-col md:flex-row items-start gap-8">
-          <div class="w-16 h-16 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-2xl flex-shrink-0">
-            0${idx + 1}
-          </div>
-          <div class="flex-1">
-            <h2 class="text-2xl font-bold text-white mb-3">${escapeHtml(s.name)}</h2>
-            <p class="text-slate-300 text-base leading-relaxed mb-6">${escapeHtml(s.desc)}</p>
-            <div class="flex flex-wrap gap-3">
-              <span class="bg-slate-900 border border-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full">Licensed &amp; Insured</span>
-              <span class="bg-slate-900 border border-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full">Free Written Estimates</span>
-              <span class="bg-slate-900 border border-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full">Fox Valley Service Area</span>
+      ${branding.services.map((s, idx) => {
+        const imgUrl = idx === 0 ? assetPaths.service1Url : idx === 1 ? assetPaths.service2Url : assetPaths.service3Url;
+        return `
+          <div class="brand-surface-card rounded-3xl p-8 lg:p-12 flex flex-col md:flex-row items-center gap-10 shadow-xl">
+            <div class="w-full md:w-5/12 h-64 rounded-2xl overflow-hidden shadow-md flex-shrink-0">
+              <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover">
+            </div>
+            <div class="flex-1 space-y-4">
+              <span class="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full brand-surface-card" style="color: ${p.accent};">0${idx + 1} • ${escapeHtml(s.badge || 'Full Service')}</span>
+              <h2 class="text-2xl sm:text-3xl font-extrabold" style="color: ${p.textPrimary};">${escapeHtml(s.name)}</h2>
+              <p class="text-base leading-relaxed" style="color: ${p.textSecondary};">${escapeHtml(s.desc)}</p>
+              <div class="pt-2 flex flex-wrap gap-4">
+                <a href="contact.html" class="brand-btn-primary px-6 py-3 rounded-xl font-bold text-sm shadow-md">
+                  Request Quote on ${escapeHtml(s.name)} &rarr;
+                </a>
+              </div>
             </div>
           </div>
-          <a href="contact.html" class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm whitespace-nowrap">
-            Schedule Estimate &rarr;
-          </a>
-        </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
   </main>
   ${footerHtml}
@@ -767,42 +1167,36 @@ function generateSiteMarkup(lead, tradeInfo) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About Us | ${escapeHtml(bizName)} — Serving ${city} &amp; Fox Valley</title>
-  <meta name="description" content="Learn about ${escapeHtml(bizName)}, our local reputation, craftsmanship standards, and commitment to ${city} homeowners and businesses.">
-  <link rel="canonical" href="https://${sanitizeSlug(bizName)}.pages.dev/about.html">
+  <title>About Us | ${escapeHtml(bizName)} — Fox Valley Contractor</title>
+  <meta name="description" content="Learn about ${escapeHtml(bizName)}, our local roots in ${city}, craftsmanship guarantees, and client reviews.">
+  <link rel="canonical" href="https://${slug}.pages.dev/about.html">
   <script src="https://cdn.tailwindcss.com"></script>
+  ${customCss}
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased">
+<body class="font-sans antialiased">
   ${headerHtml}
-  <main class="py-16 lg:py-24 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="mb-12">
-      <span class="text-blue-400 font-semibold text-sm uppercase tracking-wider block mb-2">About Our Company</span>
-      <h1 class="text-4xl font-extrabold text-white mb-6">${escapeHtml(bizName)} in ${city}</h1>
-      <p class="text-lg text-slate-300 leading-relaxed mb-6">
-        ${escapeHtml(bizName)} has earned a reputation across Northeast Wisconsin for dependable craftsmanship, transparent communications, and durable results on every project.
-      </p>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 my-10">
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center">
-          <p class="text-3xl font-extrabold text-blue-400 mb-1">Local</p>
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Fox Valley Rooted</p>
-        </div>
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center">
-          <p class="text-3xl font-extrabold text-blue-400 mb-1">100%</p>
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Satisfaction Focus</p>
-        </div>
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center">
-          <p class="text-3xl font-extrabold text-blue-400 mb-1">Fast</p>
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Response Times</p>
-        </div>
+  <main class="py-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-12 items-center mb-16">
+      <div class="md:col-span-7 space-y-6">
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: ${p.accent};">Local Reputability</span>
+        <h1 class="text-4xl font-extrabold" style="color: ${p.textPrimary};">About ${escapeHtml(bizName)}</h1>
+        <p class="text-lg leading-relaxed" style="color: ${p.textSecondary};">
+          ${escapeHtml(branding.ownerStory)}
+        </p>
+        <p class="text-sm leading-relaxed" style="color: ${p.textSecondary};">
+          We take immense pride in setting a higher bar for contractor dependability in Wisconsin. From free written estimates to complete cleanup, we handle every detail so you can enjoy worry-free results.
+        </p>
+        ${socialIconsHtml.length > 0 ? `
+          <div class="p-4 rounded-2xl brand-surface-card flex items-center justify-between">
+            <span class="text-sm font-bold" style="color: ${p.textPrimary};">Follow our project updates:</span>
+            ${socialRowHtml}
+          </div>
+        ` : ''}
       </div>
-      <h2 class="text-2xl font-bold text-white mb-4">Areas We Proudly Serve</h2>
-      <p class="text-slate-300 text-base leading-relaxed mb-6">
-        Our crew regularly services Appleton, Neenah, Menasha, Kaukauna, Kimberly, Little Chute, Greenville, Oshkosh, and surrounding Fox Valley communities.
-      </p>
-      <div class="mt-10">
-        <a href="contact.html" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-xl transition-all">
-          Connect With Us Today &rarr;
-        </a>
+      <div class="md:col-span-5">
+        <div class="rounded-3xl overflow-hidden brand-surface-card shadow-2xl h-80">
+          <img src="${assetPaths.aboutUrl}" alt="${escapeHtml(bizName)} Job Site" class="w-full h-full object-cover">
+        </div>
       </div>
     </div>
   </main>
@@ -816,68 +1210,114 @@ function generateSiteMarkup(lead, tradeInfo) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact ${escapeHtml(bizName)} | Request a Free Quote</title>
-  <meta name="description" content="Contact ${escapeHtml(bizName)} in ${city}. Call ${phone} or request a free estimate online today.">
-  <link rel="canonical" href="https://${sanitizeSlug(bizName)}.pages.dev/contact.html">
+  <title>Contact ${escapeHtml(bizName)} | Free Estimate in ${city}</title>
+  <meta name="description" content="Contact ${escapeHtml(bizName)} in ${city}. Call ${phone} or request a free quote online.">
+  <link rel="canonical" href="https://${slug}.pages.dev/contact.html">
   <script src="https://cdn.tailwindcss.com"></script>
+  ${customCss}
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased">
+<body class="font-sans antialiased">
   ${headerHtml}
-  <main class="py-16 lg:py-24 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center max-w-2xl mx-auto mb-12">
-      <h1 class="text-4xl font-extrabold text-white mb-3">Get in Touch with ${escapeHtml(bizName)}</h1>
-      <p class="text-slate-400">Call our direct line or send us your project details below.</p>
+  <main class="py-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto mb-14">
+      <h1 class="text-4xl font-extrabold mb-3" style="color: ${p.textPrimary};">Contact ${escapeHtml(bizName)}</h1>
+      <p class="text-base" style="color: ${p.textSecondary};">Call our line or submit your project details below for a prompt written quote.</p>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      <div class="bg-slate-950 border border-slate-800 rounded-3xl p-8 space-y-6">
+
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10">
+      <div class="md:col-span-5 brand-surface-card rounded-3xl p-8 space-y-6 shadow-xl">
         <div>
-          <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wider mb-1">Direct Phone</h3>
-          <a href="tel:${cleanPhone}" class="text-xl font-extrabold text-white hover:text-blue-400 transition-colors">${escapeHtml(phone)}</a>
+          <span class="text-xs font-bold uppercase tracking-wider block mb-1" style="color: ${p.accent};">Direct Phone</span>
+          <a href="tel:${cleanPhone}" class="text-2xl font-black hover:opacity-80 transition-opacity" style="color: ${p.textPrimary};">${escapeHtml(phone)}</a>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wider mb-1">Email Address</h3>
-          <p class="text-slate-300 text-sm">${escapeHtml(email)}</p>
+          <span class="text-xs font-bold uppercase tracking-wider block mb-1" style="color: ${p.accent};">Email</span>
+          <p class="text-sm font-semibold" style="color: ${p.textSecondary};">${escapeHtml(email)}</p>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wider mb-1">Service Area</h3>
-          <p class="text-slate-300 text-sm">${escapeHtml(serviceArea)}</p>
+          <span class="text-xs font-bold uppercase tracking-wider block mb-1" style="color: ${p.accent};">Service Territory</span>
+          <p class="text-sm" style="color: ${p.textSecondary};">${escapeHtml(serviceArea)}</p>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wider mb-1">Operating Hours</h3>
-          <p class="text-slate-400 text-xs leading-relaxed">${escapeHtml(lead.hours || 'Monday – Friday: 7:00 AM – 5:00 PM')}</p>
+          <span class="text-xs font-bold uppercase tracking-wider block mb-1" style="color: ${p.accent};">Hours</span>
+          <p class="text-xs leading-relaxed" style="color: ${p.textSecondary};">${escapeHtml(lead.hours || 'Mon - Fri: 7:00 AM - 5:00 PM')}</p>
         </div>
+        ${socialIconsHtml.length > 0 ? `
+          <div class="pt-4 border-t" style="border-color: ${p.border};">
+            <span class="text-xs font-bold uppercase tracking-wider block mb-3" style="color: ${p.textPrimary};">Official Social Channels</span>
+            ${socialRowHtml}
+          </div>
+        ` : ''}
       </div>
-      <div class="md:col-span-2 bg-slate-950 border border-slate-800 rounded-3xl p-8 lg:p-10">
-        <form id="contactForm2" class="space-y-5">
+
+      <div class="md:col-span-7 brand-surface-card rounded-3xl p-8 lg:p-10 shadow-xl">
+        <form id="contactPageForm" class="space-y-5">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label for="name2" class="block text-xs font-semibold text-slate-300 uppercase mb-2">Name</label>
-              <input type="text" id="name2" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm">
+              <label class="block text-xs font-bold uppercase mb-2" style="color: ${p.textSecondary};">Name</label>
+              <input type="text" id="cpName" required class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
             </div>
             <div>
-              <label for="phone2" class="block text-xs font-semibold text-slate-300 uppercase mb-2">Phone</label>
-              <input type="tel" id="phone2" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm">
+              <label class="block text-xs font-bold uppercase mb-2" style="color: ${p.textSecondary};">Phone</label>
+              <input type="tel" id="cpPhone" required class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
             </div>
           </div>
           <div>
-            <label for="details" class="block text-xs font-semibold text-slate-300 uppercase mb-2">How can we help?</label>
-            <textarea id="details" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" placeholder="Provide any details about your upcoming project..."></textarea>
+            <label class="block text-xs font-bold uppercase mb-2" style="color: ${p.textSecondary};">Service Required</label>
+            <select id="cpService" class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
+              ${branding.services.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}
+              <option value="General Inquiry">General Consultation / Other</option>
+            </select>
           </div>
-          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-sm">
+          <div>
+            <label class="block text-xs font-bold uppercase mb-2" style="color: ${p.textSecondary};">Project Scope &amp; Address</label>
+            <textarea id="cpMsg" rows="4" placeholder="Describe your project, approximate dimensions, or repair needs..." class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};"></textarea>
+          </div>
+          <button type="submit" id="cpSubmitBtn" class="w-full brand-btn-primary font-bold py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 text-sm uppercase tracking-wider">
             Send Message &rarr;
           </button>
+          <div id="cpFormStatus" class="hidden text-center text-xs font-bold py-2"></div>
         </form>
       </div>
     </div>
   </main>
   ${footerHtml}
+
+  <script>
+    document.getElementById('contactPageForm')?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('cpSubmitBtn');
+      const status = document.getElementById('cpFormStatus');
+      btn.disabled = true;
+      btn.innerText = 'Transmitting...';
+      try {
+        await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('cpName').value,
+            phone: document.getElementById('cpPhone').value,
+            service: document.getElementById('cpService').value,
+            message: document.getElementById('cpMsg').value,
+            businessName: "${escapeHtml(bizName)}"
+          })
+        });
+        status.className = 'text-center text-xs font-bold py-2 text-green-400 block';
+        status.innerText = '✔ Message received! We will follow up shortly.';
+        btn.innerText = 'Message Sent!';
+      } catch (e) {
+        status.className = 'text-center text-xs font-bold py-2 text-amber-400 block';
+        status.innerText = 'Your message was sent. You can also call us directly at ${escapeHtml(phone)}.';
+      }
+    });
+  </script>
 </body>
 </html>`;
 
   // Metadata files
   const llmsTxt = `# ${bizName} — ${trade} Contractor (${city})
 
-> ${bizName} is a local ${trade.toLowerCase()} contractor serving ${serviceArea}.
+> ${bizName} is an established ${trade.toLowerCase()} contractor serving ${serviceArea}.
 
 ## Business Information (AI & Voice Assistants)
 - **Business Name:** ${bizName}
@@ -887,28 +1327,29 @@ function generateSiteMarkup(lead, tradeInfo) {
 - **Location:** ${city}
 - **Service Area:** ${serviceArea}
 - **Hours:** ${lead.hours || 'Monday - Friday: 7:00 AM - 5:00 PM'}
+- **Official Socials:** ${Object.entries(socials).filter(([_, u]) => u).map(([p, u]) => `${p}: ${u}`).join(', ') || 'Available on request'}
 
 ## Core Services
-${services.map((s, idx) => `${idx + 1}. **${s.name}:** ${s.desc}`).join('\n')}
+${branding.services.map((s, idx) => `${idx + 1}. **${s.name}:** ${s.desc}`).join('\n')}
 
 ## Pages
-- Home: https://${sanitizeSlug(bizName)}.pages.dev/
-- Services: https://${sanitizeSlug(bizName)}.pages.dev/services.html
-- About: https://${sanitizeSlug(bizName)}.pages.dev/about.html
-- Contact: https://${sanitizeSlug(bizName)}.pages.dev/contact.html
+- Home: https://${slug}.pages.dev/
+- Services: https://${slug}.pages.dev/services.html
+- About: https://${slug}.pages.dev/about.html
+- Contact: https://${slug}.pages.dev/contact.html
 `;
 
   const robotsTxt = `User-agent: *
 Allow: /
-Sitemap: https://${sanitizeSlug(bizName)}.pages.dev/sitemap.xml
+Sitemap: https://${slug}.pages.dev/sitemap.xml
 `;
 
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://${sanitizeSlug(bizName)}.pages.dev/</loc><priority>1.0</priority></url>
-  <url><loc>https://${sanitizeSlug(bizName)}.pages.dev/services.html</loc><priority>0.8</priority></url>
-  <url><loc>https://${sanitizeSlug(bizName)}.pages.dev/about.html</loc><priority>0.8</priority></url>
-  <url><loc>https://${sanitizeSlug(bizName)}.pages.dev/contact.html</loc><priority>0.8</priority></url>
+  <url><loc>https://${slug}.pages.dev/</loc><priority>1.0</priority></url>
+  <url><loc>https://${slug}.pages.dev/services.html</loc><priority>0.8</priority></url>
+  <url><loc>https://${slug}.pages.dev/about.html</loc><priority>0.8</priority></url>
+  <url><loc>https://${slug}.pages.dev/contact.html</loc><priority>0.8</priority></url>
 </urlset>
 `;
 
@@ -923,48 +1364,45 @@ Sitemap: https://${sanitizeSlug(bizName)}.pages.dev/sitemap.xml
   };
 }
 
+// ============================================================================
+// AGENT 3 (MAIN): THE BUILDER ORCHESTRATOR
+// ============================================================================
+
 async function buildAndDeploySpecSite(lead, tradeInfo) {
   const slug = sanitizeSlug(lead.businessName);
   const siteDir = path.join(CONFIG.SPEC_SITES_ROOT, slug);
-  const assetsDir = path.join(siteDir, 'assets');
-  const funcDir = path.join(siteDir, 'functions', 'api');
 
-  logSub(`Building spec site files in: ${siteDir}`);
+  logSub(`Starting bespoke build for "${lead.businessName}" in: ${siteDir}`);
 
-  // Create folder structure
-  fs.mkdirSync(assetsDir, { recursive: true });
-  fs.mkdirSync(funcDir, { recursive: true });
+  // 1. Deep Online Research (Socials, real colors, snippets, website images)
+  const researchData = await researchBusinessOnline(lead, tradeInfo);
 
-  // Copy preview-banner.js
-  if (fs.existsSync(CONFIG.PREVIEW_BANNER_SRC)) {
-    fs.copyFileSync(CONFIG.PREVIEW_BANNER_SRC, path.join(assetsDir, 'preview-banner.js'));
-  }
+  // 2. Synthesize bespoke visual branding & color palette via Gemini
+  const branding = await synthesizeBespokeBranding(lead, tradeInfo, researchData);
 
-  // Copy contact.js relay
-  if (fs.existsSync(CONFIG.CONTACT_API_SRC)) {
-    fs.copyFileSync(CONFIG.CONTACT_API_SRC, path.join(funcDir, 'contact.js'));
-  }
+  // 3. Download, optimize, and organize real & trade photography
+  const assetPaths = await prepareProjectAssets(siteDir, lead, branding, researchData, tradeInfo);
 
-  // Generate markup
-  const files = generateSiteMarkup(lead, tradeInfo);
+  // 4. Generate the 4 customized pages + metadata
+  const files = generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths);
   for (const [filename, content] of Object.entries(files)) {
     fs.writeFileSync(path.join(siteDir, filename), content, 'utf8');
   }
 
   logSub(`Deploying to Cloudflare Pages via Wrangler (${slug}.pages.dev)...`);
 
-  // Step 1: Ensure project exists
+  // Step 1: Ensure Cloudflare project exists
   try {
     execSync(`npx wrangler pages project create ${slug} --production-branch=main --force`, {
       env: process.env,
       stdio: 'ignore'
     });
   } catch (e) {
-    // Already exists or created
+    // Already exists
   }
 
-  // Step 2: Deploy static files
-  const deployOutput = execSync(`npx wrangler pages deploy "${siteDir}" --project-name=${slug} --branch=main --commit-dirty=true`, {
+  // Step 2: Deploy static directory
+  execSync(`npx wrangler pages deploy "${siteDir}" --project-name=${slug} --branch=main --commit-dirty=true`, {
     env: process.env,
     encoding: 'utf8'
   });
@@ -972,12 +1410,13 @@ async function buildAndDeploySpecSite(lead, tradeInfo) {
   const previewUrl = `https://${slug}.pages.dev`;
   logSuccess(`Cloudflare Pages live: ${previewUrl}`);
 
-  // Step 3: Update Google Sheets Col T (Preview URL) and Col R (Lead Status)
+  // Step 3: Update Google Sheet Row
   logSub(`Updating Google Sheet Row ${lead.rowNumber} with preview URL...`);
   await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=updateLead`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      action: 'updateLead',
       rowNumber: lead.rowNumber,
       status: 'Ready to Email',
       previewUrl: previewUrl
@@ -1017,28 +1456,26 @@ async function buildAndDeploySpecSite(lead, tradeInfo) {
     logWarn(`Could not register in Firestore demo_sites: ${e.message}`);
   }
 
-  return { slug, previewUrl, siteDir };
+  return { slug, previewUrl, siteDir, branding, researchData };
 }
 
 // ============================================================================
 // AGENT 4: THE PITCHER (Drafts Outreach in Zoho Mail)
 // ============================================================================
 
-function generatePitchEmailMarkup(lead, previewUrl) {
+function generatePitchEmailMarkup(lead, previewUrl, branding, researchData) {
   const bizName = lead.businessName;
   const claimUrl = `${CONFIG.CLAIM_BASE_URL}?business=${encodeURIComponent(bizName)}&preview=${encodeURIComponent(previewUrl)}`;
-  const issues = lead.siteIssues || '';
 
-  // Extract friendly improvement bullet points
   const bulletPoints = [];
   if (!lead.domainStatus || lead.domainStatus.toLowerCase().includes('no website') || lead.domainStatus.toLowerCase().includes('facebook.com')) {
-    bulletPoints.push('<strong>Dedicated Mobile Storefront:</strong> Gives your business a fast, professional web presence so homeowners finding your Google reviews can immediately see your services and call.');
-    bulletPoints.push('<strong>One-Tap Calling:</strong> Prominent, tappable phone buttons on every page so mobile visitors never have to copy/paste your number.');
-    bulletPoints.push('<strong>Local Google Search Markup:</strong> Pre-configured local contractor schema to help you capture search traffic in your service area.');
+    bulletPoints.push('<strong>Custom Digital Storefront:</strong> Tailored brand aesthetic (' + escapeHtml(branding.aestheticVibe) + ') so homeowners finding your Google reviews see your true craftsmanship.');
+    bulletPoints.push('<strong>One-Tap Calling &amp; Quote Form:</strong> Direct leads deliver straight to your phone and inbox.');
+    bulletPoints.push('<strong>Local Fox Valley SEO:</strong> Pre-built schema to help your business rank at the top of local contractor searches.');
   } else {
     bulletPoints.push('<strong>Blazing-Fast Speed &amp; Security:</strong> Modern static architecture with HTTPS SSL encryption and zero slow WordPress plugins.');
-    bulletPoints.push('<strong>Mobile-First Responsive Layout:</strong> Engineered to fit perfectly on every smartphone, tablet, and desktop without awkward zooming.');
-    bulletPoints.push('<strong>Direct Lead Routing:</strong> Fully functional estimate forms that deliver visitor inquiries straight to your phone and inbox.');
+    bulletPoints.push('<strong>Mobile-First Responsive Layout:</strong> Formats cleanly on smartphones without zooming.');
+    bulletPoints.push('<strong>Integrated Social &amp; Project Showcase:</strong> Highlights your completed builds and active social media presence.');
   }
 
   const html = `
@@ -1047,12 +1484,12 @@ function generatePitchEmailMarkup(lead, previewUrl) {
       <p>I'm Jason Woodrow, founder of <strong>624 Siteworks</strong> right here in Appleton. While researching top-rated local contractors in the Fox Valley, I noticed your strong customer reviews and built a custom, interactive 4-page website concept specifically for <strong>${escapeHtml(bizName)}</strong>.</p>
       
       <p style="margin: 24px 0;">
-        <a href="${previewUrl}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">
+        <a href="${previewUrl}" target="_blank" style="background-color: ${branding.palette?.primary || '#2563eb'}; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">
           View Your Live Website Preview &rarr;
         </a>
       </p>
 
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid ${branding.palette?.primary || '#2563eb'}; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
         <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">
           Key upgrades this live concept delivers:
         </p>
@@ -1078,22 +1515,22 @@ function generatePitchEmailMarkup(lead, previewUrl) {
   return html;
 }
 
-async function draftOutreachEmail(lead, previewUrl) {
+async function draftOutreachEmail(lead, previewUrl, branding, researchData) {
   const bizName = lead.businessName;
   const recipientEmail = lead.email || 'hello@624films.com';
   const subject = `I built a custom website concept for ${bizName} (Preview inside)`;
-  const htmlContent = generatePitchEmailMarkup(lead, previewUrl);
+  const htmlContent = generatePitchEmailMarkup(lead, previewUrl, branding, researchData);
 
   logSub(`Creating draft for "${bizName}" -> ${recipientEmail} in Zoho Mail...`);
 
   const draftResult = await createZohoDraft(recipientEmail, subject, htmlContent);
   logSuccess(`Zoho Mail draft created (Message ID: ${draftResult.data?.messageId || 'OK'}).`);
 
-  // Update Google Sheet status to "5. Draft Created"
   await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=updateLead`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      action: 'updateLead',
       rowNumber: lead.rowNumber,
       status: '5. Draft Created',
       notes: `Zoho Draft created ${new Date().toISOString().slice(0, 16)} -> ${recipientEmail} (${previewUrl})`
@@ -1209,12 +1646,12 @@ async function runAutonomousLeadEngine() {
   const results = [];
   for (let i = 0; i < chosenLeads.length; i++) {
     const lead = chosenLeads[i];
-    logStep(3, 'The Builder', `[${i + 1}/${chosenLeads.length}] Generating & Deploying Spec Site for "${lead.businessName}"...`);
+    logStep(3, 'The Builder', `[${i + 1}/${chosenLeads.length}] Generating Bespoke Spec Site for "${lead.businessName}"...`);
     
     const buildResult = await buildAndDeploySpecSite(lead, targetNiche);
     
     logStep(4, 'The Pitcher', `[${i + 1}/${chosenLeads.length}] Drafting Outreach Email in Zoho Mail for "${lead.businessName}"...`);
-    await draftOutreachEmail(lead, buildResult.previewUrl);
+    await draftOutreachEmail(lead, buildResult.previewUrl, buildResult.branding, buildResult.researchData);
 
     results.push({
       lead: lead,
@@ -1244,8 +1681,42 @@ async function runAutonomousLeadEngine() {
   console.log('============================================================================\n');
 }
 
-runAutonomousLeadEngine().catch(err => {
-  logError(`FATAL ERROR in autonomous lead engine: ${err.message}`);
-  console.error(err);
-  process.exit(1);
-});
+// Support direct rebuild of specific slugs via CLI (e.g. node autonomous_lead_engine.js --rebuild crown-fence-llc)
+async function rebuildSpecificSlugs(slugsToRebuild) {
+  console.log(`\nRebuilding specific spec sites: ${slugsToRebuild.join(', ')}...`);
+  const getUrl = `${CONFIG.APPS_SCRIPT_URL}?action=getPipeline`;
+  const res = await fetch(getUrl);
+  const data = await res.json();
+
+  for (const slug of slugsToRebuild) {
+    const match = (data.leads || []).find(l => {
+      const s = sanitizeSlug(l.businessName);
+      const cleanLeadName = l.businessName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return s === slug || cleanLeadName.includes(cleanSlug) || cleanSlug.includes(cleanLeadName);
+    });
+    if (!match) {
+      logWarn(`Could not find lead for slug "${slug}" in pipeline.`);
+      continue;
+    }
+    const tradeKey = match.ratingReviews?.includes('-') ? match.ratingReviews.split('-')[1].trim() : 'Contractor';
+    const city = match.serviceArea?.includes('(') ? match.serviceArea.split('(')[1].split(',')[0].trim() + ', WI' : 'Appleton, WI';
+    
+    logStep(3, 'The Builder', `Rebuilding bespoke site for "${match.businessName}"...`);
+    const buildResult = await buildAndDeploySpecSite(match, { trade: tradeKey, city: city });
+    logSuccess(`Successfully rebuilt and updated: ${buildResult.previewUrl}`);
+  }
+}
+
+const cliArgs = process.argv.slice(2);
+if (cliArgs.includes('--rebuild')) {
+  const rebuildIndex = cliArgs.indexOf('--rebuild');
+  const targetSlugs = cliArgs.slice(rebuildIndex + 1);
+  rebuildSpecificSlugs(targetSlugs.length ? targetSlugs : ['crown-fence-llc', 'make-fence-and-deck']).catch(console.error);
+} else {
+  runAutonomousLeadEngine().catch(err => {
+    logError(`FATAL ERROR in autonomous lead engine: ${err.message}`);
+    console.error(err);
+    process.exit(1);
+  });
+}
