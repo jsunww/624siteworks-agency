@@ -509,7 +509,7 @@ function scrapeAndAuditLeadsCore(query) {
       fbUrl = audit.facebook;
     }
 
-    const domainStatus = siteUrl || fbUrl || 'No Website Listed';
+    const domainStatus = audit.verifiedUrl || siteUrl || fbUrl || 'No Website Listed';
     const hoursStr = formatWorkingHours_(item.working_hours);
     const ratingVal = item.rating ? Number(item.rating).toFixed(1) : '5.0';
     const tradeType = item.type || query.split(',')[0].trim();
@@ -625,47 +625,76 @@ function auditWebsiteAndSeoPresence_(info) {
     return finalizeAuditReport_(score, issues, foundEmail, rawSite || info.fbUrl);
   }
 
-  if (/^http:\/\//i.test(rawSite)) {
-    score += 30;
-    issues.push('NOT SECURE (HTTP): Missing HTTPS SSL security (browsers warn visitors)');
-  }
   if (/(wixsite\.com|godaddysites\.com|weebly\.com|wordpress\.com|squarespace\.com|business\.site)/i.test(rawSite)) {
     score += 55;
     issues.push('FREE SUBDOMAIN: Using an amateur free builder subdomain URL');
   }
 
-  let baseUrl = rawSite;
-  if (!/^https?:\/\//i.test(baseUrl)) {
-    baseUrl = 'https://' + baseUrl;
+  const cleanDomain = rawSite.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  const httpsUrl = 'https://' + cleanDomain;
+  const httpUrl = 'http://' + cleanDomain;
+
+  let baseUrl = httpsUrl;
+  let hasWorkingHttps = false;
+  let homeHtml = '';
+  let homeStatus = 0;
+  let isStrictHttpOnly = false;
+  const t0 = new Date().getTime();
+
+  // 1. First test: Validate real HTTPS SSL certificate
+  try {
+    const httpsResp = UrlFetchApp.fetch(httpsUrl, {
+      method: 'get',
+      muteHttpExceptions: true,
+      followRedirects: true,
+      validateHttpsCertificates: true
+    });
+    const status = httpsResp.getResponseCode();
+    const content = httpsResp.getContentText() || '';
+    if (status >= 200 && status < 400 && content.length > 200) {
+      hasWorkingHttps = true;
+      homeStatus = status;
+      homeHtml = content;
+      baseUrl = httpsUrl;
+    }
+  } catch (sslErr) {
+    // SSL handshake failed, certificate expired/untrusted, or domain does not listen on 443
+    hasWorkingHttps = false;
   }
-  baseUrl = baseUrl.replace(/\/+$/, '');
+
+  // 2. If HTTPS failed, fallback to HTTP to check if site is only reachable over insecure HTTP
+  if (!hasWorkingHttps) {
+    try {
+      const httpResp = UrlFetchApp.fetch(httpUrl, {
+        method: 'get',
+        muteHttpExceptions: true,
+        followRedirects: true,
+        validateHttpsCertificates: false
+      });
+      homeStatus = httpResp.getResponseCode();
+      homeHtml = httpResp.getContentText() || '';
+      baseUrl = httpUrl;
+      isStrictHttpOnly = true;
+    } catch (httpErr) {
+      score += 80;
+      issues.unshift('BROKEN WEBSITE: Website link on Google Maps is dead or unreachable');
+      return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, '');
+    }
+  }
+
+  const loadMs = new Date().getTime() - t0;
+
+  // 3. Mark NOT SECURE only if the site genuinely fails SSL or is stuck on plain HTTP
+  if (isStrictHttpOnly || (!hasWorkingHttps && homeStatus < 400)) {
+    score += 35;
+    issues.push('NOT SECURE (HTTP): Missing HTTPS SSL security (browsers warn visitors)');
+  }
 
   const ignoredExtensions = /\.(png|jpe?g|gif|webp|svg|ico|css|js|woff2?|ttf|eot|mp4|pdf)$/i;
   const ignoredDomains = /(sentry\.io|wixpress\.com|example\.com|domain\.com|email\.com|yoursite\.com|wordpress\.org|w3\.org|schema\.org|googleapis\.com)/i;
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g;
   const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi;
   const fbRegex = /https?:\/\/(?:www\.)?facebook\.com\/[a-zA-Z0-9._-]+/i;
-
-  let homeHtml = '';
-  let homeStatus = 0;
-  const t0 = new Date().getTime();
-
-  try {
-    const resp = UrlFetchApp.fetch(baseUrl, {
-      method: 'get',
-      muteHttpExceptions: true,
-      followRedirects: true,
-      validateHttpsCertificates: false
-    });
-    homeStatus = resp.getResponseCode();
-    homeHtml = resp.getContentText() || '';
-  } catch (err) {
-    score += 80;
-    issues.unshift('BROKEN WEBSITE: Website link on Google Maps is dead or unreachable');
-    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook);
-  }
-
-  const loadMs = new Date().getTime() - t0;
 
   if (homeStatus >= 400 || !homeHtml || homeHtml.length < 200) {
     score += 75;
@@ -768,10 +797,10 @@ function auditWebsiteAndSeoPresence_(info) {
     }
   }
 
-  return finalizeAuditReport_(score, issues, foundEmail, foundFacebook);
+  return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl);
 }
 
-function finalizeAuditReport_(rawScore, issues, email, facebook) {
+function finalizeAuditReport_(rawScore, issues, email, facebook, verifiedUrl) {
   const cappedScore = Math.min(100, rawScore);
   let tierLabel = 'LOW PRIORITY';
   if (cappedScore >= 75) {
@@ -790,7 +819,8 @@ function finalizeAuditReport_(rawScore, issues, email, facebook) {
     badnessScore: cappedScore,
     reportText: '[' + tierLabel + ' - ' + cappedScore + '/100] ' + summary,
     email: email,
-    facebook: facebook
+    facebook: facebook,
+    verifiedUrl: verifiedUrl || ''
   };
 }
 
