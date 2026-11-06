@@ -1136,15 +1136,29 @@ function createDraftsCore() {
       continue;
     }
 
+    const domainStatus = String(row[COL.DOMAIN_STATUS - 1] || '').trim();
+    const siteIssues = String(row[COL.SITE_ISSUES - 1] || '').trim();
+    const improvements = formatFriendlyWebsiteImprovements_(siteIssues, domainStatus);
+
     try {
       const screenshotBlob = captureSiteScreenshotBlob_(previewUrl, bizName);
       const claimUrl = CONFIG.CLAIM_BASE_URL + '?business=' + encodeURIComponent(bizName) + '&preview=' + encodeURIComponent(previewUrl);
 
       const subject = 'I built a custom website concept for ' + bizName + ' (Preview inside)';
+
+      let plainImprovements = '';
+      if (improvements.length > 0) {
+        plainImprovements = 'A few specific improvements I noticed for your online presence that this concept delivers:\n' +
+          improvements.map(function(item) {
+            return '- ' + item.title + ': ' + item.desc;
+          }).join('\n') + '\n\n';
+      }
+
       const plainBody =
         'Hi ' + bizName + ' team,\n\n' +
         'I\'m Jason Woodrow with 624 Siteworks right here in Appleton. I noticed your strong local reputation and put together a live, mobile-optimized 4-page website concept tailored specifically for ' + bizName + '.\n\n' +
         'View your live interactive preview here:\n' + previewUrl + '\n\n' +
+        plainImprovements +
         'If you like the direction, we can customize any text, photos, or branding and launch it on your domain for a flat one-time build fee:\n' + claimUrl + '\n\n' +
         'Best regards,\nJason Woodrow\n624 Siteworks - Appleton, WI\n' + CONFIG.AGENCY_URL;
 
@@ -1152,6 +1166,7 @@ function createDraftsCore() {
         bizName: bizName,
         previewUrl: previewUrl,
         claimUrl: claimUrl,
+        improvements: improvements,
         hasInlineScreenshot: Boolean(screenshotBlob)
       });
 
@@ -1207,6 +1222,23 @@ function buildHtmlPitchEmail_(data) {
       '</div>'
     : '';
 
+  let improvementsMarkup = '';
+  if (data.improvements && data.improvements.length > 0) {
+    const listItems = data.improvements.map(function(item) {
+      return '<li style="margin-bottom: 8px;"><strong>' + item.title + ':</strong> ' + item.desc + '</li>';
+    }).join('');
+
+    improvementsMarkup =
+      '<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">' +
+        '<p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">' +
+          'A few specific improvements I noticed for your online setup:' +
+        '</p>' +
+        '<ul style="margin: 0; padding-left: 20px; color: #1e293b; font-size: 14px; line-height: 1.6;">' +
+          listItems +
+        '</ul>' +
+      '</div>';
+  }
+
   return (
     '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 640px; line-height: 1.6; font-size: 16px;">' +
       '<p style="margin-top: 0;">Hi <strong>' + data.bizName + '</strong> team,</p>' +
@@ -1220,6 +1252,7 @@ function buildHtmlPitchEmail_(data) {
       '<p style="font-size: 14px; color: #475569; margin-top: 8px;">' +
         '<em>Click the image above or visit <a href="' + data.previewUrl + '" style="color: #2563eb;">' + data.previewUrl + '</a> to test it on your phone or computer.</em>' +
       '</p>' +
+      improvementsMarkup +
       '<p>Unlike bloated WordPress templates that load slowly and require constant plugin updates, we hand-craft clean static websites engineered to rank locally in Northeast Wisconsin and turn visitors into phone calls.</p>' +
       '<p><strong>What happens if you like it?</strong><br/>' +
       'There\'s zero obligation. If you\'d like to claim this site, we hop on a quick call to tweak any photos, services, or wording, and connect it to your domain. You can view our flat-rate build options or lock in this design directly here: <a href="' + data.claimUrl + '" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>' +
@@ -1231,6 +1264,97 @@ function buildHtmlPitchEmail_(data) {
       '</p>' +
     '</div>'
   );
+}
+
+/**
+ * Translates technical audit findings into positive, constructive improvements
+ * tailored to contractors (focuses on leads, calls, speed, and trust).
+ */
+function formatFriendlyWebsiteImprovements_(siteIssues, domainStatus) {
+  const points = [];
+  const domain = String(domainStatus || '').trim();
+  const issues = String(siteIssues || '').toUpperCase();
+
+  if (!domain || domain.toLowerCase().includes('no website listed') || domain.toLowerCase().includes('facebook.com')) {
+    points.push({
+      title: 'Dedicated Digital Storefront',
+      desc: 'Gives your business a clean, professional 24/7 web presence so homeowners finding your Google reviews can instantly see your services and photos.'
+    });
+    points.push({
+      title: 'One-Tap Mobile Calling',
+      desc: 'Prominent, tappable phone buttons and quote forms so mobile customers can call you in one tap.'
+    });
+    points.push({
+      title: 'Local Google SEO',
+      desc: 'Built-in local search markup to help your business appear directly in Fox Valley and Northeast Wisconsin contractor searches.'
+    });
+    return points;
+  }
+
+  if (issues.includes('NOT SECURE') || issues.includes('HTTP')) {
+    points.push({
+      title: 'Full HTTPS Security',
+      desc: 'Adds modern SSL encryption so potential clients never see an alarming "Not Secure" warning in Chrome or Safari.'
+    });
+  }
+
+  if (issues.includes('NOT MOBILE') || issues.includes('VIEWPORT')) {
+    points.push({
+      title: 'Mobile-First Responsive Layout',
+      desc: 'Formats cleanly on every smartphone and tablet so customers never have to pinch or zoom to read your services.'
+    });
+  }
+
+  if (issues.includes('SLOW') || issues.includes('LOAD')) {
+    points.push({
+      title: 'Blazing Fast Load Speed',
+      desc: 'Engineered on lightweight static code that loads in under 1 second so customers don\'t leave before your page opens.'
+    });
+  }
+
+  if (issues.includes('CLICK-TO-CALL') || issues.includes('NO CLICK') || issues.includes('TEL:')) {
+    points.push({
+      title: 'One-Tap Click-to-Call',
+      desc: 'Makes your phone number instantly tappable across all mobile screens so homeowners can call your team in one tap.'
+    });
+  }
+
+  if (issues.includes('SCHEMA') || issues.includes('TITLE') || issues.includes('DESCRIPTION') || issues.includes('H1')) {
+    points.push({
+      title: 'Local Fox Valley SEO',
+      desc: 'Includes pre-configured LocalBusiness schema and geo-tags to help you rank higher in local Google and Maps searches.'
+    });
+  }
+
+  if (issues.includes('WIX') || issues.includes('WORDPRESS') || issues.includes('BUILDER') || issues.includes('SUBDOMAIN')) {
+    points.push({
+      title: 'Lightweight, Plugin-Free Build',
+      desc: 'Built without slow builder templates or bloated plugins, keeping your site fast, dependable, and maintenance-free.'
+    });
+  }
+
+  if (points.length < 2) {
+    if (!points.some(p => p.title.includes('Speed'))) {
+      points.push({
+        title: 'Instant Mobile Speed',
+        desc: 'Loads in under 1 second on cell phones, giving homeowners an immediate and professional first impression.'
+      });
+    }
+    if (!points.some(p => p.title.includes('Calling'))) {
+      points.push({
+        title: 'One-Tap Lead Capture',
+        desc: 'Sticky phone buttons and accessible estimate forms engineered to convert visitors into phone calls.'
+      });
+    }
+    if (!points.some(p => p.title.includes('SEO'))) {
+      points.push({
+        title: 'Local Search Optimization',
+        desc: 'Structured metadata and geo-tags tailored specifically for homeowners searching across the Fox Valley.'
+      });
+    }
+  }
+
+  return points.slice(0, 3);
 }
 
 function isValidBusinessEmail_(email, ignoredExtensions, ignoredDomains) {
