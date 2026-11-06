@@ -1496,6 +1496,40 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
         }
       }
     } catch (err) {}
+
+    // 1b. Real Business Google Images Search (Serper Images API)
+    try {
+      const cleanCity = city || 'Fox Valley, WI';
+      const queriesToTry = ['"' + bizName + '" ' + cleanCity];
+      if (domain && !domain.includes('facebook.com') && !domain.includes('no website')) {
+        const cleanDomain = domain.replace(/^https?:\/\//i, '').split('/')[0];
+        if (cleanDomain) {
+          queriesToTry.unshift('site:' + cleanDomain);
+        }
+      }
+
+      for (let qIdx = 0; qIdx < queriesToTry.length; qIdx++) {
+        const imgResp = UrlFetchApp.fetch('https://google.serper.dev/images', {
+          method: 'post',
+          contentType: 'application/json',
+          headers: { 'X-API-KEY': serperKey },
+          payload: JSON.stringify({ q: queriesToTry[qIdx], gl: 'us', hl: 'en', num: 10 }),
+          muteHttpExceptions: true
+        });
+
+        if (imgResp.getResponseCode() >= 200 && imgResp.getResponseCode() < 300) {
+          const imgData = JSON.parse(imgResp.getContentText());
+          const imgs = Array.isArray(imgData.images) ? imgData.images : [];
+          for (let j = 0; j < imgs.length; j++) {
+            const u = imgs[j].imageUrl;
+            if (u && u.startsWith('http') && !result.websiteImages.includes(u)) {
+              result.websiteImages.push(u);
+            }
+          }
+        }
+        if (result.websiteImages.length >= 8) break;
+      }
+    } catch (err) {}
   }
 
   // 2. If domain provided, fetch homepage to extract real images and colors

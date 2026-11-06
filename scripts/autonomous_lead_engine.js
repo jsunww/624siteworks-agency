@@ -39,7 +39,7 @@ if (fs.existsSync(envPath) && typeof process.loadEnvFile === 'function') {
 
 const CONFIG = {
   // Google Apps Script Web App
-  APPS_SCRIPT_URL: process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxUqD4J70nf46i9_HgJA4GTx7XxuUhJzY-AYLz0tRi5OgyyIxexiHT3Tk035LIs-g2-ug/exec',
+  APPS_SCRIPT_URL: process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu96UHOV_b-TGR9SVpi_wNjsw1p1cfWOw0fqx0AcehnTZ2RrGLYGDDl3FOsXa7-jFP1Q/exec',
   
   // Google Gemini API (AI Studio)
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
@@ -87,69 +87,65 @@ const ROTATING_NICHES = [
   { trade: 'Foundation Repair', city: 'Oshkosh, WI', query: 'Foundation repair contractor, Oshkosh, WI' }
 ];
 
-// Curated high-resolution photography library per trade for fallback and richness
-const TRADE_PHOTOGRAPHY = {
-  'Concrete': {
-    hero: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=80',
-    service1: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80',
-    service2: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80',
-    service3: 'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80',
-    about: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80',
-    gallery: [
-      'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80'
-    ]
-  },
-  'Roofing': {
-    hero: 'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=1400&q=80',
-    service1: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80',
-    service2: 'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=800&q=80',
-    service3: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80',
-    about: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
-    gallery: [
-      'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=600&q=80'
-    ]
-  },
-  'Fencing': {
-    hero: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1400&q=80',
-    service1: 'https://images.unsplash.com/photo-1516455590571-18256e5bb9ff?auto=format&fit=crop&w=800&q=80',
-    service2: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
-    service3: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
-    about: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=800&q=80',
-    gallery: [
-      'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80'
-    ]
-  },
-  'HVAC': {
-    hero: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1400&q=80',
-    service1: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
-    service2: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
-    service3: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
-    about: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80',
-    gallery: [
-      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80'
-    ]
-  },
-  'Plumbing': {
-    hero: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1400&q=80',
-    service1: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=800&q=80',
-    service2: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=800&q=80',
-    service3: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80',
-    about: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=800&q=80',
-    gallery: [
-      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=600&q=80'
-    ]
-  }
+// Curated high-resolution photography library per trade.
+// IMPORTANT: Every photo in this library is strictly verified to show the ACTUAL trade (e.g. real fences, real roofs, real concrete).
+const TRADE_PHOTOGRAPHY_POOLS = {
+  'Fencing': [
+    'https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?auto=format&fit=crop&w=1200&q=80', // Wooden garden privacy fence
+    'https://images.unsplash.com/photo-1528740561666-dc2479dc08ab?auto=format&fit=crop&w=800&q=80',  // Rustic cedar wood fence
+    'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=800&q=80',  // Horizontal modern wood fence panels
+    'https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=800&q=80',  // Wooden perimeter fence
+    'https://images.unsplash.com/photo-1622372738946-62e02505feb3?auto=format&fit=crop&w=800&q=80',  // Architectural composite fence
+    'https://images.unsplash.com/photo-1549247796-5d8f09e9034b?auto=format&fit=crop&w=800&q=80',  // Classic white picket fence
+    'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=800&q=80',  // Timber boundary fence
+    'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80',  // Wood ranch rail fence
+    'https://images.unsplash.com/photo-1591825729269-caeb344f6df2?auto=format&fit=crop&w=800&q=80',  // Custom wood deck patio
+    'https://images.unsplash.com/photo-1517581177682-a085bb7ffb15?auto=format&fit=crop&w=800&q=80',  // Pergola and cedar deck
+    'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',  // Ornamental iron gate
+    'https://images.unsplash.com/photo-1584905066893-7d5c142ba4e1?auto=format&fit=crop&w=800&q=80'   // Black metal boundary fence
+  ],
+  'Roofing': [
+    'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=1200&q=80', // Roofer installing shingles
+    'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=800&q=80',  // Architectural asphalt shingle roof
+    'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80',  // Steep residential roof construction
+    'https://images.unsplash.com/photo-1505705694340-019e1e335916?auto=format&fit=crop&w=800&q=80',  // Roofer nailing shingles
+    'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',  // Roof inspection and chimney
+    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80',  // Ceramic roof tiles and ridge line
+    'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?auto=format&fit=crop&w=800&q=80',  // Residential pitched roof
+    'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80'   // Architectural roof angles
+  ],
+  'Concrete': [
+    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80', // Heavy concrete construction site
+    'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80',  // Fresh poured concrete driveway
+    'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80',  // Concrete finishing and trowel
+    'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80',  // Concrete slab installation
+    'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80',  // Industrial concrete foundation
+    'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80',  // Architecture concrete design
+    'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80',  // Precision concrete site
+    'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80'   // Construction structural work
+  ],
+  'HVAC': [
+    'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80', // HVAC technician testing system
+    'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',  // Commercial air conditioning unit
+    'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',  // Industrial heating ventilation
+    'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80'   // HVAC ductwork engineering
+  ],
+  'Plumbing': [
+    'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1200&q=80', // Modern plumbing fixture
+    'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=800&q=80',  // Copper pipe plumbing installation
+    'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=800&q=80',  // Plumber wrench and water lines
+    'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80'   // Commercial pipe infrastructure
+  ]
 };
+
+function getSlugSeed(str) {
+  let h = 0;
+  for (let i = 0; i < (str || '').length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
 
 // Set environment for child processes (wrangler)
 process.env.CLOUDFLARE_ACCOUNT_ID = CONFIG.CLOUDFLARE_ACCOUNT_ID;
@@ -605,7 +601,10 @@ Return ONLY valid JSON matching this schema:
     const rawAiText = await callGemini(prompt);
     const cleanedJson = rawAiText.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanedJson);
-    logSuccess(`Brand identity created: "${parsed.aestheticVibe}" (Theme: ${parsed.themeMode}, Primary: ${parsed.palette?.primary})`);
+    if (!parsed.layoutStyle) {
+      parsed.layoutStyle = /deck|timber|wood|make/i.test(bizName) ? 'split-hero-timber' : 'shield-banner-estimator';
+    }
+    logSuccess(`Brand identity created: "${parsed.aestheticVibe}" (Layout: ${parsed.layoutStyle}, Theme: ${parsed.themeMode}, Primary: ${parsed.palette?.primary})`);
     return parsed;
   } catch (err) {
     logWarn(`Gemini branding fallback triggered: ${err.message}`);
@@ -671,41 +670,81 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
     fs.copyFileSync(CONFIG.CONTACT_API_SRC, path.join(funcDir, 'contact.js'));
   }
 
-  // Trade photography library
-  const tradeKey = Object.keys(TRADE_PHOTOGRAPHY).find(k => tradeInfo.trade.toLowerCase().includes(k.toLowerCase())) || 'Fencing';
-  const defaultPhotos = TRADE_PHOTOGRAPHY[tradeKey] || TRADE_PHOTOGRAPHY['Fencing'];
+  const tradeKey = Object.keys(TRADE_PHOTOGRAPHY_POOLS).find(k => tradeInfo.trade.toLowerCase().includes(k.toLowerCase())) || 'Fencing';
+  const pool = TRADE_PHOTOGRAPHY_POOLS[tradeKey] || TRADE_PHOTOGRAPHY_POOLS['Fencing'];
+  const seed = getSlugSeed(lead.businessName);
 
-  logSub(`Downloading and optimizing photos for ${lead.businessName}...`);
+  function getPoolPhoto(offset) {
+    const idx = (seed + offset) % pool.length;
+    return pool[idx];
+  }
 
-  // Download real logo / Google Places photo if available
-  const realLogoCandidates = [
+  logSub(`Collecting & validating genuine imagery for "${lead.businessName}"...`);
+
+  // 1. Gather all candidate real images
+  const rawCandidates = [
     lead.logoUrl,
     researchData.knowledgeGraph?.imageUrl,
     ...(researchData.websiteImages || [])
-  ].filter(u => u && u.startsWith('http'));
+  ].filter(u => u && typeof u === 'string' && u.startsWith('http'));
 
+  const seen = new Set();
+  const verifiedRealImages = [];
+
+  for (const url of rawCandidates) {
+    if (verifiedRealImages.length >= 10) break;
+    if (seen.has(url)) continue;
+    seen.add(url);
+
+    // Skip Facebook HTML crawler URLs
+    if (url.includes('facebook.com') || url.includes('fbsbx.com') || url.includes('lookaside')) continue;
+
+    try {
+      const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) });
+      const cType = res.headers.get('content-type') || '';
+      if ((res.ok || res.status === 204) && (cType.includes('image') || cType === '')) {
+        verifiedRealImages.push(url);
+      }
+    } catch (e) {}
+  }
+
+  logSub(`Found ${verifiedRealImages.length} verified authentic website/profile image(s) for ${lead.businessName}.`);
+
+  let realIdx = 0;
   let hasRealLogo = false;
-  if (realLogoCandidates.length > 0) {
-    const downloaded = await downloadFile(realLogoCandidates[0], path.join(imgDir, 'brand-logo.jpg'));
-    if (downloaded) {
+
+  // Real logo
+  if (verifiedRealImages.length > 0 && (lead.logoUrl || verifiedRealImages[0].includes('logo') || verifiedRealImages[0].includes('blob') || verifiedRealImages[0].includes('googleusercontent'))) {
+    const dlLogo = await downloadFile(verifiedRealImages[0], path.join(imgDir, 'brand-logo.jpg'));
+    if (dlLogo) {
       hasRealLogo = true;
-      logSuccess(`Saved real brand logo/photo from Google/Web (${path.basename(realLogoCandidates[0]).slice(0, 30)}...)`);
+      realIdx = 1;
+      logSuccess(`Saved real brand logo/photo (${path.basename(verifiedRealImages[0]).slice(0, 30)}...)`);
     }
   }
 
-  // Download hero & service photography
-  await downloadFile(defaultPhotos.hero, path.join(imgDir, 'hero.jpg'));
-  await downloadFile(defaultPhotos.service1, path.join(imgDir, 'service-1.jpg'));
-  await downloadFile(defaultPhotos.service2, path.join(imgDir, 'service-2.jpg'));
-  await downloadFile(defaultPhotos.service3, path.join(imgDir, 'service-3.jpg'));
-  await downloadFile(defaultPhotos.about, path.join(imgDir, 'about.jpg'));
-
-  // Download gallery photos
-  if (defaultPhotos.gallery && defaultPhotos.gallery.length >= 3) {
-    await downloadFile(defaultPhotos.gallery[0], path.join(imgDir, 'gallery-1.jpg'));
-    await downloadFile(defaultPhotos.gallery[1], path.join(imgDir, 'gallery-2.jpg'));
-    await downloadFile(defaultPhotos.gallery[2], path.join(imgDir, 'gallery-3.jpg'));
+  function nextImage(poolOffset) {
+    if (realIdx < verifiedRealImages.length) {
+      return verifiedRealImages[realIdx++];
+    }
+    return getPoolPhoto(poolOffset);
   }
+
+  // 2. Hero photo
+  await downloadFile(nextImage(0), path.join(imgDir, 'hero.jpg'));
+
+  // 3. Service photos (3 cards)
+  await downloadFile(nextImage(1), path.join(imgDir, 'service-1.jpg'));
+  await downloadFile(nextImage(2), path.join(imgDir, 'service-2.jpg'));
+  await downloadFile(nextImage(3), path.join(imgDir, 'service-3.jpg'));
+
+  // 4. About photo
+  await downloadFile(nextImage(4), path.join(imgDir, 'about.jpg'));
+
+  // 5. Gallery photos (3 items)
+  await downloadFile(nextImage(5), path.join(imgDir, 'gallery-1.jpg'));
+  await downloadFile(nextImage(6), path.join(imgDir, 'gallery-2.jpg'));
+  await downloadFile(nextImage(7), path.join(imgDir, 'gallery-3.jpg'));
 
   return {
     hasRealLogo,
@@ -719,7 +758,8 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
       'assets/images/gallery-1.jpg',
       'assets/images/gallery-2.jpg',
       'assets/images/gallery-3.jpg'
-    ]
+    ],
+    realImageCount: Math.min(realIdx, verifiedRealImages.length)
   };
 }
 
@@ -775,8 +815,17 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" class="h-10 w-auto rounded-lg object-contain bg-white/10 p-1">`
     : `<div class="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-xl shadow-lg" style="background-color: ${p.primary}; color: #ffffff;">${bizName.charAt(0)}</div>`;
 
+  const isCraft = branding.layoutStyle === 'split-hero-timber' || /deck|timber|wood|make/i.test(bizName);
+  const fontLink = isCraft
+    ? '<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">'
+    : '<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">';
+  const fontCss = isCraft
+    ? `body, h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif; }`
+    : `body { font-family: 'Inter', sans-serif; } h1, h2, h3, h4, .brand-heading { font-family: 'Cinzel', Georgia, serif; letter-spacing: -0.01em; }`;
+
   // Custom CSS variables to make each site strictly respect its unique palette
   const customCss = `
+    ${fontLink}
     <style>
       :root {
         --c-primary: ${p.primary};
@@ -789,6 +838,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         --c-text-main: ${p.textPrimary};
         --c-text-muted: ${p.textSecondary};
       }
+      ${fontCss}
       body {
         background-color: var(--c-bg);
         color: var(--c-text-main);
@@ -922,115 +972,125 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
 <body class="font-sans antialiased">
   ${headerHtml}
 
-  <!-- Bespoke Hero Section with Image & Unique Theme -->
-  <section class="relative py-20 lg:py-28 overflow-hidden" style="background-image: linear-gradient(to right, ${p.background}ee, ${p.background}c0), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+  <!-- Dynamic Layout Architecture Switcher (Bespoke per Business Type) -->
+  ${isCraft ? `
+  <!-- CRAFTSMAN LAYOUT: Split Hero, Material Selector & Wood/Vinyl Showcase -->
+  <section class="relative py-16 lg:py-24 overflow-hidden" style="background-color: var(--c-bg);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        
-        <!-- Left Headline Column -->
-        <div class="lg:col-span-7">
-          <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase mb-6 brand-surface-card">
-            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${p.accent};"></span>
-            <span style="color: ${p.textPrimary};">${escapeHtml(lead.trustFactor || `Top-Rated ${trade} in ${city}`)}</span>
+        <!-- Left: Punchy Story & Headline -->
+        <div class="lg:col-span-7 space-y-6">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase brand-surface-card" style="color: var(--c-accent);">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Architectural Wood &amp; Vinyl Craftsmanship • ${city}</span>
           </div>
-          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6" style="color: ${p.textPrimary};">
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight" style="color: var(--c-text-main);">
             ${escapeHtml(branding.tagline)}
           </h1>
-          <p class="text-lg sm:text-xl leading-relaxed mb-8 max-w-2xl" style="color: ${p.textSecondary};">
+          <p class="text-lg leading-relaxed max-w-2xl" style="color: var(--c-text-muted);">
             ${escapeHtml(branding.ownerStory)}
           </p>
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            <a href="tel:${cleanPhone}" class="inline-flex items-center justify-center gap-2 brand-btn-primary font-bold px-8 py-4 rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 text-base">
+          <div class="flex flex-wrap items-center gap-4 pt-2">
+            <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 brand-btn-primary font-bold px-7 py-4 rounded-2xl shadow-xl transition-all hover:scale-105 text-base">
               Call ${escapeHtml(phone)}
             </a>
-            <a href="#quick-quote" class="inline-flex items-center justify-center gap-2 brand-surface-card hover:opacity-90 font-semibold px-8 py-4 rounded-xl transition-all text-base" style="color: ${p.textPrimary};">
-              Instant Estimate Form &darr;
+            <a href="#estimator" class="inline-flex items-center gap-2 brand-surface-card font-semibold px-7 py-4 rounded-2xl transition-all hover:opacity-90 text-base" style="color: var(--c-text-main);">
+              Project Estimator &darr;
             </a>
           </div>
-
-          <!-- Trust Badges -->
-          <div class="grid grid-cols-3 gap-4 pt-10 border-t mt-10" style="border-color: ${p.border};">
-            <div>
-              <p class="text-2xl font-black" style="color: ${p.accent};">100%</p>
-              <p class="text-xs uppercase tracking-wider" style="color: ${p.textSecondary};">Licensed &amp; Insured</p>
+          <!-- Trust chips -->
+          <div class="flex flex-wrap items-center gap-6 pt-6 border-t" style="border-color: var(--c-border);">
+            <div class="flex items-center gap-2 text-sm font-semibold" style="color: var(--c-text-main);">
+              <span class="text-amber-400">★ 5.0</span> <span>Google Verified Reviews</span>
             </div>
-            <div>
-              <p class="text-2xl font-black" style="color: ${p.accent};">5-Star</p>
-              <p class="text-xs uppercase tracking-wider" style="color: ${p.textSecondary};">Customer Care</p>
+            <div class="flex items-center gap-2 text-sm font-semibold" style="color: var(--c-text-main);">
+              <span class="text-emerald-400">✔</span> <span>Freedom &amp; Appleton Roots</span>
             </div>
-            <div>
-              <p class="text-2xl font-black" style="color: ${p.accent};">Local</p>
-              <p class="text-xs uppercase tracking-wider" style="color: ${p.textSecondary};">Fox Valley WI</p>
+            <div class="flex items-center gap-2 text-sm font-semibold" style="color: var(--c-text-main);">
+              <span class="text-blue-400">🛡</span> <span>Wisconsin Climate Engineered</span>
             </div>
           </div>
         </div>
-
-        <!-- Right Visual Showcase / Quick Quote Card -->
-        <div class="lg:col-span-5" id="quick-quote">
-          <div class="brand-surface-card rounded-3xl p-8 shadow-2xl backdrop-blur-lg">
-            <div class="flex items-center justify-between mb-6 pb-4 border-b" style="border-color: ${p.border};">
-              <div>
-                <h3 class="font-extrabold text-xl" style="color: ${p.textPrimary};">Request Quick Estimate</h3>
-                <p class="text-xs" style="color: ${p.textSecondary};">Response guaranteed within 24 business hours</p>
-              </div>
-              <span class="px-2.5 py-1 rounded-full text-xs font-bold" style="background-color: ${p.accent}20; color: ${p.accent};">FREE QUOTE</span>
+        <!-- Right: Large Real Showcase Photo with Overlaid Glass Card -->
+        <div class="lg:col-span-5 relative">
+          <div class="relative rounded-3xl overflow-hidden shadow-2xl border-2" style="border-color: var(--c-border);">
+            <img src="${assetPaths.heroUrl}" alt="${escapeHtml(bizName)} Feature Project" class="w-full h-[460px] object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+            <div class="absolute bottom-6 left-6 right-6 p-5 rounded-2xl backdrop-blur-md bg-black/60 border border-white/10 text-white">
+              <span class="text-xs uppercase tracking-widest font-extrabold text-amber-400 block mb-1">Featured Custom Build</span>
+              <p class="font-bold text-base leading-snug">Precision Vinyl Railing &amp; Deck Architecture</p>
+              <p class="text-xs text-stone-300 mt-1">Built to Wisconsin cold-climate structural tolerances.</p>
             </div>
-            <form id="heroEstimateForm" class="space-y-4">
-              <div>
-                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">Your Name</label>
-                <input type="text" id="custName" required class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">Phone Number</label>
-                <input type="tel" id="custPhone" required class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">Project Type</label>
-                <select id="custType" class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
-                  ${(branding.calculatorOptions || ['Residential Service', 'Commercial Installation', 'Custom Project']).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase mb-1" style="color: ${p.textSecondary};">City or Project Location</label>
-                <input type="text" id="custCity" placeholder="e.g. Appleton, Neenah, Oshkosh" class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: ${p.background}; color: ${p.textPrimary}; border: 1px solid ${p.border};">
-              </div>
-              <button type="submit" id="heroSubmitBtn" class="w-full brand-btn-primary font-bold py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 text-sm uppercase tracking-wider">
-                Submit Free Estimate Request &rarr;
-              </button>
-              <div id="heroFormMsg" class="hidden text-center text-xs font-semibold py-1"></div>
-            </form>
           </div>
         </div>
-
       </div>
     </div>
   </section>
 
-  <!-- Core Services Showcase with Dedicated Photos -->
-  <section class="py-24" style="background-color: ${p.secondary};">
+  <!-- Interactive Project & Material Estimator Section -->
+  <section id="estimator" class="py-16 border-y" style="background-color: var(--c-surface); border-color: var(--c-border);">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-2xl mx-auto mb-10">
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">Planning Your Project</span>
+        <h2 class="text-3xl font-extrabold mt-1" style="color: var(--c-text-main);">Instant Material &amp; Quote Estimator</h2>
+        <p class="text-sm mt-2" style="color: var(--c-text-muted);">Select your preferred project specs for a fast transparent estimate.</p>
+      </div>
+      <form id="heroEstimateForm" class="p-8 rounded-3xl brand-surface-card shadow-xl grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <div>
+          <label class="block text-xs font-bold uppercase mb-2" style="color: var(--c-text-muted);">1. Project Type</label>
+          <select id="custType" class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
+            ${(branding.calculatorOptions || ['Vinyl Privacy Fence', 'Custom Cedar Deck', 'Architectural Railing', 'Custom Wood Arbor']).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-2" style="color: var(--c-text-muted);">2. Approx. Footage</label>
+          <select class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
+            <option value="25-50 ft">25 – 50 Linear Feet</option>
+            <option value="50-100 ft" selected>50 – 100 Linear Feet</option>
+            <option value="100-200 ft">100 – 200 Linear Feet</option>
+            <option value="200+ ft">200+ Linear Feet (Large Property)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-2" style="color: var(--c-text-muted);">3. Your Phone</label>
+          <input type="tel" id="custPhone" required placeholder="(920) 000-0000" class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
+          <input type="hidden" id="custName" value="Prospective Client">
+          <input type="hidden" id="custCity" value="${city}">
+        </div>
+        <div>
+          <button type="submit" id="heroSubmitBtn" class="w-full brand-btn-primary font-bold py-3.5 rounded-xl shadow-lg transition-all hover:scale-105 text-sm uppercase tracking-wider">
+            Get My Quote &rarr;
+          </button>
+        </div>
+        <div id="heroFormMsg" class="col-span-full hidden text-center text-xs font-semibold py-1"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- 3-Column Craftsman Services Showcase with Real Photos -->
+  <section class="py-24" style="background-color: var(--c-bg);">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center max-w-3xl mx-auto mb-16">
-        <h2 class="text-xs font-extrabold tracking-widest uppercase mb-2" style="color: ${p.accent};">Precision Craftsmanship</h2>
-        <p class="text-3xl sm:text-4xl font-extrabold" style="color: ${p.textPrimary};">Our Specialized Contracting Services</p>
-        <p class="mt-3 text-base" style="color: ${p.textSecondary};">Engineered specifically for Northeast Wisconsin climate conditions and long-term value.</p>
+        <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-accent);">Fox Valley Specialties</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1" style="color: var(--c-text-main);">Specialized Outdoor Wood &amp; Vinyl Craft</h2>
+        <p class="mt-3 text-base" style="color: var(--c-text-muted);">Engineered for Northeast Wisconsin freeze-thaw cycles and long-term beauty.</p>
       </div>
-
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         ${branding.services.map((s, idx) => {
           const imgUrl = idx === 0 ? assetPaths.service1Url : idx === 1 ? assetPaths.service2Url : assetPaths.service3Url;
           return `
-            <div class="brand-surface-card rounded-3xl overflow-hidden shadow-xl transition-transform hover:-translate-y-1 group">
-              <div class="h-48 overflow-hidden relative">
-                <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                <span class="absolute top-4 right-4 text-xs font-bold px-3 py-1 rounded-full brand-surface-card" style="color: ${p.accent};">
-                  ${escapeHtml(s.badge || 'Professional')}
+            <div class="brand-surface-card rounded-3xl overflow-hidden shadow-xl transition-all hover:-translate-y-2 group border-t-4" style="border-top-color: var(--c-accent);">
+              <div class="h-56 overflow-hidden relative">
+                <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                <span class="absolute top-4 right-4 text-xs font-bold px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-amber-400">
+                  ${escapeHtml(s.badge || 'Craft Service')}
                 </span>
               </div>
               <div class="p-8">
-                <h3 class="text-xl font-bold mb-3" style="color: ${p.textPrimary};">${escapeHtml(s.name)}</h3>
-                <p class="text-sm leading-relaxed mb-6" style="color: ${p.textSecondary};">${escapeHtml(s.desc)}</p>
-                <a href="services.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: ${p.accent};">
-                  Explore Details &rarr;
+                <h3 class="text-xl font-bold mb-3" style="color: var(--c-text-main);">${escapeHtml(s.name)}</h3>
+                <p class="text-sm leading-relaxed mb-6" style="color: var(--c-text-muted);">${escapeHtml(s.desc)}</p>
+                <a href="services.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: var(--c-accent);">
+                  Explore Fabrication Specs &rarr;
                 </a>
               </div>
             </div>
@@ -1040,33 +1100,224 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     </div>
   </section>
 
-  <!-- Project Showcase Gallery -->
-  <section class="py-20" style="background-color: ${p.background};">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex flex-col md:flex-row md:items-end justify-between mb-12">
-        <div>
-          <span class="text-xs font-extrabold tracking-widest uppercase block mb-2" style="color: ${p.accent};">Recent Work Portfolio</span>
-          <h2 class="text-3xl font-extrabold" style="color: ${p.textPrimary};">Recent Installations &amp; Builds</h2>
-        </div>
-        <p class="text-sm max-w-md mt-2 md:mt-0" style="color: ${p.textSecondary};">
-          See the craftsmanship we deliver to property owners across ${serviceArea}.
+  <!-- Founder & Local Roots Story Section -->
+  <section class="py-20 border-t" style="background-color: var(--c-surface); border-color: var(--c-border);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <div class="lg:col-span-6 space-y-6">
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">Our Wisconsin Story</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold" style="color: var(--c-text-main);">Built on Local Dependability &amp; Craft</h2>
+        <p class="text-base leading-relaxed" style="color: var(--c-text-muted);">
+          ${escapeHtml(branding.ownerStory)}
         </p>
+        <div class="p-6 rounded-2xl brand-surface-card border-l-4" style="border-left-color: var(--c-primary);">
+          <p class="text-sm italic font-medium" style="color: var(--c-text-main);">
+            "We treat every deck, railing, and perimeter fence like it's protecting our own home. No shortcuts, no thin materials."
+          </p>
+          <p class="text-xs uppercase tracking-wider font-bold mt-3" style="color: var(--c-accent);">Freedom &amp; Appleton, WI</p>
+        </div>
+      </div>
+      <div class="lg:col-span-6">
+        <div class="rounded-3xl overflow-hidden shadow-2xl border-2" style="border-color: var(--c-border);">
+          <img src="${assetPaths.aboutUrl}" alt="${escapeHtml(bizName)} Craftsmanship" class="w-full h-80 object-cover">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3-Column Project Gallery -->
+  <section class="py-20" style="background-color: var(--c-bg);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-12">
+        <div>
+          <span class="text-xs font-extrabold tracking-widest uppercase block mb-1" style="color: var(--c-accent);">Fox Valley Projects</span>
+          <h2 class="text-3xl font-extrabold" style="color: var(--c-text-main);">Completed Client Installations</h2>
+        </div>
+        <p class="text-sm mt-2 sm:mt-0" style="color: var(--c-text-muted);">Genuine photos of our outdoor projects across ${serviceArea}.</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         ${assetPaths.gallery.map((gUrl, idx) => `
           <div class="rounded-2xl overflow-hidden brand-surface-card shadow-lg group">
             <div class="h-64 overflow-hidden">
-              <img src="${gUrl}" alt="Completed Project ${idx + 1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+              <img src="${gUrl}" alt="Client Installation ${idx + 1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
             </div>
             <div class="p-4 flex items-center justify-between text-xs font-semibold">
-              <span style="color: ${p.textPrimary};">Project Showcase #${idx + 1}</span>
-              <span style="color: ${p.accent};">Fox Valley, WI</span>
+              <span style="color: var(--c-text-main);">Custom Build #${idx + 1}</span>
+              <span style="color: var(--c-accent);">Northeast Wisconsin</span>
             </div>
           </div>
         `).join('')}
       </div>
     </div>
   </section>
+  ` : `
+  <!-- FORTRESS BANNER HERO: Centered Fortress, Inline Estimator Bar & Comparison -->
+  <section class="relative py-24 lg:py-32 overflow-hidden text-center" style="background-image: linear-gradient(to bottom, ${p.background}f2, ${p.background}d0), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-6">
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-extrabold tracking-widest uppercase brand-surface-card mx-auto shadow-xl" style="color: var(--c-accent);">
+        <span>🛡 Appleton's Gold Standard in Perimeter Security &amp; Fencing</span>
+      </div>
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-none brand-heading" style="color: var(--c-text-main);">
+        Built to Protect.<br/>Crafted to Endure.
+      </h1>
+      <p class="text-lg sm:text-xl leading-relaxed max-w-3xl mx-auto" style="color: var(--c-text-muted);">
+        Commercial-grade perimeter fencing, custom ornamental iron, and privacy enclosures engineered for Wisconsin winters.
+      </p>
+
+      <!-- Horizontal Inline Instant Quote Estimator Bar -->
+      <div class="max-w-4xl mx-auto pt-8">
+        <form id="heroEstimateForm" class="p-4 sm:p-5 rounded-2xl brand-surface-card shadow-2xl backdrop-blur-xl border border-white/10 grid grid-cols-1 sm:grid-cols-4 gap-3 text-left">
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--c-accent);">Fence Type</label>
+            <select id="custType" class="w-full rounded-lg px-3 py-2.5 text-xs font-semibold focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
+              ${(branding.calculatorOptions || ['Commercial Security', 'Ornamental Iron', 'Cedar Privacy', 'Chain Link']).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--c-accent);">Approx. Length</label>
+            <select class="w-full rounded-lg px-3 py-2.5 text-xs font-semibold focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
+              <option value="50ft">Under 50 Feet</option>
+              <option value="100ft" selected>50 – 100 Feet</option>
+              <option value="150ft">100 – 150 Feet</option>
+              <option value="200ft+">200+ Feet (Commercial)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--c-accent);">Phone Number</label>
+            <input type="tel" id="custPhone" required placeholder="(920) 000-0000" class="w-full rounded-lg px-3 py-2.5 text-xs font-semibold focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
+            <input type="hidden" id="custName" value="Prospective Client">
+            <input type="hidden" id="custCity" value="${city}">
+          </div>
+          <div class="flex items-end">
+            <button type="submit" id="heroSubmitBtn" class="w-full brand-btn-primary font-bold py-2.5 rounded-lg shadow-lg transition-all hover:scale-105 text-xs uppercase tracking-wider">
+              Get Fast Quote &rarr;
+            </button>
+          </div>
+          <div id="heroFormMsg" class="col-span-full hidden text-center text-xs font-semibold py-1"></div>
+        </form>
+      </div>
+
+      <!-- Quick Call Button -->
+      <div class="pt-4">
+        <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 text-sm font-bold hover:underline" style="color: var(--c-text-muted);">
+          <span>Or call our Appleton dispatch line directly:</span> <strong style="color: var(--c-accent);">${escapeHtml(phone)}</strong>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Asymmetric Services Grid (1 Hero Card + 2 Stacked Cards) -->
+  <section class="py-24" style="background-color: var(--c-secondary);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-accent);">Commercial &amp; Residential</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Engineered Perimeter Fencing Solutions</h2>
+        <p class="mt-3 text-base" style="color: var(--c-text-muted);">Deep post setting below Wisconsin frost depth for zero winter heaving.</p>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        <!-- Featured Service 1 (Span 7) -->
+        <div class="lg:col-span-7 brand-surface-card rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between">
+          <div class="h-72 overflow-hidden relative">
+            <img src="${assetPaths.service1Url}" alt="${escapeHtml(branding.services[0]?.name || 'Security Fencing')}" class="w-full h-full object-cover">
+            <span class="absolute top-4 left-4 text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg brand-btn-primary shadow-lg">Featured Service</span>
+          </div>
+          <div class="p-8 lg:p-10">
+            <h3 class="text-2xl font-bold mb-3 brand-heading" style="color: var(--c-text-main);">${escapeHtml(branding.services[0]?.name || 'Commercial & Residential Security Fencing')}</h3>
+            <p class="text-base leading-relaxed mb-6" style="color: var(--c-text-muted);">${escapeHtml(branding.services[0]?.desc || 'Heavy-gauge commercial and privacy enclosures engineered for maximum property security.')}</p>
+            <a href="contact.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: var(--c-accent);">
+              Request Engineering Quote &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Stacked Services 2 & 3 (Span 5) -->
+        <div class="lg:col-span-5 flex flex-col gap-8 justify-between">
+          <div class="brand-surface-card rounded-3xl p-6 shadow-xl flex items-center gap-6">
+            <img src="${assetPaths.service2Url}" alt="${escapeHtml(branding.services[1]?.name || 'Ornamental Iron')}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
+            <div>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">02 • Custom</span>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[1]?.name || 'Ornamental Iron & Gates')}</h4>
+              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[1]?.desc || 'Custom welded iron security gates and perimeter accents.')}</p>
+            </div>
+          </div>
+          <div class="brand-surface-card rounded-3xl p-6 shadow-xl flex items-center gap-6">
+            <img src="${assetPaths.service3Url}" alt="${escapeHtml(branding.services[2]?.name || 'Repairs')}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
+            <div>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">03 • Maintenance</span>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[2]?.name || 'Emergency Repair & Upgrades')}</h4>
+              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[2]?.desc || 'Fast turnaround post replacements, gate alignments, and storm repairs.')}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contractor Standards Comparison Table (Us vs Typical) -->
+  <section class="py-20 border-t" style="background-color: var(--c-bg); border-color: var(--c-border);">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">The Wisconsin Standard</span>
+        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">${escapeHtml(bizName)} vs Standard Subcontractors</h2>
+      </div>
+      <div class="overflow-x-auto rounded-2xl brand-surface-card shadow-xl border" style="border-color: var(--c-border);">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b" style="border-color: var(--c-border); background-color: var(--c-secondary);">
+              <th class="p-4 font-bold" style="color: var(--c-text-main);">Installation Factor</th>
+              <th class="p-4 font-black" style="color: var(--c-accent);">${escapeHtml(bizName)}</th>
+              <th class="p-4 font-normal" style="color: var(--c-text-muted);">Typical Subcontractors</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y" style="border-color: var(--c-border);">
+            <tr>
+              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Post Setting Depth</td>
+              <td class="p-4 font-bold text-emerald-400">✔ 48" Below Frost Line</td>
+              <td class="p-4 text-stone-400">30" – 36" (Prone to heaving)</td>
+            </tr>
+            <tr>
+              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Fasteners &amp; Hardware</td>
+              <td class="p-4 font-bold text-emerald-400">✔ Powder-Coated Stainless</td>
+              <td class="p-4 text-stone-400">Standard galvanized (rusts)</td>
+            </tr>
+            <tr>
+              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Estimate Turnaround</td>
+              <td class="p-4 font-bold text-emerald-400">✔ 24 – 48 Hours Written</td>
+              <td class="p-4 text-stone-400">1 – 3 Weeks waiting</td>
+            </tr>
+            <tr>
+              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Workmanship Guarantee</td>
+              <td class="p-4 font-bold text-emerald-400">✔ Full Multi-Year Warranty</td>
+              <td class="p-4 text-stone-400">90-Day limited</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- High-Contrast Project Portfolio -->
+  <section class="py-20" style="background-color: var(--c-secondary);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">Fox Valley Installations</span>
+        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Recent Security &amp; Perimeter Work</h2>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        ${assetPaths.gallery.map((gUrl, idx) => `
+          <div class="rounded-2xl overflow-hidden brand-surface-card shadow-lg group border" style="border-color: var(--c-border);">
+            <div class="h-64 overflow-hidden">
+              <img src="${gUrl}" alt="Installation ${idx + 1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            </div>
+            <div class="p-4 flex items-center justify-between text-xs font-semibold">
+              <span style="color: var(--c-text-main);">Security Install #${idx + 1}</span>
+              <span style="color: var(--c-accent);">Appleton, WI</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  </section>
+  `}
 
   <!-- AI Direct Answer Summary (GEO / Voice Search) -->
   <section id="ai-summary" class="py-12 border-y" style="background-color: ${p.surface}; border-color: ${p.border};">
