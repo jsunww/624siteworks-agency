@@ -1070,7 +1070,7 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
       }
     };
 
-    const modelsToTry = ['gemini-3.8-flash-lite', 'gemini-3.8-flash'];
+    const modelsToTry = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
     for (let m = 0; m < modelsToTry.length; m++) {
       try {
         const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelsToTry[m] + ':generateContent?key=' + encodeURIComponent(apiKey);
