@@ -72,7 +72,8 @@ const STATUS = {
   APPROVE_RESEARCH: 'Approve Research',
   PROMPT_READY: '2. Prompt Ready',
   READY_TO_EMAIL: 'Ready to Email',
-  DRAFT_CREATED: '5. Draft Created'
+  DRAFT_CREATED: '5. Draft Created',
+  DISMISSED: 'Dismissed'
 };
 
 /* ============================================================================
@@ -160,7 +161,7 @@ function getPipelineLeadsCore() {
       spreadsheetUrl: ss.getUrl(),
       sheetName: CONFIG.SHEET_NAME,
       leads: [],
-      stats: { total: 0, scraped: 0, approveResearch: 0, promptReady: 0, readyToEmail: 0, draftCreated: 0, skipped: 0 },
+      stats: { total: 0, scraped: 0, approveResearch: 0, promptReady: 0, readyToEmail: 0, draftCreated: 0, dismissed: 0, skipped: 0 },
       config: configInfo
     };
   }
@@ -171,7 +172,7 @@ function getPipelineLeadsCore() {
 
   const values = sheet.getRange(2, 1, lastRow - 1, TOTAL_COLS).getValues();
   const leads = [];
-  const stats = { total: 0, scraped: 0, approveResearch: 0, promptReady: 0, readyToEmail: 0, draftCreated: 0, skipped: 0 };
+  const stats = { total: 0, scraped: 0, approveResearch: 0, promptReady: 0, readyToEmail: 0, draftCreated: 0, dismissed: 0, skipped: 0 };
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -194,7 +195,10 @@ function getPipelineLeadsCore() {
     else if (status === STATUS.PROMPT_READY) stats.promptReady++;
     else if (status === STATUS.READY_TO_EMAIL) stats.readyToEmail++;
     else if (status === STATUS.DRAFT_CREATED) stats.draftCreated++;
-    else stats.skipped++;
+    else if (status === STATUS.DISMISSED || status.includes('Skip') || status.includes('Disqualif')) {
+      stats.dismissed++;
+      stats.skipped++;
+    } else stats.skipped++;
 
     leads.push({
       rowNumber: rowNum,
