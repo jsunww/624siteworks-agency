@@ -11,11 +11,14 @@
  *   Option B: Outscraper (https://outscraper.com)
  *
  * PIPELINE GATES:
- *   Gate 1: promptAndScrapeLeads()          -> Audits sites, ranks worst first, sets "1. Scraped"
+ *   Gate 1: scrapeAndAuditLeadsCore(query) -> Audits sites, ranks worst first, sets "1. Scraped"
  *   (Human Review: Change Col R to "Approve Research")
- *   Gate 2: enrichApprovedLeadsWithAI()     -> Status: "2. Prompt Ready" (Col Q auto-builds prompt)
+ *   Gate 2: enrichApprovedLeadsCore()     -> Status: "2. Prompt Ready" (Col Q auto-builds prompt)
  *   (Human Build: Paste Col Q into Antigravity IDE, run 624deploy, paste .pages.dev URL in Col T, set Col R to "Ready to Email")
- *   Gate 4: createDraftsForApprovedBuilds() -> Status: "5. Draft Created" (HTML Gmail draft + inline screenshot)
+ *   Gate 4: createDraftsCore()             -> Status: "5. Draft Created" (HTML Gmail draft + inline screenshot)
+ *
+ * WEB APP API ENDPOINTS (Supports 624 LLC Hub at https://624llc.com/624siteworks/):
+ *   doGet(e) & doPost(e) with ?action=getPipeline | runGate1 | runGate2 | runGate4 | updateLead | initialize | saveKeys
  * ============================================================================
  */
 
@@ -72,9 +75,193 @@ const STATUS = {
   DRAFT_CREATED: '5. Draft Created'
 };
 
+/* ============================================================================
+ * WEB APP HTTP HANDLERS (doGet / doPost) FOR 624 LLC ADMIN HUB
+ * ============================================================================ */
+
+function doGet(e) {
+  return handleLeadEngineApiRequest_(e && e.parameter ? e.parameter : {});
+}
+
+function doPost(e) {
+  let params = {};
+  if (e && e.postData && e.postData.contents) {
+    try {
+      params = JSON.parse(e.postData.contents);
+    } catch (err) {
+      params = e.parameter || {};
+    }
+  } else if (e && e.parameter) {
+    params = e.parameter;
+  }
+  return handleLeadEngineApiRequest_(params);
+}
+
+function handleLeadEngineApiRequest_(params) {
+  const action = params.action || 'getPipeline';
+  let res = { success: false, error: 'Unknown action' };
+
+  try {
+    if (action === 'getPipeline') {
+      res = getPipelineLeadsCore();
+    } else if (action === 'runGate1') {
+      const query = params.query || '';
+      if (!query) throw new Error('Search query is required for Gate 1 (e.g. "Concrete contractor, Appleton, WI")');
+      res = scrapeAndAuditLeadsCore(query);
+    } else if (action === 'runGate2') {
+      res = enrichApprovedLeadsCore();
+    } else if (action === 'runGate4') {
+      res = createDraftsCore();
+    } else if (action === 'updateLead') {
+      const rowNum = Number(params.rowNumber);
+      if (!rowNum || rowNum < 2) throw new Error('Valid rowNumber is required');
+      res = updateLeadStatusCore(rowNum, params);
+    } else if (action === 'initialize') {
+      initializeProspectPipelineSheet();
+      res = { success: true, message: 'Prospect Pipeline sheet initialized successfully' };
+    } else if (action === 'saveKeys') {
+      const props = PropertiesService.getScriptProperties();
+      if (params.serperKey) props.setProperty('SERPER_API_KEY', params.serperKey.trim());
+      if (params.geminiKey) props.setProperty('GEMINI_API_KEY', params.geminiKey.trim());
+      res = { success: true, message: 'API keys saved successfully' };
+    } else if (action === 'ping') {
+      res = { success: true, status: 'online', timestamp: new Date().toISOString() };
+    }
+  } catch (err) {
+    res = { success: false, error: err.message || String(err) };
+  }
+
+  return ContentService.createTextOutput(JSON.stringify(res))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 /**
- * Adds the custom "624 Lead Engine" menu on spreadsheet open.
+ * Reads all rows from the "Prospect Pipeline" sheet and returns clean JSON.
  */
+function getPipelineLeadsCore() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) {
+    sheet = initializeProspectPipelineSheet();
+  }
+
+  const lastRow = sheet.getLastRow();
+  const props = PropertiesService.getScriptProperties();
+  const configInfo = {
+    hasSerperKey: Boolean(props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY')),
+    hasGeminiKey: Boolean(props.getProperty('GEMINI_API_KEY')),
+    sheetName: CONFIG.SHEET_NAME,
+    spreadsheetUrl: ss.getUrl()
+  };
+
+  if (lastRow < 2) {
+    return {
+      success: true,
+      spreadsheetUrl: ss.getUrl(),
+      sheetName: CONFIG.SHEET_NAME,
+      leads: [],
+      stats: { total: 0, scraped: 0, approveResearch: 0, promptReady: 0, readyToEmail: 0, draftCreated: 0, skipped: 0 },
+      config: configInfo
+    };
+  }
+
+  // Clear Q2:Q so ARRAYFORMULA in Q1 expands cleanly
+  sheet.getRange(2, COL.AI_PROMPT, lastRow - 1, 1).clearContent();
+  SpreadsheetApp.flush();
+
+  const values = sheet.getRange(2, 1, lastRow - 1, TOTAL_COLS).getValues();
+  const leads = [];
+  const stats = { total: 0, scraped: 0, approveResearch: 0, promptReady: 0, readyToEmail: 0, draftCreated: 0, skipped: 0 };
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const bizName = String(row[COL.BUSINESS_NAME - 1] || '').trim();
+    if (!bizName) continue;
+
+    const rowNum = i + 2;
+    const status = String(row[COL.LEAD_STATUS - 1] || STATUS.SCRAPED).trim();
+    const siteIssues = String(row[COL.SITE_ISSUES - 1] || '').trim();
+
+    let badnessScore = 50;
+    const scoreMatch = siteIssues.match(/(\d+)\/100/);
+    if (scoreMatch) {
+      badnessScore = parseInt(scoreMatch[1], 10);
+    }
+
+    stats.total++;
+    if (status === STATUS.SCRAPED) stats.scraped++;
+    else if (status === STATUS.APPROVE_RESEARCH) stats.approveResearch++;
+    else if (status === STATUS.PROMPT_READY) stats.promptReady++;
+    else if (status === STATUS.READY_TO_EMAIL) stats.readyToEmail++;
+    else if (status === STATUS.DRAFT_CREATED) stats.draftCreated++;
+    else stats.skipped++;
+
+    leads.push({
+      rowNumber: rowNum,
+      timestamp: row[COL.TIMESTAMP - 1] ? String(row[COL.TIMESTAMP - 1]) : '',
+      businessName: bizName,
+      serviceArea: String(row[COL.SERVICE_AREA - 1] || ''),
+      phone: String(row[COL.PHONE - 1] || ''),
+      vibe: String(row[COL.VIBE - 1] || ''),
+      services: [
+        { name: String(row[COL.SERVICE_1_NAME - 1] || ''), desc: String(row[COL.SERVICE_1_DESC - 1] || '') },
+        { name: String(row[COL.SERVICE_2_NAME - 1] || ''), desc: String(row[COL.SERVICE_2_DESC - 1] || '') },
+        { name: String(row[COL.SERVICE_3_NAME - 1] || ''), desc: String(row[COL.SERVICE_3_DESC - 1] || '') }
+      ],
+      logoUrl: String(row[COL.LOGO_URL - 1] || ''),
+      domainStatus: String(row[COL.DOMAIN_STATUS - 1] || ''),
+      email: String(row[COL.EMAIL - 1] || ''),
+      hours: String(row[COL.HOURS - 1] || ''),
+      trustFactor: String(row[COL.TRUST_FACTOR - 1] || ''),
+      aiPrompt: String(row[COL.AI_PROMPT - 1] || ''),
+      leadStatus: status,
+      ratingReviews: String(row[COL.RATING_REVIEWS - 1] || ''),
+      previewUrl: String(row[COL.PREVIEW_URL - 1] || ''),
+      notes: String(row[COL.NOTES - 1] || ''),
+      siteIssues: siteIssues,
+      badnessScore: badnessScore
+    });
+  }
+
+  return {
+    success: true,
+    spreadsheetUrl: ss.getUrl(),
+    sheetName: CONFIG.SHEET_NAME,
+    leads: leads,
+    stats: stats,
+    config: configInfo
+  };
+}
+
+/**
+ * Updates status, previewUrl, email, or notes for a specific row in "Prospect Pipeline".
+ */
+function updateLeadStatusCore(rowNumber, updates) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) throw new Error('Sheet not found');
+
+  if (updates.status) {
+    sheet.getRange(rowNumber, COL.LEAD_STATUS).setValue(updates.status);
+  }
+  if (updates.previewUrl !== undefined && updates.previewUrl !== null) {
+    sheet.getRange(rowNumber, COL.PREVIEW_URL).setValue(updates.previewUrl);
+  }
+  if (updates.email !== undefined && updates.email !== null) {
+    sheet.getRange(rowNumber, COL.EMAIL).setValue(updates.email);
+  }
+  if (updates.notes !== undefined && updates.notes !== null) {
+    sheet.getRange(rowNumber, COL.NOTES).setValue(updates.notes);
+  }
+
+  SpreadsheetApp.flush();
+  return { success: true, rowNumber: rowNumber };
+}
+
+/* ============================================================================
+ * GOOGLE SHEETS UI MENU INITIALIZATION
+ * ============================================================================ */
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('\uD83D\uDE80 624 Lead Engine')
@@ -87,10 +274,6 @@ function onOpen() {
     .addToUi();
 }
 
-/**
- * Prompts the user to save their Serper.dev and Gemini API keys
- * in ScriptProperties so keys never have to be hardcoded.
- */
 function configureApiKeysPrompt() {
   const ui = SpreadsheetApp.getUi();
   const props = PropertiesService.getScriptProperties();
@@ -187,7 +370,6 @@ function initializeProspectPipelineSheet() {
     '"4. AI Search (GEO/AEO) & Voice Search Optimization: Include a direct-answer summary paragraph (#ai-summary), a natural-language conversational FAQ section (#voice-faq) with matching FAQPage and SpeakableSpecification JSON-LD schema, and generate an llms.txt structured Markdown fact sheet in the root directory for AI search engines (ChatGPT, Perplexity, Google AI Overviews, Siri/Alexa)." & CHAR(10) & ' +
     '"5. 624 Siteworks Preview Banner: Copy preview-banner.js into assets/preview-banner.js and include right before </body> on every page: <script src=""assets/preview-banner.js"" data-business=""" & B:B & """ defer></script>")))';
 
-  // Clear any stray values in Q2:Q so the ARRAYFORMULA in Q1 always expands without #REF!
   if (sheet.getMaxRows() >= 2) {
     sheet.getRange(2, COL.AI_PROMPT, sheet.getMaxRows() - 1, 1).clearContent();
   }
@@ -203,15 +385,8 @@ function initializeProspectPipelineSheet() {
 function promptAndScrapeLeads() {
   const ui = SpreadsheetApp.getUi();
   const props = PropertiesService.getScriptProperties();
-  let serperKey = props.getProperty('SERPER_API_KEY');
+  const serperKey = props.getProperty('SERPER_API_KEY');
   const outscraperKey = props.getProperty('OUTSCRAPER_API_KEY');
-
-  // Auto-migrate if a Serper key was previously pasted into the Outscraper prompt
-  if (!serperKey && outscraperKey && /^[a-f0-9]{32,64}$/i.test(outscraperKey.trim())) {
-    serperKey = outscraperKey.trim();
-    props.setProperty('SERPER_API_KEY', serperKey);
-    props.deleteProperty('OUTSCRAPER_API_KEY');
-  }
 
   if (!serperKey && !outscraperKey) {
     ui.alert(
@@ -236,15 +411,46 @@ function promptAndScrapeLeads() {
     return;
   }
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME) || initializeProspectPipelineSheet();
-  sheet.activate();
+  try {
+    const res = scrapeAndAuditLeadsCore(query);
+    ui.alert(
+      'Gate 1 Complete (' + res.provider + ')',
+      'Added & audited ' + res.insertedCount + ' leads in "' + CONFIG.SHEET_NAME + '".\n' +
+      'Ranked from WORST web/SEO presence (#1 at top) to best!\n' +
+      'Check Column V ("Website & SEO Issues") to see exactly what is wrong with each site.\n' +
+      'Website crawler also extracted ' + res.crawledEmailCount + ' email(s).',
+      ui.ButtonSet.OK
+    );
+  } catch (err) {
+    ui.alert('Scraper Error:\n' + err.message);
+  }
+}
 
-  // Ensure Column V header is present even if sheet was created earlier
+/**
+ * Core Gate 1 implementation: Callable both from spreadsheet UI and from Web App API.
+ */
+function scrapeAndAuditLeadsCore(query) {
+  const props = PropertiesService.getScriptProperties();
+  let serperKey = props.getProperty('SERPER_API_KEY');
+  const outscraperKey = props.getProperty('OUTSCRAPER_API_KEY');
+
+  if (!serperKey && outscraperKey && /^[a-f0-9]{32,64}$/i.test(outscraperKey.trim())) {
+    serperKey = outscraperKey.trim();
+    props.setProperty('SERPER_API_KEY', serperKey);
+    props.deleteProperty('OUTSCRAPER_API_KEY');
+  }
+
+  if (!serperKey && !outscraperKey) {
+    throw new Error('Missing Scraper API Key. Configure SERPER_API_KEY in ScriptProperties.');
+  }
+
+  const providerLabel = serperKey ? 'Serper.dev (Free Tier)' : 'Outscraper';
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME) || initializeProspectPipelineSheet();
+
   if (String(sheet.getRange(1, COL.SITE_ISSUES).getValue()).trim() === '') {
     initializeProspectPipelineSheet();
   }
 
-  // Find true last populated row in Column B (Business Name) & collect existing names
   const colBValues = sheet.getRange(1, COL.BUSINESS_NAME, Math.max(sheet.getLastRow(), 1), 1).getValues();
   const existingNames = new Set();
   let lastPopulatedRow = 1;
@@ -257,20 +463,14 @@ function promptAndScrapeLeads() {
   }
 
   let normalizedPlaces = [];
-  try {
-    if (serperKey) {
-      normalizedPlaces = fetchLeadsFromSerper_(serperKey, query);
-    } else {
-      normalizedPlaces = fetchLeadsFromOutscraper_(outscraperKey, query);
-    }
-  } catch (err) {
-    ui.alert('Scraper Error:\n' + err.message);
-    return;
+  if (serperKey) {
+    normalizedPlaces = fetchLeadsFromSerper_(serperKey, query);
+  } else {
+    normalizedPlaces = fetchLeadsFromOutscraper_(outscraperKey, query);
   }
 
   if (!normalizedPlaces.length) {
-    ui.alert('No businesses returned for query: "' + query + '".');
-    return;
+    return { success: true, insertedCount: 0, crawledEmailCount: 0, leads: [], message: 'No businesses returned for query.' };
   }
 
   const scoredCandidates = [];
@@ -281,7 +481,6 @@ function promptAndScrapeLeads() {
     const bizName = (item.name || '').trim();
     const reviewsCount = Number(item.reviews || 0);
 
-    // Filter: minimum 5 reviews & non-duplicate
     if (!bizName || reviewsCount < CONFIG.MIN_REVIEWS) continue;
     if (existingNames.has(bizName.toLowerCase())) continue;
 
@@ -292,7 +491,6 @@ function promptAndScrapeLeads() {
     let email = (item.email || '').trim();
     const logoUrl = (item.logo || '').trim();
 
-    // Run full Website + Search Engine Presence Audit & Contact Crawl
     const audit = auditWebsiteAndSeoPresence_({
       bizName: bizName,
       siteUrl: siteUrl,
@@ -317,7 +515,6 @@ function promptAndScrapeLeads() {
     const tradeType = item.type || query.split(',')[0].trim();
     const ratingBadge = ratingVal + ' \u2605 (' + reviewsCount + ' reviews) - ' + tradeType;
 
-    // Build 22-column row (leaving Col Q blank so ARRAYFORMULA in Q1 populates it)
     const row = new Array(TOTAL_COLS).fill('');
     row[COL.TIMESTAMP - 1] = new Date();
     row[COL.BUSINESS_NAME - 1] = bizName;
@@ -338,27 +535,23 @@ function promptAndScrapeLeads() {
   }
 
   if (!scoredCandidates.length) {
-    ui.alert('No new leads matched the filter (reviews >= ' + CONFIG.MIN_REVIEWS + ').');
-    return;
+    return { success: true, insertedCount: 0, crawledEmailCount: 0, leads: [], message: 'No new leads matched the filter (reviews >= ' + CONFIG.MIN_REVIEWS + ').' };
   }
 
-  // Sort worst web/SEO presence first (highest badnessScore at the top)
   scoredCandidates.sort((a, b) => b.badnessScore - a.badnessScore);
   const rowsToInsert = scoredCandidates.map(c => c.row);
 
   const startRow = lastPopulatedRow + 1;
   const leftCols = rowsToInsert.map(r => r.slice(0, 16));    // Cols A-P (1..16)
-  const rightCols = rowsToInsert.map(r => r.slice(17, 22));  // Cols R-V (18..22), leaving Col Q untouched for ARRAYFORMULA
+  const rightCols = rowsToInsert.map(r => r.slice(17, 22));  // Cols R-V (18..22)
 
   sheet.getRange(startRow, 1, rowsToInsert.length, 16).setValues(leftCols);
   sheet.getRange(startRow, 18, rowsToInsert.length, 5).setValues(rightCols);
 
-  // Ensure Q2:Q is completely clear so Q1 ARRAYFORMULA expands cleanly
   if (sheet.getMaxRows() >= 2) {
     sheet.getRange(2, COL.AI_PROMPT, sheet.getMaxRows() - 1, 1).clearContent();
   }
 
-  // Apply dropdown validation only to the newly populated rows in Column R
   const statusRule = SpreadsheetApp.newDataValidation()
     .requireValueInList([
       STATUS.SCRAPED,
@@ -372,32 +565,35 @@ function promptAndScrapeLeads() {
     .build();
   sheet.getRange(startRow, COL.LEAD_STATUS, rowsToInsert.length, 1).setDataValidation(statusRule);
 
-  // Color-code Column V (Website & SEO Issues) by severity so hot prospects stand out
   const issueColors = scoredCandidates.map(c => {
-    if (c.badnessScore >= 75) return ['#fee2e2']; // Red tint = Hot Lead (Severe Web/SEO issues)
-    if (c.badnessScore >= 45) return ['#fef3c7']; // Amber tint = Strong Lead (Multiple issues)
-    return ['#f1f5f9'];                           // Slate tint = Decent site
+    if (c.badnessScore >= 75) return ['#fee2e2'];
+    if (c.badnessScore >= 45) return ['#fef3c7'];
+    return ['#f1f5f9'];
   });
   sheet.getRange(startRow, COL.SITE_ISSUES, rowsToInsert.length, 1).setBackgrounds(issueColors);
+  SpreadsheetApp.flush();
 
-  sheet.activate();
-  sheet.getRange(startRow, COL.BUSINESS_NAME).activate();
-
-  ui.alert(
-    'Gate 1 Complete (' + providerLabel + ')',
-    'Added & audited ' + rowsToInsert.length + ' leads in "' + CONFIG.SHEET_NAME + '".\n' +
-    'Ranked from WORST web/SEO presence (#1 at top) to best!\n' +
-    'Check Column V ("Website & SEO Issues") to see exactly what is wrong with each site.\n' +
-    'Website crawler also extracted ' + crawledEmailCount + ' email(s).',
-    ui.ButtonSet.OK
-  );
+  return {
+    success: true,
+    provider: providerLabel,
+    insertedCount: rowsToInsert.length,
+    crawledEmailCount: crawledEmailCount,
+    leads: scoredCandidates.map((c, idx) => ({
+      rowNumber: startRow + idx,
+      businessName: c.row[COL.BUSINESS_NAME - 1],
+      phone: c.row[COL.PHONE - 1],
+      email: c.row[COL.EMAIL - 1],
+      domainStatus: c.row[COL.DOMAIN_STATUS - 1],
+      ratingReviews: c.row[COL.RATING_REVIEWS - 1],
+      siteIssues: c.row[COL.SITE_ISSUES - 1],
+      badnessScore: c.badnessScore,
+      leadStatus: c.row[COL.LEAD_STATUS - 1]
+    }))
+  };
 }
 
 /**
- * Audits a business's website and search engine presence, returning:
- * - badnessScore (0-100, higher = worse web presence / better sales prospect)
- * - reportText (human-readable diagnostic breakdown for Column V)
- * - email & facebook extracted during the crawl
+ * Audits a business's website and search engine presence.
  */
 function auditWebsiteAndSeoPresence_(info) {
   let score = 0;
@@ -408,7 +604,6 @@ function auditWebsiteAndSeoPresence_(info) {
   const rawSite = (info.siteUrl || '').trim();
   const isFacebookOnly = rawSite.includes('facebook.com') || rawSite.includes('fb.com') || (!rawSite && info.fbUrl);
 
-  // 1. Check Google Business Profile completeness
   if (!info.workingHours) {
     score += 8;
     issues.push('GBP INCOMPLETE: No operating hours listed on Google Maps');
@@ -418,7 +613,6 @@ function auditWebsiteAndSeoPresence_(info) {
     issues.push('LOW REVIEWS: Only ' + info.reviewsCount + ' Google reviews (vulnerable to competitors)');
   }
 
-  // 2. Check if they have no website or Facebook-only
   if (!rawSite && !info.fbUrl) {
     score += 90;
     issues.unshift('NO WEBSITE: Zero website on Google Maps (losing organic search leads)');
@@ -431,7 +625,6 @@ function auditWebsiteAndSeoPresence_(info) {
     return finalizeAuditReport_(score, issues, foundEmail, rawSite || info.fbUrl);
   }
 
-  // 3. Check for free amateur subdomains & HTTP (non-SSL)
   if (/^http:\/\//i.test(rawSite)) {
     score += 30;
     issues.push('NOT SECURE (HTTP): Missing HTTPS SSL security (browsers warn visitors)');
@@ -441,7 +634,6 @@ function auditWebsiteAndSeoPresence_(info) {
     issues.push('FREE SUBDOMAIN: Using an amateur free builder subdomain URL');
   }
 
-  // 4. Fetch Homepage & Inspect Speed, Builder Tech, On-Page SEO & Conversion Elements
   let baseUrl = rawSite;
   if (!/^https?:\/\//i.test(baseUrl)) {
     baseUrl = 'https://' + baseUrl;
@@ -481,13 +673,11 @@ function auditWebsiteAndSeoPresence_(info) {
     return finalizeAuditReport_(score, issues, foundEmail, foundFacebook);
   }
 
-  // Speed check
   if (loadMs > 2200) {
     score += 20;
     issues.push('SLOW RESPONSE: Server took ' + (loadMs / 1000).toFixed(1) + 's just to send HTML');
   }
 
-  // Detect bloated page builders
   if (/wix\.com|wixstatic\.com/i.test(homeHtml)) {
     score += 25;
     issues.push('BLOATED BUILDER: Built on Wix (heavy JS, weak local SEO)');
@@ -505,13 +695,11 @@ function auditWebsiteAndSeoPresence_(info) {
     issues.push('OUTDATED BUILDER: Built on Weebly');
   }
 
-  // Mobile Viewport Check
   if (!/<meta[^>]+name=["']?viewport["']?/i.test(homeHtml)) {
     score += 35;
     issues.push('NOT MOBILE-FRIENDLY: Missing mobile viewport tag (fails mobile indexing)');
   }
 
-  // SEO <title> Check
   const titleMatch = homeHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   const titleText = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
   if (!titleText) {
@@ -525,31 +713,26 @@ function auditWebsiteAndSeoPresence_(info) {
     issues.push('NO LOCAL KEYWORDS IN TITLE: Title tag does not mention their city or Fox Valley');
   }
 
-  // Meta Description Check
   if (!/<meta[^>]+name=["']?description["']?[^>]+content=["'][^"']{20,}/i.test(homeHtml)) {
     score += 15;
     issues.push('NO META DESCRIPTION: Missing search snippet description for Google results');
   }
 
-  // H1 Heading Check
   if (!/<h1[\s>]/i.test(homeHtml)) {
     score += 15;
     issues.push('MISSING H1 HEADING: No primary <h1> tag for Google search indexing');
   }
 
-  // LocalBusiness Schema Check
   if (!/application\/ld\+json/i.test(homeHtml)) {
     score += 12;
     issues.push('NO LOCAL SCHEMA: Missing JSON-LD LocalBusiness schema markup');
   }
 
-  // Click-to-call Check
   if (!/href=["']tel:/i.test(homeHtml)) {
     score += 20;
     issues.push('NO CLICK-TO-CALL: Phone number is not tappable (no tel: link) for mobile leads');
   }
 
-  // Extract email & Facebook from homepage first, then fallback to /contact, /contact-us, /about
   const extractedHome = extractContactFromHtml_(homeHtml, ignoredExtensions, ignoredDomains, emailRegex, mailtoRegex, fbRegex);
   foundEmail = extractedHome.email;
   foundFacebook = extractedHome.facebook;
@@ -642,10 +825,6 @@ function extractContactFromHtml_(html, ignoredExtensions, ignoredDomains, emailR
   return out;
 }
 
-/**
- * Fetches Google Maps results via Serper.dev (https://google.serper.dev/maps)
- * Free tier: 2,500 searches with no credit card required.
- */
 function fetchLeadsFromSerper_(apiKey, query) {
   const resp = UrlFetchApp.fetch('https://google.serper.dev/maps', {
     method: 'post',
@@ -679,9 +858,6 @@ function fetchLeadsFromSerper_(apiKey, query) {
   }));
 }
 
-/**
- * Fetches Google Maps results via Outscraper v2 API (optional fallback).
- */
 function fetchLeadsFromOutscraper_(apiKey, query) {
   const fields = [
     'name', 'full_address', 'phone', 'site', 'rating',
@@ -727,25 +903,39 @@ function fetchLeadsFromOutscraper_(apiKey, query) {
 }
 
 /* ============================================================================
- * GATE 2: ENRICH APPROVED LEADS WITH GEMINI AI (gemini-2.5-flash)
+ * GATE 2: ENRICH APPROVED LEADS WITH GEMINI AI
  * ============================================================================ */
 
 function enrichApprovedLeadsWithAI() {
   const ui = SpreadsheetApp.getUi();
-  const geminiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
+  try {
+    const res = enrichApprovedLeadsCore();
+    let summary = 'Gate 2 Complete: Enriched ' + res.enrichedCount + ' lead(s) to "' + STATUS.PROMPT_READY + '".\n' +
+      'Column Q now contains the ready-to-paste Antigravity IDE (Gemini 4 Argon) prompt!';
+    if (res.errors && res.errors.length) {
+      summary += '\n\nErrors (' + res.errors.length + '):\n' + res.errors.join('\n');
+    }
+    ui.alert(summary);
+  } catch (err) {
+    ui.alert('Gate 2 Error:\n' + err.message);
+  }
+}
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
+/**
+ * Core Gate 2 implementation: Callable both from spreadsheet UI and from Web App API.
+ */
+function enrichApprovedLeadsCore() {
+  const geminiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
   if (!sheet || sheet.getLastRow() < 2) {
-    ui.alert('No rows found in "' + CONFIG.SHEET_NAME + '".');
-    return;
+    return { success: true, enrichedCount: 0, message: 'No rows in sheet' };
   }
 
-  // Always clear Q2:Q before running so the ARRAYFORMULA in Q1 expands without #REF!
   if (sheet.getMaxRows() >= 2) {
     sheet.getRange(2, COL.AI_PROMPT, sheet.getMaxRows() - 1, 1).clearContent();
   }
 
-  // Only scan up to the last row that actually has a Business Name in Column B
   const colB = sheet.getRange(2, COL.BUSINESS_NAME, Math.max(sheet.getLastRow() - 1, 1), 1).getValues();
   let actualNumRows = 0;
   for (let r = 0; r < colB.length; r++) {
@@ -754,15 +944,13 @@ function enrichApprovedLeadsWithAI() {
     }
   }
   if (actualNumRows === 0) {
-    ui.alert('No populated lead rows found in Column B.');
-    return;
+    return { success: true, enrichedCount: 0, message: 'No populated rows found' };
   }
 
-  const dataRange = sheet.getRange(2, 1, actualNumRows, TOTAL_COLS);
-  const values = dataRange.getValues();
-
+  const values = sheet.getRange(2, 1, actualNumRows, TOTAL_COLS).getValues();
   let enrichedCount = 0;
   const errors = [];
+  const enrichedBizNames = [];
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -787,7 +975,6 @@ function enrichApprovedLeadsWithAI() {
         domainStatus: domainStatus
       });
 
-      // Populate Cols E (vibe), F-K (services 1-3), N (placeholder email if blank), P (trustFactor), R (status)
       sheet.getRange(rowNumber, COL.VIBE).setValue(aiData.vibe || '');
       sheet.getRange(rowNumber, COL.SERVICE_1_NAME).setValue(aiData.service1Name || '');
       sheet.getRange(rowNumber, COL.SERVICE_1_DESC).setValue(aiData.service1Desc || '');
@@ -805,24 +992,21 @@ function enrichApprovedLeadsWithAI() {
       sheet.getRange(rowNumber, COL.LEAD_STATUS).setValue(STATUS.PROMPT_READY);
 
       enrichedCount++;
+      enrichedBizNames.push(bizName);
       SpreadsheetApp.flush();
     } catch (err) {
       errors.push('Row ' + rowNumber + ' (' + bizName + '): ' + err.message);
     }
   }
 
-  let summary = 'Gate 2 Complete: Enriched ' + enrichedCount + ' lead(s) to "' + STATUS.PROMPT_READY + '".\n' +
-    'Column Q now contains the ready-to-paste Antigravity IDE (Gemini 4 Argon) prompt!';
-  if (errors.length) {
-    summary += '\n\nErrors (' + errors.length + '):\n' + errors.join('\n');
-  }
-  ui.alert(summary);
+  return {
+    success: true,
+    enrichedCount: enrichedCount,
+    enrichedBizNames: enrichedBizNames,
+    errors: errors
+  };
 }
 
-/**
- * Calls Gemini Flash (if available) or falls back immediately to delegating deep copywriting
- * to Gemini 4 Argon inside Antigravity IDE so Gate 2 never hangs on 503 high-demand spikes.
- */
 function callGeminiForLeadEnrichment_(apiKey, context) {
   if (apiKey) {
     const systemPrompt =
@@ -876,13 +1060,10 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
             return JSON.parse(rawJson);
           }
         }
-      } catch (e) {
-        // Fall through to instant Antigravity Gemini 4 Argon handoff
-      }
+      } catch (e) {}
     }
   }
 
-  // Instant fallback: Hand off deep trade copywriting & palette selection to Gemini 4 Argon in Antigravity IDE
   const tradePart = (context.ratingBadge.split('-')[1] || 'Local Service Contractor').trim();
   const ratingPart = (context.ratingBadge.split('-')[0] || 'Top-Rated').trim();
   return {
@@ -903,13 +1084,28 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
 
 function createDraftsForApprovedBuilds() {
   const ui = SpreadsheetApp.getUi();
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
+  try {
+    const res = createDraftsCore();
+    let msg = 'Gate 4 Complete: Created ' + res.draftCount + ' HTML Gmail draft(s) with embedded preview screenshots.';
+    if (res.errors && res.errors.length) {
+      msg += '\n\nSkipped / Errors (' + res.errors.length + '):\n' + res.errors.join('\n');
+    }
+    ui.alert(msg);
+  } catch (err) {
+    ui.alert('Gate 4 Error:\n' + err.message);
+  }
+}
+
+/**
+ * Core Gate 4 implementation: Callable both from spreadsheet UI and from Web App API.
+ */
+function createDraftsCore() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
   if (!sheet || sheet.getLastRow() < 2) {
-    ui.alert('No rows found in "' + CONFIG.SHEET_NAME + '".');
-    return;
+    return { success: true, draftCount: 0, message: 'No rows in sheet' };
   }
 
-  // Always clear Q2:Q before running so the ARRAYFORMULA in Q1 expands without #REF!
   if (sheet.getMaxRows() >= 2) {
     sheet.getRange(2, COL.AI_PROMPT, sheet.getMaxRows() - 1, 1).clearContent();
   }
@@ -919,6 +1115,7 @@ function createDraftsForApprovedBuilds() {
 
   let draftCount = 0;
   const errors = [];
+  const draftedLeads = [];
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -958,9 +1155,7 @@ function createDraftsForApprovedBuilds() {
         hasInlineScreenshot: Boolean(screenshotBlob)
       });
 
-      const draftOptions = {
-        htmlBody: htmlBody
-      };
+      const draftOptions = { htmlBody: htmlBody };
       if (screenshotBlob) {
         draftOptions.inlineImages = { sitePreview: screenshotBlob };
       }
@@ -972,23 +1167,21 @@ function createDraftsForApprovedBuilds() {
       sheet.getRange(rowNumber, COL.NOTES).setValue('Draft created ' + timestamp + ' -> ' + recipientEmail + ' (' + previewUrl + ')');
 
       draftCount++;
+      draftedLeads.push({ businessName: bizName, email: recipientEmail, previewUrl: previewUrl });
       SpreadsheetApp.flush();
     } catch (err) {
       errors.push('Row ' + rowNumber + ' (' + bizName + '): ' + err.message);
     }
   }
 
-  let msg = 'Gate 4 Complete: Created ' + draftCount + ' HTML Gmail draft(s) with embedded preview screenshots.';
-  if (errors.length) {
-    msg += '\n\nSkipped / Errors (' + errors.length + '):\n' + errors.join('\n');
-  }
-  ui.alert(msg);
+  return {
+    success: true,
+    draftCount: draftCount,
+    draftedLeads: draftedLeads,
+    errors: errors
+  };
 }
 
-/**
- * Fetches a 1200x800 desktop screenshot PNG blob of the deployed .pages.dev site
- * via image.thum.io.
- */
 function captureSiteScreenshotBlob_(previewUrl, bizName) {
   const thumUrl = CONFIG.screenshotBaseUrl + previewUrl;
   const safeSlug = bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'preview';
@@ -1005,9 +1198,6 @@ function captureSiteScreenshotBlob_(previewUrl, bizName) {
   return null;
 }
 
-/**
- * Generates the HTML email body for GmailApp.createDraft() with clickable inline screenshot.
- */
 function buildHtmlPitchEmail_(data) {
   const screenshotMarkup = data.hasInlineScreenshot
     ? '<div style="margin: 24px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);">' +
@@ -1051,9 +1241,6 @@ function isValidBusinessEmail_(email, ignoredExtensions, ignoredDomains) {
   return true;
 }
 
-/**
- * Formats working_hours object, array, or string into a clean 1-line summary.
- */
 function formatWorkingHours_(workingHours) {
   if (!workingHours) return 'Mon-Fri: 7:00 AM - 5:00 PM';
   if (typeof workingHours === 'string') return workingHours;
@@ -1066,9 +1253,6 @@ function formatWorkingHours_(workingHours) {
   return 'Mon-Fri: 7:00 AM - 5:00 PM';
 }
 
-/**
- * Generates a sensible placeholder email if both scraper and website crawler find none.
- */
 function buildFallbackEmail_(bizName, domainStatus) {
   if (domainStatus && /^https?:\/\//i.test(domainStatus) && !domainStatus.includes('facebook.com')) {
     try {
