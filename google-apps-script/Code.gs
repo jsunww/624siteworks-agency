@@ -85,15 +85,14 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  let params = {};
+  let params = Object.assign({}, (e && e.parameter) ? e.parameter : {});
   if (e && e.postData && e.postData.contents) {
     try {
-      params = JSON.parse(e.postData.contents);
+      const bodyJson = JSON.parse(e.postData.contents);
+      Object.assign(params, bodyJson);
     } catch (err) {
-      params = e.parameter || {};
+      // Keep URL query parameters if JSON parsing fails
     }
-  } else if (e && e.parameter) {
-    params = e.parameter;
   }
   return handleLeadEngineApiRequest_(params);
 }

@@ -1,0 +1,27 @@
+{
+  "lastRunIndex": 0,
+  "lastRunDate": "2026-11-06T21:11:01.552Z",
+  "totalSitesBuilt": 2,
+  "runs": [
+    {
+      "date": "2026-11-06T21:11:01.552Z",
+      "niche": {
+        "trade": "Concrete",
+        "city": "Appleton, WI",
+        "query": "Concrete contractor, Appleton, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Crown Fence llc",
+          "url": "https://crown-fence-llc.pages.dev",
+          "score": 100
+        },
+        {
+          "name": "M.A.K.E. Fence and Deck",
+          "url": "https://m-a-k-e-fence-and-deck.pages.dev",
+          "score": 100
+        }
+      ]
+    }
+  ]
+}
