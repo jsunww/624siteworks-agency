@@ -87,56 +87,358 @@ const ROTATING_NICHES = [
   { trade: 'Foundation Repair', city: 'Oshkosh, WI', query: 'Foundation repair contractor, Oshkosh, WI' }
 ];
 
-// Curated high-resolution photography library per trade.
-// IMPORTANT: Every photo in this library is strictly verified to show the ACTUAL trade (e.g. real fences, real roofs, real concrete).
-const TRADE_PHOTOGRAPHY_POOLS = {
-  'Fencing': [
-    'https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?auto=format&fit=crop&w=1200&q=80', // Wooden garden privacy fence
-    'https://images.unsplash.com/photo-1528740561666-dc2479dc08ab?auto=format&fit=crop&w=800&q=80',  // Rustic cedar wood fence
-    'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=800&q=80',  // Horizontal modern wood fence panels
-    'https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=800&q=80',  // Wooden perimeter fence
-    'https://images.unsplash.com/photo-1622372738946-62e02505feb3?auto=format&fit=crop&w=800&q=80',  // Architectural composite fence
-    'https://images.unsplash.com/photo-1549247796-5d8f09e9034b?auto=format&fit=crop&w=800&q=80',  // Classic white picket fence
-    'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=800&q=80',  // Timber boundary fence
-    'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80',  // Wood ranch rail fence
-    'https://images.unsplash.com/photo-1591825729269-caeb344f6df2?auto=format&fit=crop&w=800&q=80',  // Custom wood deck patio
-    'https://images.unsplash.com/photo-1517581177682-a085bb7ffb15?auto=format&fit=crop&w=800&q=80',  // Pergola and cedar deck
-    'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',  // Ornamental iron gate
-    'https://images.unsplash.com/photo-1584905066893-7d5c142ba4e1?auto=format&fit=crop&w=800&q=80'   // Black metal boundary fence
-  ],
-  'Roofing': [
-    'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=1200&q=80', // Roofer installing shingles
-    'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=800&q=80',  // Architectural asphalt shingle roof
-    'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80',  // Steep residential roof construction
-    'https://images.unsplash.com/photo-1505705694340-019e1e335916?auto=format&fit=crop&w=800&q=80',  // Roofer nailing shingles
-    'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',  // Roof inspection and chimney
-    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80',  // Ceramic roof tiles and ridge line
-    'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?auto=format&fit=crop&w=800&q=80',  // Residential pitched roof
-    'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80'   // Architectural roof angles
-  ],
-  'Concrete': [
-    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80', // Heavy concrete construction site
-    'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80',  // Fresh poured concrete driveway
-    'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80',  // Concrete finishing and trowel
-    'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80',  // Concrete slab installation
-    'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80',  // Industrial concrete foundation
-    'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80',  // Architecture concrete design
-    'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80',  // Precision concrete site
-    'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80'   // Construction structural work
-  ],
-  'HVAC': [
-    'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80', // HVAC technician testing system
-    'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',  // Commercial air conditioning unit
-    'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',  // Industrial heating ventilation
-    'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80'   // HVAC ductwork engineering
-  ],
-  'Plumbing': [
-    'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1200&q=80', // Modern plumbing fixture
-    'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=800&q=80',  // Copper pipe plumbing installation
-    'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=800&q=80',  // Plumber wrench and water lines
-    'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80'   // Commercial pipe infrastructure
-  ]
+// Curated high-resolution photography taxonomy per trade & sub-service.
+// STRICT CONTEXTUAL RELEVANCE: Every photo in this library is verified to show the EXACT sub-trade.
+// Wood fencing NEVER maps to vinyl; concrete flatwork NEVER maps to plumbing; etc.
+const TRADE_PHOTOGRAPHY_TAXONOMY = {
+  'Fencing': {
+    wood: [
+      'https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?auto=format&fit=crop&w=1200&q=80', // Wooden garden privacy fence
+      'https://images.unsplash.com/photo-1528740561666-dc2479dc08ab?auto=format&fit=crop&w=800&q=80',  // Rustic cedar wood fence
+      'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=800&q=80',  // Horizontal modern wood fence panels
+      'https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=800&q=80'   // Wooden perimeter fence
+    ],
+    vinyl: [
+      'https://images.unsplash.com/photo-1549247796-5d8f09e9034b?auto=format&fit=crop&w=800&q=80',   // White vinyl picket fence
+      'https://images.unsplash.com/photo-1622372738946-62e02505feb3?auto=format&fit=crop&w=800&q=80'    // Architectural white composite/vinyl fence
+    ],
+    chain_link: [
+      'https://images.unsplash.com/photo-1553379027-7fcd98bc5f35?auto=format&fit=crop&w=800&q=80',   // Garden / residential chain link fence
+      'https://images.unsplash.com/photo-1584905066893-7d5c142ba4e1?auto=format&fit=crop&w=800&q=80',  // Black metal security boundary fence
+      'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=800&q=80'   // Wire perimeter mesh fence
+    ],
+    metal_iron: [
+      'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',  // Ornamental iron gate
+      'https://images.unsplash.com/photo-1584905066893-7d5c142ba4e1?auto=format&fit=crop&w=800&q=80'   // Black ornamental metal fence
+    ],
+    deck_patio: [
+      'https://images.unsplash.com/photo-1591825729269-caeb344f6df2?auto=format&fit=crop&w=800&q=80',  // Custom wood deck patio
+      'https://images.unsplash.com/photo-1517581177682-a085bb7ffb15?auto=format&fit=crop&w=800&q=80'   // Pergola and cedar deck
+    ],
+    repair: [
+      'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80'   // Wood ranch rail fence repair
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1528740561666-dc2479dc08ab?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Roofing': {
+    shingle: [
+      'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=1200&q=80', // Roofer installing shingles
+      'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=800&q=80',  // Architectural asphalt shingle roof
+      'https://images.unsplash.com/photo-1505705694340-019e1e335916?auto=format&fit=crop&w=800&q=80'   // Roofer nailing shingles
+    ],
+    metal: [
+      'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80'   // Architectural metal roof angles
+    ],
+    flat_commercial: [
+      'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?auto=format&fit=crop&w=800&q=80',  // Commercial roof membrane
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80'   // Ridge line and roof tiles
+    ],
+    repair_inspection: [
+      'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80'   // Roof inspection and chimney
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1628744448840-55bdb2497bd4?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Concrete': {
+    driveway_patio: [
+      'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80',  // Fresh poured concrete driveway
+      'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80',  // Concrete finishing and trowel
+      'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80'   // Concrete slab installation
+    ],
+    stamped_decorative: [
+      'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80'   // Architectural stamped concrete
+    ],
+    foundation_footing: [
+      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80', // Heavy concrete construction site
+      'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80'   // Industrial concrete foundation
+    ],
+    repair_leveling: [
+      'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80'
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Plumbing': {
+    pipe_water: [
+      'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=800&q=80',  // Copper pipe plumbing installation
+      'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80'   // Commercial pipe infrastructure
+    ],
+    drain_sewer: [
+      'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80'
+    ],
+    fixture_bath: [
+      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80'   // Modern plumbing fixture
+    ],
+    emergency_repair: [
+      'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=800&q=80'   // Plumber wrench and water lines
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'HVAC': {
+    ac_cooling: [
+      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80'   // Commercial air conditioning unit
+    ],
+    heating_furnace: [
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80'   // Industrial heating ventilation
+    ],
+    ductwork_air: [
+      'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80'   // HVAC ductwork engineering
+    ],
+    tuneup_diagnostics: [
+      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80'   // HVAC technician testing system
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Tree Service': {
+    removal_felling: [
+      'https://images.unsplash.com/photo-1699391414255-3a10698f8d50?auto=format&fit=crop&w=800&q=80'
+    ],
+    trimming_pruning: [
+      'https://images.unsplash.com/photo-1781297770540-8c9b5af40b44?auto=format&fit=crop&w=800&q=80'
+    ],
+    emergency_storm: [
+      'https://images.unsplash.com/photo-1774087178364-b1c5b89a1d7a?auto=format&fit=crop&w=800&q=80'
+    ],
+    stump_grinding: [
+      'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=800&q=80'
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1699391414255-3a10698f8d50?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Landscaping': {
+    lawn_turf: [
+      'https://images.unsplash.com/photo-1675287878019-44c082f07512?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584467735871-8e85353a8413?auto=format&fit=crop&w=800&q=80'
+    ],
+    hardscaping_stone: [
+      'https://images.unsplash.com/photo-1592150621744-aca64f48394a?auto=format&fit=crop&w=800&q=80'
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1592150621744-aca64f48394a?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1675287878019-44c082f07512?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Electricians': {
+    panel_upgrade: [
+      'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1741177364447-f79669c51f12?auto=format&fit=crop&w=800&q=80'
+    ],
+    lighting_fixtures: [
+      'https://images.unsplash.com/photo-1660330589693-99889d60181e?auto=format&fit=crop&w=800&q=80'
+    ],
+    wiring_ev: [
+      'https://images.unsplash.com/photo-1783419752280-46a2073ef7dc?auto=format&fit=crop&w=800&q=80'
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1660330589693-99889d60181e?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Asphalt Paving': {
+    driveway_paving: [
+      'https://images.unsplash.com/photo-1772852311587-329719989e2b?auto=format&fit=crop&w=800&q=80'
+    ],
+    commercial_parking: [
+      'https://images.unsplash.com/photo-1784454936095-28042e9b1652?auto=format&fit=crop&w=800&q=80'
+    ],
+    roller_compaction: [
+      'https://images.unsplash.com/photo-1561008218-7485044173e2?auto=format&fit=crop&w=800&q=80'
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1784454936095-28042e9b1652?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1561008218-7485044173e2?auto=format&fit=crop&w=800&q=80'
+    ]
+  },
+  'Foundation Repair': {
+    piering_stabilization: [
+      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80'
+    ],
+    wall_crack_repair: [
+      'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80'
+    ],
+    waterproofing_drainage: [
+      'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80'
+    ],
+    concrete_footing: [
+      'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80'
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80'
+    ]
+  }
 };
+
+function normalizeTradeCategory(tradeStr) {
+  const t = (tradeStr || '').toLowerCase();
+  if (t.includes('fence')) return 'Fencing';
+  if (t.includes('roof')) return 'Roofing';
+  if (t.includes('concrete') || t.includes('masonry')) return 'Concrete';
+  if (t.includes('plumb')) return 'Plumbing';
+  if (t.includes('hvac') || t.includes('heat') || t.includes('cooling') || t.includes('air cond')) return 'HVAC';
+  if (t.includes('tree') || t.includes('arborist')) return 'Tree Service';
+  if (t.includes('landscap') || t.includes('lawn')) return 'Landscaping';
+  if (t.includes('electr')) return 'Electricians';
+  if (t.includes('asphalt') || t.includes('paving')) return 'Asphalt Paving';
+  if (t.includes('foundation') || t.includes('waterproof') || t.includes('basement')) return 'Foundation Repair';
+  return 'Fencing';
+}
+
+function resolveContextualPhoto(tradeKey, contextText, role, offset = 0) {
+  const normTrade = normalizeTradeCategory(tradeKey);
+  const tradePool = TRADE_PHOTOGRAPHY_TAXONOMY[normTrade] || TRADE_PHOTOGRAPHY_TAXONOMY['Fencing'];
+
+  if (role === 'hero' && tradePool.hero?.length) {
+    return tradePool.hero[offset % tradePool.hero.length];
+  }
+  if (role === 'about' && tradePool.about?.length) {
+    return tradePool.about[offset % tradePool.about.length];
+  }
+
+  const text = (contextText || '').toLowerCase();
+
+  if (normTrade === 'Fencing') {
+    if (/chain\s*link|cyclone|wire|security|industrial/i.test(text)) {
+      return tradePool.chain_link[offset % tradePool.chain_link.length];
+    }
+    if (/vinyl|pvc|white\s*picket|composite/i.test(text)) {
+      return tradePool.vinyl[offset % tradePool.vinyl.length];
+    }
+    if (/wood|cedar|timber|pine|board|privacy\s*wood/i.test(text)) {
+      return tradePool.wood[offset % tradePool.wood.length];
+    }
+    if (/iron|metal|aluminum|ornamental|gate/i.test(text)) {
+      return tradePool.metal_iron[offset % tradePool.metal_iron.length];
+    }
+    if (/deck|patio|pergola/i.test(text)) {
+      return tradePool.deck_patio[offset % tradePool.deck_patio.length];
+    }
+    if (/repair|storm|post|maintenance/i.test(text)) {
+      return tradePool.repair[offset % tradePool.repair.length];
+    }
+    const order = [tradePool.wood, tradePool.vinyl, tradePool.chain_link, tradePool.metal_iron];
+    return order[offset % order.length][0];
+  }
+
+  if (normTrade === 'Roofing') {
+    if (/metal|standing\s*seam|steel/i.test(text)) {
+      return tradePool.metal[offset % tradePool.metal.length];
+    }
+    if (/flat|commercial|membrane|tpo|epdm/i.test(text)) {
+      return tradePool.flat_commercial[offset % tradePool.flat_commercial.length];
+    }
+    if (/repair|storm|leak|inspection|chimney/i.test(text)) {
+      return tradePool.repair_inspection[offset % tradePool.repair_inspection.length];
+    }
+    return tradePool.shingle[offset % tradePool.shingle.length];
+  }
+
+  if (normTrade === 'Concrete') {
+    if (/stamped|decorative|stained|slate/i.test(text)) {
+      return tradePool.stamped_decorative[offset % tradePool.stamped_decorative.length];
+    }
+    if (/foundation|footing|rebar/i.test(text)) {
+      return tradePool.foundation_footing[offset % tradePool.foundation_footing.length];
+    }
+    return tradePool.driveway_patio[offset % tradePool.driveway_patio.length];
+  }
+
+  if (normTrade === 'Plumbing') {
+    if (/drain|sewer|clog|jet/i.test(text)) {
+      return tradePool.drain_sewer[offset % tradePool.drain_sewer.length];
+    }
+    if (/fixture|faucet|sink|bath/i.test(text)) {
+      return tradePool.fixture_bath[offset % tradePool.fixture_bath.length];
+    }
+    if (/repair|leak|shut-off|burst/i.test(text)) {
+      return tradePool.emergency_repair[offset % tradePool.emergency_repair.length];
+    }
+    return tradePool.pipe_water[offset % tradePool.pipe_water.length];
+  }
+
+  if (normTrade === 'HVAC') {
+    if (/furnace|heating|gas/i.test(text)) {
+      return tradePool.heating_furnace[offset % tradePool.heating_furnace.length];
+    }
+    if (/duct|ventilation/i.test(text)) {
+      return tradePool.ductwork_air[offset % tradePool.ductwork_air.length];
+    }
+    if (/diagnostic|tune/i.test(text)) {
+      return tradePool.tuneup_diagnostics[offset % tradePool.tuneup_diagnostics.length];
+    }
+    return tradePool.ac_cooling[offset % tradePool.ac_cooling.length];
+  }
+
+  if (normTrade === 'Tree Service') {
+    if (/stump/i.test(text)) return tradePool.stump_grinding[offset % tradePool.stump_grinding.length];
+    if (/trim|prun/i.test(text)) return tradePool.trimming_pruning[offset % tradePool.trimming_pruning.length];
+    if (/storm/i.test(text)) return tradePool.emergency_storm[offset % tradePool.emergency_storm.length];
+    return tradePool.removal_felling[offset % tradePool.removal_felling.length];
+  }
+
+  if (normTrade === 'Landscaping') {
+    if (/wall|retaining|stone|paver/i.test(text)) return tradePool.hardscaping_stone[offset % tradePool.hardscaping_stone.length];
+    return tradePool.lawn_turf[offset % tradePool.lawn_turf.length];
+  }
+
+  if (normTrade === 'Electricians') {
+    if (/panel|breaker/i.test(text)) return tradePool.panel_upgrade[offset % tradePool.panel_upgrade.length];
+    if (/light|fixture/i.test(text)) return tradePool.lighting_fixtures[offset % tradePool.lighting_fixtures.length];
+    return tradePool.wiring_ev[offset % tradePool.wiring_ev.length];
+  }
+
+  if (normTrade === 'Asphalt Paving') {
+    if (/commercial|parking/i.test(text)) return tradePool.commercial_parking[offset % tradePool.commercial_parking.length];
+    if (/roller|machine/i.test(text)) return tradePool.roller_compaction[offset % tradePool.roller_compaction.length];
+    return tradePool.driveway_paving[offset % tradePool.driveway_paving.length];
+  }
+
+  if (normTrade === 'Foundation Repair') {
+    if (/wall|crack|injection/i.test(text)) return tradePool.wall_crack_repair[offset % tradePool.wall_crack_repair.length];
+    if (/waterproof|drain|sump/i.test(text)) return tradePool.waterproofing_drainage[offset % tradePool.waterproofing_drainage.length];
+    return tradePool.piering_stabilization[offset % tradePool.piering_stabilization.length];
+  }
+
+  const firstCat = Object.values(tradePool)[0];
+  return firstCat[offset % firstCat.length];
+}
 
 function getSlugSeed(str) {
   let h = 0;
@@ -670,16 +972,10 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
     fs.copyFileSync(CONFIG.CONTACT_API_SRC, path.join(funcDir, 'contact.js'));
   }
 
-  const tradeKey = Object.keys(TRADE_PHOTOGRAPHY_POOLS).find(k => tradeInfo.trade.toLowerCase().includes(k.toLowerCase())) || 'Fencing';
-  const pool = TRADE_PHOTOGRAPHY_POOLS[tradeKey] || TRADE_PHOTOGRAPHY_POOLS['Fencing'];
+  const tradeKey = tradeInfo.trade;
   const seed = getSlugSeed(lead.businessName);
 
-  function getPoolPhoto(offset) {
-    const idx = (seed + offset) % pool.length;
-    return pool[idx];
-  }
-
-  logSub(`Collecting & validating genuine imagery for "${lead.businessName}"...`);
+  logSub(`Collecting & contextually validating imagery for "${lead.businessName}" (${tradeKey})...`);
 
   // 1. Gather all candidate real images
   const rawCandidates = [
@@ -713,7 +1009,7 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
   let realIdx = 0;
   let hasRealLogo = false;
 
-  // Real logo
+  // Real logo extraction
   if (verifiedRealImages.length > 0 && (lead.logoUrl || verifiedRealImages[0].includes('logo') || verifiedRealImages[0].includes('blob') || verifiedRealImages[0].includes('googleusercontent'))) {
     const dlLogo = await downloadFile(verifiedRealImages[0], path.join(imgDir, 'brand-logo.jpg'));
     if (dlLogo) {
@@ -723,28 +1019,63 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
     }
   }
 
-  function nextImage(poolOffset) {
-    if (realIdx < verifiedRealImages.length) {
-      return verifiedRealImages[realIdx++];
+  // Check if an authentic scraped image explicitly matches a service context by URL keyword
+  function findScrapedImageMatch(contextText) {
+    const text = (contextText || '').toLowerCase();
+    for (let i = realIdx; i < verifiedRealImages.length; i++) {
+      const u = verifiedRealImages[i].toLowerCase();
+      if (
+        (text.includes('wood') && (u.includes('wood') || u.includes('cedar') || u.includes('timber'))) ||
+        (text.includes('vinyl') && (u.includes('vinyl') || u.includes('pvc') || u.includes('picket'))) ||
+        (text.includes('chain link') && (u.includes('chain') || u.includes('cyclone'))) ||
+        (text.includes('shingle') && (u.includes('shingle') || u.includes('asphalt'))) ||
+        (text.includes('metal') && u.includes('metal')) ||
+        (text.includes('stamped') && u.includes('stamp')) ||
+        (text.includes('driveway') && u.includes('driveway'))
+      ) {
+        const found = verifiedRealImages[i];
+        verifiedRealImages.splice(i, 1);
+        return found;
+      }
     }
-    return getPoolPhoto(poolOffset);
+    return null;
   }
 
-  // 2. Hero photo
-  await downloadFile(nextImage(0), path.join(imgDir, 'hero.jpg'));
+  // 2. Hero photo: Real business photo if available and high-res, else contextual hero
+  let heroPhoto = (verifiedRealImages.length > realIdx && !verifiedRealImages[realIdx].includes('icon') && !verifiedRealImages[realIdx].includes('thumb'))
+    ? verifiedRealImages[realIdx++]
+    : resolveContextualPhoto(tradeKey, lead.businessName + ' ' + (branding.tagline || ''), 'hero', seed);
+  await downloadFile(heroPhoto, path.join(imgDir, 'hero.jpg'));
 
-  // 3. Service photos (3 cards)
-  await downloadFile(nextImage(1), path.join(imgDir, 'service-1.jpg'));
-  await downloadFile(nextImage(2), path.join(imgDir, 'service-2.jpg'));
-  await downloadFile(nextImage(3), path.join(imgDir, 'service-3.jpg'));
+  // 3. Service photos (3 cards): STRICT CONTEXTUAL MAPPING
+  // Every image MUST visually correspond to the exact service text.
+  // Wood fencing NEVER maps to vinyl; concrete flatwork NEVER maps to plumbing; etc.
+  const s1 = branding.services?.[0] || { name: `${tradeKey} Solutions`, desc: 'Professional service' };
+  const s2 = branding.services?.[1] || { name: `Custom ${tradeKey}`, desc: 'Durable construction' };
+  const s3 = branding.services?.[2] || { name: `${tradeKey} Repairs`, desc: 'Fast restoration' };
 
-  // 4. About photo
-  await downloadFile(nextImage(4), path.join(imgDir, 'about.jpg'));
+  const s1Photo = findScrapedImageMatch(s1.name + ' ' + s1.desc) || resolveContextualPhoto(tradeKey, s1.name + ' ' + s1.desc, 'service', 0);
+  const s2Photo = findScrapedImageMatch(s2.name + ' ' + s2.desc) || resolveContextualPhoto(tradeKey, s2.name + ' ' + s2.desc, 'service', 1);
+  const s3Photo = findScrapedImageMatch(s3.name + ' ' + s3.desc) || resolveContextualPhoto(tradeKey, s3.name + ' ' + s3.desc, 'service', 2);
 
-  // 5. Gallery photos (3 items)
-  await downloadFile(nextImage(5), path.join(imgDir, 'gallery-1.jpg'));
-  await downloadFile(nextImage(6), path.join(imgDir, 'gallery-2.jpg'));
-  await downloadFile(nextImage(7), path.join(imgDir, 'gallery-3.jpg'));
+  await downloadFile(s1Photo, path.join(imgDir, 'service-1.jpg'));
+  await downloadFile(s2Photo, path.join(imgDir, 'service-2.jpg'));
+  await downloadFile(s3Photo, path.join(imgDir, 'service-3.jpg'));
+
+  // 4. About photo: Next real photo or contextual craftsmanship photo
+  const aboutPhoto = (realIdx < verifiedRealImages.length)
+    ? verifiedRealImages[realIdx++]
+    : resolveContextualPhoto(tradeKey, branding.ownerStory || '', 'about', seed);
+  await downloadFile(aboutPhoto, path.join(imgDir, 'about.jpg'));
+
+  // 5. Gallery photos (3 items): Real photos if remaining, else distinct sub-trade photos
+  const g1Photo = (realIdx < verifiedRealImages.length) ? verifiedRealImages[realIdx++] : resolveContextualPhoto(tradeKey, s1.name, 'service', 3);
+  const g2Photo = (realIdx < verifiedRealImages.length) ? verifiedRealImages[realIdx++] : resolveContextualPhoto(tradeKey, s2.name, 'service', 4);
+  const g3Photo = (realIdx < verifiedRealImages.length) ? verifiedRealImages[realIdx++] : resolveContextualPhoto(tradeKey, s3.name, 'service', 5);
+
+  await downloadFile(g1Photo, path.join(imgDir, 'gallery-1.jpg'));
+  await downloadFile(g2Photo, path.join(imgDir, 'gallery-2.jpg'));
+  await downloadFile(g3Photo, path.join(imgDir, 'gallery-3.jpg'));
 
   return {
     hasRealLogo,
@@ -1072,8 +1403,8 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center max-w-3xl mx-auto mb-16">
         <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-accent);">Fox Valley Specialties</span>
-        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1" style="color: var(--c-text-main);">Specialized Outdoor Wood &amp; Vinyl Craft</h2>
-        <p class="mt-3 text-base" style="color: var(--c-text-muted);">Engineered for Northeast Wisconsin freeze-thaw cycles and long-term beauty.</p>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1" style="color: var(--c-text-main);">Specialized ${escapeHtml(trade)} Craftsmanship</h2>
+        <p class="mt-3 text-base" style="color: var(--c-text-muted);">Engineered for Northeast Wisconsin freeze-thaw cycles and long-term durability.</p>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         ${branding.services.map((s, idx) => {
@@ -1111,7 +1442,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         </p>
         <div class="p-6 rounded-2xl brand-surface-card border-l-4" style="border-left-color: var(--c-primary);">
           <p class="text-sm italic font-medium" style="color: var(--c-text-main);">
-            "We treat every deck, railing, and perimeter fence like it's protecting our own home. No shortcuts, no thin materials."
+            "We treat every ${escapeHtml(trade.toLowerCase())} installation with the care, durability, and craftsmanship we'd demand for our own property. No shortcuts, no thin materials."
           </p>
           <p class="text-xs uppercase tracking-wider font-bold mt-3" style="color: var(--c-accent);">Freedom &amp; Appleton, WI</p>
         </div>
@@ -1210,19 +1541,19 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center max-w-3xl mx-auto mb-16">
         <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-accent);">Commercial &amp; Residential</span>
-        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Engineered Perimeter Fencing Solutions</h2>
-        <p class="mt-3 text-base" style="color: var(--c-text-muted);">Deep post setting below Wisconsin frost depth for zero winter heaving.</p>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Engineered ${escapeHtml(trade)} Solutions</h2>
+        <p class="mt-3 text-base" style="color: var(--c-text-muted);">Built to withstand Wisconsin freeze-thaw cycles with commercial durability.</p>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
         <!-- Featured Service 1 (Span 7) -->
         <div class="lg:col-span-7 brand-surface-card rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between">
           <div class="h-72 overflow-hidden relative">
-            <img src="${assetPaths.service1Url}" alt="${escapeHtml(branding.services[0]?.name || 'Security Fencing')}" class="w-full h-full object-cover">
+            <img src="${assetPaths.service1Url}" alt="${escapeHtml(branding.services[0]?.name || ('Featured ' + trade))}" class="w-full h-full object-cover">
             <span class="absolute top-4 left-4 text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg brand-btn-primary shadow-lg">Featured Service</span>
           </div>
           <div class="p-8 lg:p-10">
-            <h3 class="text-2xl font-bold mb-3 brand-heading" style="color: var(--c-text-main);">${escapeHtml(branding.services[0]?.name || 'Commercial & Residential Security Fencing')}</h3>
-            <p class="text-base leading-relaxed mb-6" style="color: var(--c-text-muted);">${escapeHtml(branding.services[0]?.desc || 'Heavy-gauge commercial and privacy enclosures engineered for maximum property security.')}</p>
+            <h3 class="text-2xl font-bold mb-3 brand-heading" style="color: var(--c-text-main);">${escapeHtml(branding.services[0]?.name || ('Commercial & Residential ' + trade))}</h3>
+            <p class="text-base leading-relaxed mb-6" style="color: var(--c-text-muted);">${escapeHtml(branding.services[0]?.desc || ('Engineered for heavy-duty commercial and residential ' + trade.toLowerCase() + ' performance across Northeast Wisconsin.'))}</p>
             <a href="contact.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: var(--c-accent);">
               Request Engineering Quote &rarr;
             </a>
@@ -1232,19 +1563,19 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         <!-- Stacked Services 2 & 3 (Span 5) -->
         <div class="lg:col-span-5 flex flex-col gap-8 justify-between">
           <div class="brand-surface-card rounded-3xl p-6 shadow-xl flex items-center gap-6">
-            <img src="${assetPaths.service2Url}" alt="${escapeHtml(branding.services[1]?.name || 'Ornamental Iron')}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
+            <img src="${assetPaths.service2Url}" alt="${escapeHtml(branding.services[1]?.name || ('Custom ' + trade))}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
             <div>
               <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">02 • Custom</span>
-              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[1]?.name || 'Ornamental Iron & Gates')}</h4>
-              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[1]?.desc || 'Custom welded iron security gates and perimeter accents.')}</p>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[1]?.name || ('Custom ' + trade + ' Solutions'))}</h4>
+              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[1]?.desc || ('Tailored architectural ' + trade.toLowerCase() + ' crafted for high durability.'))}</p>
             </div>
           </div>
           <div class="brand-surface-card rounded-3xl p-6 shadow-xl flex items-center gap-6">
-            <img src="${assetPaths.service3Url}" alt="${escapeHtml(branding.services[2]?.name || 'Repairs')}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
+            <img src="${assetPaths.service3Url}" alt="${escapeHtml(branding.services[2]?.name || ('Repairs & Upgrades'))}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
             <div>
               <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">03 • Maintenance</span>
-              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[2]?.name || 'Emergency Repair & Upgrades')}</h4>
-              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[2]?.desc || 'Fast turnaround post replacements, gate alignments, and storm repairs.')}</p>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[2]?.name || ('Emergency ' + trade + ' Repairs & Upgrades'))}</h4>
+              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[2]?.desc || ('Fast turnaround repairs, scheduled maintenance, and storm restoration.'))}</p>
             </div>
           </div>
         </div>

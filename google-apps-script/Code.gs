@@ -1442,6 +1442,7 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
     bizName: bizName,
     socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
     websiteImages: [],
+    imageDetails: [],
     extractedColors: [],
     snippets: []
   };
@@ -1524,6 +1525,7 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
             const u = imgs[j].imageUrl;
             if (u && u.startsWith('http') && !result.websiteImages.includes(u)) {
               result.websiteImages.push(u);
+              result.imageDetails.push({ url: u, title: imgs[j].title || '', source: imgs[j].source || '' });
             }
           }
         }
