@@ -1119,7 +1119,7 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
 function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths) {
   const bizName = branding.displayBrandName || lead.businessName;
   const slug = sanitizeSlug(bizName);
-  const phone = lead.phone || '(920) 555-0624';
+  const phone = lead.phone || CONFIG.AGENCY_PHONE;
   const cleanPhone = phone.replace(/[^\d+]/g, '');
   const email = lead.email || `info@${slug}.com`;
   const city = tradeInfo.city;
