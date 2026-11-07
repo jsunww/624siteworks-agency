@@ -1091,29 +1091,49 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
   await downloadFile(g2Photo, path.join(imgDir, 'gallery-2.jpg'));
   await downloadFile(g3Photo, path.join(imgDir, 'gallery-3.jpg'));
 
-  // Generate optimized WebP versions of hero and logo
+  // Generate optimized WebP versions of hero, logo, services, about, and gallery
   let heroWebpCreated = false;
   try {
     const sharp = (await import('sharp')).default;
-    const heroBuf = fs.readFileSync(path.join(imgDir, 'hero.jpg'));
-    const heroWebp = await sharp(heroBuf).webp({ quality: 80 }).toBuffer();
-    fs.writeFileSync(path.join(imgDir, 'hero.webp'), heroWebp);
-    heroWebpCreated = true;
-  } catch (e) { }
+    const files = fs.readdirSync(imgDir);
+    for (const f of files) {
+      if (!f.endsWith('.jpg') && !f.endsWith('.jpeg') && !f.endsWith('.png')) continue;
+      const full = path.join(imgDir, f);
+      const name = path.parse(f).name;
+      const buf = fs.readFileSync(full);
+
+      // Resize and compress JPEG
+      await sharp(buf)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .jpeg({ quality: 80, mozjpeg: true })
+        .toFile(full + '.tmp');
+      fs.renameSync(full + '.tmp', full);
+
+      // Create WebP
+      const webpPath = path.join(imgDir, `${name}.webp`);
+      await sharp(buf)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(webpPath);
+      if (name === 'hero') heroWebpCreated = true;
+    }
+  } catch (e) {
+    logWarn(`Image optimization notice: ${e.message}`);
+  }
 
   return {
     hasRealLogo,
-    logoUrl: hasRealLogo ? 'assets/images/brand-logo.jpg' : null,
+    logoUrl: hasRealLogo ? (fs.existsSync(path.join(imgDir, 'brand-logo.webp')) ? 'assets/images/brand-logo.webp' : 'assets/images/brand-logo.jpg') : null,
     heroUrl: heroWebpCreated ? 'assets/images/hero.webp' : 'assets/images/hero.jpg',
     heroWebpUrl: heroWebpCreated ? 'assets/images/hero.webp' : 'assets/images/hero.jpg',
-    service1Url: 'assets/images/service-1.jpg',
-    service2Url: 'assets/images/service-2.jpg',
-    service3Url: 'assets/images/service-3.jpg',
-    aboutUrl: 'assets/images/about.jpg',
+    service1Url: fs.existsSync(path.join(imgDir, 'service-1.webp')) ? 'assets/images/service-1.webp' : 'assets/images/service-1.jpg',
+    service2Url: fs.existsSync(path.join(imgDir, 'service-2.webp')) ? 'assets/images/service-2.webp' : 'assets/images/service-2.jpg',
+    service3Url: fs.existsSync(path.join(imgDir, 'service-3.webp')) ? 'assets/images/service-3.webp' : 'assets/images/service-3.jpg',
+    aboutUrl: fs.existsSync(path.join(imgDir, 'about.webp')) ? 'assets/images/about.webp' : 'assets/images/about.jpg',
     gallery: [
-      'assets/images/gallery-1.jpg',
-      'assets/images/gallery-2.jpg',
-      'assets/images/gallery-3.jpg'
+      fs.existsSync(path.join(imgDir, 'gallery-1.webp')) ? 'assets/images/gallery-1.webp' : 'assets/images/gallery-1.jpg',
+      fs.existsSync(path.join(imgDir, 'gallery-2.webp')) ? 'assets/images/gallery-2.webp' : 'assets/images/gallery-2.jpg',
+      fs.existsSync(path.join(imgDir, 'gallery-3.webp')) ? 'assets/images/gallery-3.webp' : 'assets/images/gallery-3.jpg'
     ],
     realImageCount: Math.min(realIdx, verifiedRealImages.length)
   };
@@ -1122,6 +1142,15 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
 // ============================================================================
 // AGENT 3D: BESPOKE HTML & CSS GENERATOR
 // ============================================================================
+
+function getContrastColor(hexColor) {
+  const hex = (hexColor || '#2563eb').replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return (yiq >= 140) ? '#0f172a' : '#ffffff';
+}
 
 function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths) {
   const bizName = branding.displayBrandName || lead.businessName;
@@ -1210,7 +1239,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
       }
       .brand-btn-primary {
         background-color: var(--c-primary);
-        color: #ffffff;
+        color: ${getContrastColor(p.primary)};
       }
       .brand-btn-primary:hover {
         background-color: var(--c-primary-hover);
@@ -1331,11 +1360,13 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <link rel="canonical" href="https://${slug}.pages.dev/">
   <meta name="geo.region" content="US-WI">
   <meta name="geo.placename" content="${city}">
+  <link rel="preload" as="image" href="${assetPaths.heroUrl}" fetchpriority="high">
     ${customCss}
   <script type="application/ld+json">${schemaJson}</script>
 </head>
 <body class="font-sans antialiased">
   ${headerHtml}
+  <main id="main-content">
 
   <!-- Dynamic Layout Architecture Switcher (Bespoke per Business Type) -->
   ${isCraft ? `
@@ -1523,13 +1554,13 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <section class="relative py-24 lg:py-32 overflow-hidden text-center" style="background-image: linear-gradient(to bottom, ${p.background}f2, ${p.background}d0), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-6">
       <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-extrabold tracking-widest uppercase brand-surface-card mx-auto shadow-xl" style="color: var(--c-accent);">
-        <span>🛡 Appleton's Gold Standard in Perimeter Security &amp; Fencing</span>
+        <span>🛡 ${city}'s Benchmark for Verified ${trade} Quality</span>
       </div>
       <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-none brand-heading" style="color: var(--c-text-main);">
-        Built to Protect.<br/>Crafted to Endure.
+        ${escapeHtml(branding.tagline || 'Built to Protect.<br/>Crafted to Endure.')}
       </h1>
       <p class="text-lg sm:text-xl leading-relaxed max-w-3xl mx-auto" style="color: var(--c-text-muted);">
-        Commercial-grade perimeter fencing, custom ornamental iron, and privacy enclosures engineered for Wisconsin winters.
+        ${escapeHtml(branding.ownerStory || `Premier residential and commercial ${trade.toLowerCase()} solutions engineered for Wisconsin winters.`)}
       </p>
 
       <!-- Horizontal Inline Instant Quote Estimator Bar -->
@@ -1538,16 +1569,21 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
           <div>
             <label for="custType" class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--c-accent);">Project Type</label>
             <select id="custType" class="w-full rounded-lg px-3 py-2.5 text-xs font-semibold focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
-              ${(branding.calculatorOptions || ['Commercial Security', 'Ornamental Iron', 'Cedar Privacy', 'Chain Link']).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
+              ${(branding.calculatorOptions || [
+                trade === 'Roofing' ? 'Asphalt Shingle Roof' : (trade === 'Concrete' ? 'Stamped Patio' : 'Custom ' + trade),
+                trade === 'Roofing' ? 'Standing Seam Metal' : (trade === 'Concrete' ? 'Driveway Slab' : 'Commercial ' + trade),
+                trade === 'Roofing' ? 'Flat / Commercial Roof' : (trade === 'Concrete' ? 'Foundation / Footing' : 'Architectural ' + trade),
+                'Repairs & Restoration'
+              ]).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
             </select>
           </div>
           <div>
             <label for="custFootage" class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--c-accent);">Approx. Scope</label>
             <select id="custFootage" class="w-full rounded-lg px-3 py-2.5 text-xs font-semibold focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
-              <option value="50ft">Under 50 Feet</option>
-              <option value="100ft" selected>50 – 100 Feet</option>
-              <option value="150ft">100 – 150 Feet</option>
-              <option value="200ft+">200+ Feet (Commercial)</option>
+              <option value="Standard">Standard Residential</option>
+              <option value="Large" selected>Large / Multi-Angle</option>
+              <option value="Commercial">Commercial / Full Property</option>
+              <option value="Repair">Inspection &amp; Repair</option>
             </select>
           </div>
           <div>
@@ -1572,7 +1608,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
       <!-- Quick Call Button -->
       <div class="pt-4">
         <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 text-sm font-bold hover:underline" style="color: var(--c-text-muted);">
-          <span>Or call our Appleton dispatch line directly:</span> <strong style="color: var(--c-accent);">${escapeHtml(phone)}</strong>
+          <span>Or call our ${city} dispatch line directly:</span> <strong style="color: var(--c-accent);">${escapeHtml(phone)}</strong>
         </a>
       </div>
     </div>
@@ -1597,7 +1633,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
             <h3 class="text-2xl font-bold mb-3 brand-heading" style="color: var(--c-text-main);">${escapeHtml(branding.services[0]?.name || ('Commercial & Residential ' + trade))}</h3>
             <p class="text-base leading-relaxed mb-6" style="color: var(--c-text-muted);">${escapeHtml(branding.services[0]?.desc || ('Engineered for heavy-duty commercial and residential ' + trade.toLowerCase() + ' performance across Northeast Wisconsin.'))}</p>
             <a href="contact.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: var(--c-accent);">
-              Request Engineering Quote &rarr;
+              Request Consultation &rarr;
             </a>
           </div>
         </div>
@@ -1608,7 +1644,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
             <img src="${assetPaths.service2Url}" alt="${escapeHtml(branding.services[1]?.name || ('Custom ' + trade))}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
             <div>
               <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">02 • Custom</span>
-              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[1]?.name || ('Custom ' + trade + ' Solutions'))}</h3>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[1]?.name || ('Custom ' + trade + ' Solutions'))}</h4>
               <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[1]?.desc || ('Tailored architectural ' + trade.toLowerCase() + ' crafted for high durability.'))}</p>
             </div>
           </div>
@@ -1616,7 +1652,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
             <img src="${assetPaths.service3Url}" alt="${escapeHtml(branding.services[2]?.name || ('Repairs & Upgrades'))}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
             <div>
               <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">03 • Maintenance</span>
-              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[2]?.name || ('Emergency ' + trade + ' Repairs & Upgrades'))}</h3>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[2]?.name || ('Emergency ' + trade + ' Repairs & Upgrades'))}</h4>
               <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[2]?.desc || ('Fast turnaround repairs, scheduled maintenance, and storm restoration.'))}</p>
             </div>
           </div>
@@ -1643,24 +1679,24 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
           </thead>
           <tbody class="divide-y" style="border-color: var(--c-border);">
             <tr>
-              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Post Setting Depth</td>
-              <td class="p-4 font-bold text-emerald-400">✔ 48" Below Frost Line</td>
-              <td class="p-4 text-stone-400">30" – 36" (Prone to heaving)</td>
+              <td class="p-4 font-semibold" style="color: var(--c-text-main);">${trade === 'Roofing' ? 'Materials & Underlayment' : (trade === 'Concrete' ? 'Base Preparation' : 'Installation Depth')}</td>
+              <td class="p-4 font-bold text-emerald-400">✔ ${trade === 'Roofing' ? 'Architectural Shingles + Ice & Water Barrier' : (trade === 'Concrete' ? '6" Compacted Crushed Gravel Base' : '48" Below Frost Line')}</td>
+              <td class="p-4 text-stone-400">${trade === 'Roofing' ? 'Basic 15lb felt (prone to leaks)' : (trade === 'Concrete' ? 'Thin sand or raw dirt' : '30" – 36" (Prone to heaving)')}</td>
             </tr>
             <tr>
-              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Fasteners &amp; Hardware</td>
-              <td class="p-4 font-bold text-emerald-400">✔ Powder-Coated Stainless</td>
-              <td class="p-4 text-stone-400">Standard galvanized (rusts)</td>
+              <td class="p-4 font-semibold" style="color: var(--c-text-main);">${trade === 'Roofing' ? 'Flashing & Clean-Up' : (trade === 'Concrete' ? 'Reinforcement & Mix' : 'Fasteners & Hardware')}</td>
+              <td class="p-4 font-bold text-emerald-400">✔ ${trade === 'Roofing' ? 'Heavy-Gauge Flashing + Magnetic Nail Sweep' : (trade === 'Concrete' ? 'Tied Rebar Grid + 4,000 PSI Mix' : 'Powder-Coated Stainless')}</td>
+              <td class="p-4 text-stone-400">${trade === 'Roofing' ? 'Thin tin & loose nails in grass' : (trade === 'Concrete' ? 'Unreinforced or wire on ground' : 'Standard galvanized (rusts)')}</td>
             </tr>
             <tr>
               <td class="p-4 font-semibold" style="color: var(--c-text-main);">Estimate Turnaround</td>
-              <td class="p-4 font-bold text-emerald-400">✔ 24 – 48 Hours Written</td>
+              <td class="p-4 font-bold text-emerald-400">✔ 24 – 48 Hours Written Proposal</td>
               <td class="p-4 text-stone-400">1 – 3 Weeks waiting</td>
             </tr>
             <tr>
               <td class="p-4 font-semibold" style="color: var(--c-text-main);">Workmanship Guarantee</td>
-              <td class="p-4 font-bold text-emerald-400">✔ Full Multi-Year Warranty</td>
-              <td class="p-4 text-stone-400">90-Day limited</td>
+              <td class="p-4 font-bold text-emerald-400">✔ Multi-Year Craftsmanship Warranty</td>
+              <td class="p-4 text-stone-400">90-Day limited or none</td>
             </tr>
           </tbody>
         </table>
@@ -1672,18 +1708,18 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <section class="py-20" style="background-color: var(--c-secondary);">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-12">
-        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">Fox Valley Installations</span>
-        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Recent Security &amp; Perimeter Work</h2>
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">${city} Installations</span>
+        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Recent ${escapeHtml(trade)} Project Gallery</h2>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         ${assetPaths.gallery.map((gUrl, idx) => `
           <div class="rounded-2xl overflow-hidden brand-surface-card shadow-lg group border" style="border-color: var(--c-border);">
             <div class="h-64 overflow-hidden">
-              <img src="${gUrl}" alt="Installation ${idx + 1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+              <img src="${gUrl}" alt="${escapeHtml(trade)} Project ${idx + 1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
             </div>
             <div class="p-4 flex items-center justify-between text-xs font-semibold">
-              <span style="color: var(--c-text-main);">Security Install #${idx + 1}</span>
-              <span style="color: var(--c-accent);">Appleton, WI</span>
+              <span style="color: var(--c-text-main);">${escapeHtml(trade)} Project #${idx + 1}</span>
+              <span style="color: var(--c-accent);">${city}</span>
             </div>
           </div>
         `).join('')}

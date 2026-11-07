@@ -1,7 +1,7 @@
 {
-  "lastRunIndex": 0,
-  "lastRunDate": "2026-11-06T21:11:01.552Z",
-  "totalSitesBuilt": 2,
+  "lastRunIndex": 1,
+  "lastRunDate": "2026-11-07T12:52:56.928Z",
+  "totalSitesBuilt": 4,
   "runs": [
     {
       "date": "2026-11-06T21:11:01.552Z",
@@ -20,6 +20,26 @@
           "name": "M.A.K.E. Fence and Deck",
           "url": "https://m-a-k-e-fence-and-deck.pages.dev",
           "score": 100
+        }
+      ]
+    },
+    {
+      "date": "2026-11-07T12:52:56.928Z",
+      "niche": {
+        "trade": "Roofing",
+        "city": "Neenah, WI",
+        "query": "Roofing contractor, Neenah, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Pro-X Construction",
+          "url": "https://pro-x-construction.pages.dev",
+          "score": 55
+        },
+        {
+          "name": "Nasi Roofing, LLC",
+          "url": "https://nasi-roofing-llc.pages.dev",
+          "score": 45
         }
       ]
     }
