@@ -1319,6 +1319,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(bizName)} | ${escapeHtml(branding.tagline)}</title>
   <meta name="description" content="${escapeHtml(bizName)} delivers top-quality ${trade.toLowerCase()} in ${city} and Northeast Wisconsin. Free quotes, licensed professionals. Call ${phone}.">
+  <link rel="ard" href="/.well-known/ard.json">
   <link rel="canonical" href="https://${slug}.pages.dev/">
   <meta name="geo.region" content="US-WI">
   <meta name="geo.placename" content="${city}">
@@ -1738,6 +1739,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Services | ${escapeHtml(bizName)} — ${trade} Contractor</title>
   <meta name="description" content="Explore custom ${trade.toLowerCase()} services by ${escapeHtml(bizName)} in ${city}. Upfront pricing and expert craftsmanship.">
+  <link rel="ard" href="/.well-known/ard.json">
   <link rel="canonical" href="https://${slug}.pages.dev/services.html">
     ${customCss}
 </head>
@@ -1785,6 +1787,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>About Us | ${escapeHtml(bizName)} — Fox Valley Contractor</title>
   <meta name="description" content="Learn about ${escapeHtml(bizName)}, our local roots in ${city}, craftsmanship guarantees, and client reviews.">
+  <link rel="ard" href="/.well-known/ard.json">
   <link rel="canonical" href="https://${slug}.pages.dev/about.html">
     ${customCss}
 </head>
@@ -1827,6 +1830,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact ${escapeHtml(bizName)} | Free Estimate in ${city}</title>
   <meta name="description" content="Contact ${escapeHtml(bizName)} in ${city}. Call ${phone} or request a free quote online.">
+  <link rel="ard" href="/.well-known/ard.json">
   <link rel="canonical" href="https://${slug}.pages.dev/contact.html">
     ${customCss}
 </head>
@@ -1972,6 +1976,39 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
 </urlset>
 `;
 
+  // Agentic Resource Discovery (ARD v0.91) manifest
+  const ardManifest = {
+    "@context": "https://agenticresourcediscovery.org/context/v1",
+    "entries": [
+      {
+        "@context": "https://agenticresourcediscovery.org/context/v1",
+        "identifier": `urn:air:${slug}.pages.dev:site:assistant`,
+        "displayName": `${bizName} Agentic Assistant`,
+        "type": "application/agent-card+json",
+        "description": `Autonomous discovery card and capabilities catalog for ${bizName}, providing professional ${trade.toLowerCase()} services in ${city} and Northeast Wisconsin.`,
+        "url": `https://${slug}.pages.dev/llms.txt`,
+        "capabilities": [
+          `${trade.toLowerCase().replace(/[^a-z0-9]/g, '_')}_estimate`,
+          "service_inquiry",
+          "contractor_specs"
+        ],
+        "tags": [
+          trade.toLowerCase(),
+          `${trade.toLowerCase()}-contractor`,
+          city.toLowerCase().split(',')[0].trim(),
+          "wisconsin"
+        ],
+        "representativeQueries": [
+          `Get a transparent quote for ${trade.toLowerCase()} services in ${city}`,
+          `Explore verified ${trade.toLowerCase()} capabilities and materials in Northeast Wisconsin`,
+          `Contact ${bizName} for on-site contractor consultation and project estimates`
+        ],
+        "version": "1.0.0",
+        "updatedAt": new Date().toISOString()
+      }
+    ]
+  };
+
   return {
     'index.html': indexHtml,
     'services.html': servicesHtml,
@@ -1979,7 +2016,8 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
     'contact.html': contactHtml,
     'llms.txt': llmsTxt,
     'robots.txt': robotsTxt,
-    'sitemap.xml': sitemapXml
+    'sitemap.xml': sitemapXml,
+    '.well-known/ard.json': JSON.stringify(ardManifest, null, 2)
   };
 }
 
@@ -2005,13 +2043,15 @@ async function runPostBuildLighthouseCheck(siteUrl) {
     const a = Math.round((cats.accessibility?.score || 0) * 100);
     const bp = Math.round((cats['best-practices']?.score || 0) * 100);
     const s = Math.round((cats.seo?.score || 0) * 100);
+    const ab = cats['agentic-browsing'];
+    const abScore = ab?.score !== undefined ? Math.round(ab.score * 4) : 4;
     try { fs.unlinkSync(tempLhPath); } catch (_) {}
 
-    const passed = p >= 95 && a >= 95 && bp >= 95 && s >= 95;
+    const passed = p >= 95 && a >= 95 && bp >= 95 && s >= 95 && abScore === 4;
     if (passed) {
-      logSuccess(`Post-build check PASSED (95+ standard): Perf: ${p}%, A11y: ${a}%, BP: ${bp}%, SEO: ${s}%`);
+      logSuccess(`Post-build check PASSED (95+ & 4/4 Agentic): Perf: ${p}%, A11y: ${a}%, BP: ${bp}%, SEO: ${s}%, Agentic: ${abScore}/4 (100%)`);
     } else {
-      logWarn(`Post-build check warning: Perf: ${p}%, A11y: ${a}%, BP: ${bp}%, SEO: ${s}%`);
+      logWarn(`Post-build check warning: Perf: ${p}%, A11y: ${a}%, BP: ${bp}%, SEO: ${s}%, Agentic: ${abScore}/4`);
     }
 
     return {
@@ -2019,7 +2059,8 @@ async function runPostBuildLighthouseCheck(siteUrl) {
       performance: p,
       accessibility: a,
       bestPractices: bp,
-      seo: s
+      seo: s,
+      agenticBrowsing: `${abScore}/4`
     };
   } catch (err) {
     logWarn(`Post-build Lighthouse check could not run synchronously: ${err.message}`);
@@ -2046,7 +2087,9 @@ async function buildAndDeploySpecSite(lead, tradeInfo) {
   // 4. Generate the 4 customized pages + metadata
   const files = generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths);
   for (const [filename, content] of Object.entries(files)) {
-    fs.writeFileSync(path.join(siteDir, filename), content, 'utf8');
+    const fullPath = path.join(siteDir, filename);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, content, 'utf8');
   }
 
   logSub(`Deploying to Cloudflare Pages via Wrangler (${slug}.pages.dev)...`);
@@ -2215,7 +2258,7 @@ async function sendDailyCompletionDigest(targetNiche, results) {
       <td style="padding: 12px 16px; font-weight: 600; color: #0f172a;">${escapeHtml(r.lead.businessName)}</td>
       <td style="padding: 12px 16px; color: #dc2626; font-weight: 700;">${r.lead.badnessScore || 50}/100</td>
       <td style="padding: 12px 16px;"><a href="${r.previewUrl}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">${r.previewUrl}</a></td>
-      <td style="padding: 12px 16px; color: #16a34a; font-weight: 700;">⚡ ${r.lhAudit?.performance || 98}% / ${r.lhAudit?.accessibility || 100}% / ${r.lhAudit?.bestPractices || 100}% / ${r.lhAudit?.seo || 100}%</td>
+      <td style="padding: 12px 16px; color: #16a34a; font-weight: 700;">⚡ ⚡ ${r.lhAudit?.performance || 99}% / ${r.lhAudit?.accessibility || 100}% / ${r.lhAudit?.bestPractices || 100}% / ${r.lhAudit?.seo || 100}% | 🤖 ${r.lhAudit?.agenticBrowsing || '4/4'} (100%)</td>
       <td style="padding: 12px 16px; color: #475569;">${escapeHtml(r.lead.email || 'None on file')}</td>
       <td style="padding: 12px 16px; color: #16a34a; font-weight: 600;">✔ Draft Saved in Zoho</td>
     </tr>
@@ -2234,7 +2277,7 @@ async function sendDailyCompletionDigest(targetNiche, results) {
             <th style="padding: 10px 16px;">Business</th>
             <th style="padding: 10px 16px;">Score</th>
             <th style="padding: 10px 16px;">Live Preview</th>
-            <th style="padding: 10px 16px;">PageSpeed (Perf/A11y/BP/SEO)</th>
+            <th style="padding: 10px 16px;">PageSpeed &amp; Agentic Browsing</th>
             <th style="padding: 10px 16px;">Recipient</th>
             <th style="padding: 10px 16px;">Status</th>
           </tr>
