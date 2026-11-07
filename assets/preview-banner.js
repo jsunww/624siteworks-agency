@@ -111,6 +111,26 @@
       '  align-items: center;',
       '  gap: 10px;',
       '}',
+      '#sw624-preview-banner .sw624-call {',
+      '  display: inline-flex;',
+      '  align-items: center;',
+      '  gap: 6px;',
+      '  background: rgba(255, 255, 255, 0.12);',
+      '  border: 1px solid rgba(255, 255, 255, 0.25);',
+      '  color: #ffffff !important;',
+      '  font-size: 13px;',
+      '  font-weight: 700;',
+      '  padding: 8px 14px;',
+      '  border-radius: 8px;',
+      '  text-decoration: none !important;',
+      '  white-space: nowrap;',
+      '  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;',
+      '}',
+      '#sw624-preview-banner .sw624-call:hover {',
+      '  background: rgba(255, 255, 255, 0.22);',
+      '  border-color: rgba(255, 255, 255, 0.45);',
+      '  transform: translateY(-1px);',
+      '}',
       '#sw624-preview-banner .sw624-cta {',
       '  display: inline-flex;',
       '  align-items: center;',
@@ -153,11 +173,21 @@
       '  }',
       '  #sw624-preview-banner .sw624-actions {',
       '    width: 100%;',
-      '    justify-content: space-between;',
+      '    display: flex;',
+      '    align-items: center;',
+      '    gap: 8px;',
       '  }',
-      '  #sw624-preview-banner .sw624-cta {',
+      '  #sw624-preview-banner .sw624-call {',
       '    flex: 1;',
       '    justify-content: center;',
+      '    padding: 8px 8px;',
+      '    font-size: 11.5px;',
+      '  }',
+      '  #sw624-preview-banner .sw624-cta {',
+      '    flex: 1.2;',
+      '    justify-content: center;',
+      '    padding: 8px 8px;',
+      '    font-size: 11.5px;',
       '  }',
       '}'
     ].join('\n');
@@ -188,8 +218,15 @@
     strongBiz.textContent = businessName;
     textSpan.appendChild(strongBiz);
     textSpan.appendChild(
-      document.createTextNode(' by 624 Siteworks (Appleton, WI) — Like this design?')
+      document.createTextNode(' by 624 Siteworks (Appleton, WI) — Questions? Call ')
     );
+    var phoneLink = document.createElement('a');
+    phoneLink.href = 'tel:9202345633';
+    phoneLink.style.color = '#93c5fd';
+    phoneLink.style.fontWeight = '700';
+    phoneLink.style.textDecoration = 'underline';
+    phoneLink.textContent = '(920) 234-5633';
+    textSpan.appendChild(phoneLink);
 
     copy.appendChild(badge);
     copy.appendChild(textSpan);
@@ -197,12 +234,18 @@
     var actions = document.createElement('div');
     actions.className = 'sw624-actions';
 
+    var callBtn = document.createElement('a');
+    callBtn.className = 'sw624-call';
+    callBtn.href = 'tel:9202345633';
+    callBtn.title = 'Call or text Jason Woodrow to discuss this website';
+    callBtn.textContent = '📞 (920) 234-5633';
+
     var cta = document.createElement('a');
     cta.className = 'sw624-cta';
     cta.href = claimHref;
     cta.target = '_blank';
     cta.rel = 'noopener noreferrer';
-    cta.textContent = 'Click to claim & customize this site →';
+    cta.textContent = 'Claim & customize site →';
 
     var closeBtn = document.createElement('button');
     closeBtn.className = 'sw624-close';
@@ -219,6 +262,7 @@
       }, 260);
     });
 
+    actions.appendChild(callBtn);
     actions.appendChild(cta);
     actions.appendChild(closeBtn);
 

@@ -113,6 +113,9 @@ export async function onRequestPost(context) {
           <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Project Details &amp; Message:</div>
           <div style="background:#ffffff;border:1px solid #e2e8f0;border-left:4px solid #C8102E;border-radius:6px;padding:14px;font-size:14px;line-height:1.6;color:#1e293b;white-space:pre-wrap;">${escapeHtml(message)}</div>
         </div>
+        <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;text-align:center;">
+          624 Siteworks Demo Lead &bull; Questions? Call/Text Jason: <a href="tel:9202345633" style="color:#0f172a;font-weight:700;text-decoration:none;">(920) 234-5633</a> &bull; <a href="https://624siteworks.com" style="color:#2563eb;text-decoration:none;">624siteworks.com</a>
+        </div>
       </td>
     </tr>
   </table>

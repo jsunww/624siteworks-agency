@@ -64,12 +64,13 @@ const CONFIG = {
 
   // File Paths
   SPEC_SITES_ROOT: 'F:\\624 SITEWORKS\\Client Sites',
-  PREVIEW_BANNER_SRC: 'F:\\624 SITEWORKS\\Client Sites\\delrar-inc\\assets\\preview-banner.js',
+  PREVIEW_BANNER_SRC: 'F:\\624 SITEWORKS\\My Sites\\624siteworks.com\\assets\\preview-banner.js',
   CONTACT_API_SRC: 'F:\\624 SITEWORKS\\My Sites\\624siteworks.com\\functions\\api\\contact.js',
   STYLE_CSS_SRC: 'F:\\624 SITEWORKS\\My Sites\\624siteworks.com\\assets\\style.min.css',
   STATE_FILE: path.join(__dirname, 'lead_engine_state.json'),
 
-  // Claim URL
+  // Agency Contact & Claim URL
+  AGENCY_PHONE: '(920) 234-5633',
   CLAIM_BASE_URL: 'https://624siteworks.com/claim.html'
 };
 
@@ -2207,12 +2208,13 @@ function generatePitchEmailMarkup(lead, previewUrl, branding, researchData) {
       <p>Unlike bloated website builders that take months to launch and require ongoing maintenance, we hand-craft fast static websites engineered to turn Google searches into phone calls.</p>
       
       <p><strong>What happens if you like it?</strong><br/>
-      There's zero obligation. If you'd like to claim this design, we can customize any text, photos, or service details, and connect it to your domain for a flat one-time build fee: <a href="${claimUrl}" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>
+      There's zero obligation. If you'd like to talk about your website or have any questions, call or text me directly at <a href="tel:9202345633" style="color: #2563eb; font-weight: 700;">(920) 234-5633</a>. If you'd like to claim this design, we can customize any text, photos, or service details, and connect it to your domain for a flat one-time build fee: <a href="${claimUrl}" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>
 
       <p style="margin-top: 28px; margin-bottom: 4px;">Best regards,</p>
       <p style="margin: 0;">
         <strong>Jason Woodrow</strong><br/>
         624 Siteworks | Appleton, WI<br/>
+        <a href="tel:9202345633" style="color: #0f172a; text-decoration: none; font-weight: 700;">(920) 234-5633</a><br/>
         <a href="https://624siteworks.com" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>
       </p>
     </div>

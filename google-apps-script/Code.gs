@@ -32,7 +32,7 @@ const CONFIG = {
   AGENCY_NAME: '624 Siteworks',
   AGENCY_URL: 'https://624siteworks.com',
   CLAIM_BASE_URL: 'https://624siteworks.com/claim.html',
-  AGENCY_PHONE: '(920) 555-0624',
+  AGENCY_PHONE: '(920) 234-5633',
   screenshotBaseUrl: 'https://image.thum.io/get/width/1200/crop/800/noanimate/'
 };
 
@@ -1199,7 +1199,8 @@ function createDraftsCore() {
         'View your live interactive preview here:\n' + previewUrl + '\n\n' +
         plainImprovements +
         'If you like the direction, we can customize any text, photos, or branding and launch it on your domain for a flat one-time build fee:\n' + claimUrl + '\n\n' +
-        'Best regards,\nJason Woodrow\n624 Siteworks - Appleton, WI\n' + CONFIG.AGENCY_URL;
+        'Have questions or want to talk about your website? Call or text me directly at ' + CONFIG.AGENCY_PHONE + '.\n\n' +
+        'Best regards,\nJason Woodrow\n624 Siteworks - Appleton, WI\nCall / Text: ' + CONFIG.AGENCY_PHONE + '\n' + CONFIG.AGENCY_URL;
 
       const htmlBody = buildHtmlPitchEmail_({
         bizName: bizName,
@@ -1294,11 +1295,12 @@ function buildHtmlPitchEmail_(data) {
       improvementsMarkup +
       '<p>Unlike bloated WordPress templates that load slowly and require constant plugin updates, we hand-craft clean static websites engineered to rank locally in Northeast Wisconsin and turn visitors into phone calls.</p>' +
       '<p><strong>What happens if you like it?</strong><br/>' +
-      'There\'s zero obligation. If you\'d like to claim this site, we hop on a quick call to tweak any photos, services, or wording, and connect it to your domain. You can view our flat-rate build options or lock in this design directly here: <a href="' + data.claimUrl + '" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>' +
+      'There\'s zero obligation. If you\'d like to talk about your website or have any questions, call or text me directly at <a href="tel:9202345633" style="color: #2563eb; font-weight: 700;">' + CONFIG.AGENCY_PHONE + '</a>. You can also view our flat-rate build options or lock in this design directly here: <a href="' + data.claimUrl + '" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>' +
       '<p style="margin-top: 28px; margin-bottom: 4px;">Best regards,</p>' +
       '<p style="margin: 0;">' +
         '<strong>Jason Woodrow</strong><br/>' +
         '624 Siteworks | Appleton, WI<br/>' +
+        '<a href="tel:9202345633" style="color: #0f172a; text-decoration: none; font-weight: 600;">' + CONFIG.AGENCY_PHONE + '</a><br/>' +
         '<a href="' + CONFIG.AGENCY_URL + '" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>' +
       '</p>' +
     '</div>'
