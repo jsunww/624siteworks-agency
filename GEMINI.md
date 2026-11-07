@@ -31,3 +31,4 @@ Every website build, automated lead engine run, and client pitch MUST maintain 1
 
 4. **Dynamic Markup & Copywriting**:
    - All section headers, comparison tables, and testimonials must dynamically reflect the detected trade (e.g. `Roofing`, `Concrete`, `Plumbing`), never leaving hardcoded references to other trades.
+
