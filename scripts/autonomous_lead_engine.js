@@ -754,8 +754,15 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
     throw new Error('No unbuilt leads found in the pipeline for today. Check your Google Sheet!');
   }
 
-  candidates.sort((a, b) => (b.badnessScore || 50) - (a.badnessScore || 50));
-  const chosenLeads = candidates.slice(0, countToPick);
+  // Prioritize unbuilt candidates matching today's scheduled niche trade
+  const nicheCandidates = candidates.filter(lead => {
+    const text = `${lead.businessName} ${lead.ratingReviews || ''} ${lead.aiPrompt || ''}`.toLowerCase();
+    return text.includes(targetNiche.trade.toLowerCase());
+  });
+
+  const pool = nicheCandidates.length >= countToPick ? nicheCandidates : candidates;
+  pool.sort((a, b) => (Number(b.badnessScore ?? 0)) - (Number(a.badnessScore ?? 0)));
+  const chosenLeads = pool.slice(0, countToPick);
   logSuccess(`Selected the top ${chosenLeads.length} worst prospects for today's automated build:`);
 
   for (let i = 0; i < chosenLeads.length; i++) {
@@ -2163,7 +2170,7 @@ async function buildAndDeploySpecSite(lead, tradeInfo) {
     logWarn(`Could not register in Firestore demo_sites: ${e.message}`);
   }
 
-  return { slug, previewUrl, siteDir, branding, researchData };
+  return { slug, previewUrl, siteDir, branding, researchData, lhAudit };
 }
 
 // ============================================================================
@@ -2366,8 +2373,19 @@ async function runAutonomousLeadEngine() {
     results.push({
       lead: lead,
       slug: buildResult.slug,
-      previewUrl: buildResult.previewUrl
+      previewUrl: buildResult.previewUrl,
+      lhAudit: buildResult.lhAudit
     });
+  }
+
+  // Gate 4: Generate rich Gmail drafts with inline site preview screenshots
+  logSub('Triggering Google Apps Script Gate 4 (Gmail outreach drafts)...');
+  try {
+    const gate4Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate4`, { method: 'POST' });
+    const gate4Data = await gate4Res.json();
+    logSuccess(`Google Apps Script Gate 4 created ${gate4Data.draftCount || 0} Gmail draft(s).`);
+  } catch (e) {
+    logWarn(`Gate 4 Gmail draft creation note: ${e.message}`);
   }
 
   // Step 5: Daily Digest & Notification
