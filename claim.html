@@ -140,15 +140,15 @@
         </div>
 
         <!-- Maintenance Plan Toggle -->
-        <div class="max-w-3xl mx-auto mb-12 bg-gradient-to-r from-slate-900 via-dark to-slate-900 border border-primary/40 rounded-2xl p-6 shadow-xl">
+        <div class="max-w-3xl mx-auto mb-8 bg-gradient-to-r from-slate-900 via-dark to-slate-900 border border-primary/40 rounded-2xl p-6 shadow-xl">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <div class="flex items-center gap-2.5">
+                    <div class="flex flex-wrap items-center gap-2.5">
                         <span class="bg-green-500/20 text-green-300 border border-green-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">Recommended</span>
-                        <h3 class="text-lg font-bold text-white">Include the "Peace of Mind" Monthly Plan (+$89/mo)</h3>
+                        <h3 class="text-lg font-bold text-white">Include the "Peace of Mind" Plan (+$89/mo)</h3>
                     </div>
                     <p class="text-sm text-gray-300 mt-1.5">
-                        Includes enterprise global hosting, SSL security, domain management, and minor monthly text/photo updates handled for you. Cancel anytime.
+                        Includes enterprise global hosting, SSL security, domain management, and <strong>up to 2 content update requests/mo</strong> (up to 30 min each; unused requests do not roll over). Cancel anytime, or ask about our <strong>$890/yr annual plan (2 months free!)</strong> during kickoff.
                     </p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer shrink-0 self-end sm:self-center">
@@ -156,6 +156,55 @@
                     <div class="w-14 h-8 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
                 </label>
             </div>
+        </div>
+
+        <!-- Mandatory Terms & Scope Agreement Gate -->
+        <div id="terms-agreement-box" class="max-w-3xl mx-auto mb-12 bg-white/5 border border-white/15 rounded-2xl p-5 sm:p-6 transition-all">
+            <div class="flex items-start gap-3.5">
+                <input type="checkbox" id="terms-agree-checkbox" onchange="clearTermsError()"
+                    class="mt-1 w-5 h-5 rounded border-gray-500 text-primary focus:ring-primary cursor-pointer shrink-0 accent-blue-600">
+                <div class="flex-1 text-sm">
+                    <label for="terms-agree-checkbox" class="font-semibold text-white cursor-pointer select-none">
+                        I have read and agree to the <a href="terms.html" target="_blank" class="text-blue-400 hover:text-blue-300 underline font-bold">624 Siteworks Terms &amp; Conditions</a>
+                    </label>
+                    <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+                        By checking this box and proceeding to payment, you acknowledge our package page limits (extra pages $150/page), 2 pre-launch revision rounds, 14-day content turnaround window, and Peace of Mind Plan update policy (up to 2 update requests/month, no rollover; out-of-scope work $125/hr).
+                        <button type="button" onclick="toggleQuickTerms()" class="text-blue-400 hover:text-blue-300 underline font-medium ml-1">
+                            View Quick Scope Summary ▾
+                        </button>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Expandable Quick Scope Summary Drawer -->
+            <div id="quick-terms-drawer" class="hidden mt-4 pt-4 border-t border-white/10 text-xs text-gray-300 space-y-2">
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <div class="bg-darker/80 p-3 rounded-lg border border-white/5">
+                        <strong class="text-blue-300 block mb-0.5">1. Page Limits &amp; Architecture:</strong>
+                        Starter includes up to 4 pages; Pro up to 7 pages; Premium up to 10 pages within the established template layout. Extra pages: $150/page.
+                    </div>
+                    <div class="bg-darker/80 p-3 rounded-lg border border-white/5">
+                        <strong class="text-blue-300 block mb-0.5">2. Pre-Launch Revisions:</strong>
+                        Includes 2 consolidated rounds of revisions after your kickoff call. Additional revision rounds or custom features are billed at $125/hr.
+                    </div>
+                    <div class="bg-darker/80 p-3 rounded-lg border border-white/5">
+                        <strong class="text-blue-300 block mb-0.5">3. Peace of Mind Updates ($89/mo or $890/yr):</strong>
+                        Includes up to 2 minor content update requests per calendar month (up to 30 mins each). Unused requests do not roll over.
+                    </div>
+                    <div class="bg-darker/80 p-3 rounded-lg border border-white/5">
+                        <strong class="text-blue-300 block mb-0.5">4. Photography &amp; Refunds:</strong>
+                        On-site photo/drone sessions cover up to 2 hrs within 60 miles of Appleton, WI. One-time build fees are non-refundable once customization begins.
+                    </div>
+                </div>
+                <div class="text-right pt-1">
+                    <a href="terms.html" target="_blank" class="text-blue-400 hover:text-blue-300 underline font-semibold">Read Full Terms &amp; Conditions Page ↗</a>
+                </div>
+            </div>
+
+            <!-- Validation Warning Message -->
+            <p id="terms-error-msg" class="hidden mt-3 text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3.5 py-2">
+                ⚠️ Please check the box above to confirm you have read and agree to the Terms &amp; Conditions before proceeding to checkout.
+            </p>
         </div>
 
         <!-- Pricing & Checkout Cards -->
@@ -174,14 +223,17 @@
                 <ul class="space-y-3.5 mb-8 flex-1 text-sm text-gray-300">
                     <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Home page + up to 3 additional pages</li>
                     <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Full customization of your preview design</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>2 pre-launch revision rounds included</li>
                     <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Mobile-first &amp; click-to-call ready</li>
-                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Lead capture form routed to your email</li>
-                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Local SEO setup for Northeast WI</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Lead capture form &amp; Local SEO setup</li>
                 </ul>
                 <a id="btn-starter" href="#" onclick="return handleCheckout(event, 'starter')"
                     class="w-full bg-white/10 hover:bg-primary text-white text-center py-3.5 px-6 rounded-xl font-bold transition-all border border-white/10">
                     Claim Starter Build →
                 </a>
+                <p class="text-[11px] text-gray-500 text-center mt-2.5">
+                    By purchasing, you agree to our <a href="terms.html" target="_blank" class="underline hover:text-gray-300">Terms &amp; Conditions</a>.
+                </p>
             </div>
 
             <!-- Pro Plan -->
@@ -201,14 +253,17 @@
                 <ul class="space-y-3.5 mb-8 flex-1 text-sm text-gray-100">
                     <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Home page + up to 6 additional pages</li>
                     <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Dedicated pages for each core service</li>
+                    <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>2 pre-launch revision rounds included</li>
                     <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Advanced local SEO &amp; JSON-LD schema</li>
                     <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Lighthouse 95+ speed tuning</li>
-                    <li class="flex items-start"><span class="text-primary mr-2.5 font-bold">✓</span>Priority turnaround &amp; launch</li>
                 </ul>
                 <a id="btn-pro" href="#" onclick="return handleCheckout(event, 'pro')"
                     class="w-full bg-primary hover:bg-primaryHover text-white text-center py-4 px-6 rounded-xl font-bold transition-all shadow-lg shadow-primary/30">
                     Claim Pro Build →
                 </a>
+                <p class="text-[11px] text-blue-200/60 text-center mt-2.5">
+                    By purchasing, you agree to our <a href="terms.html" target="_blank" class="underline hover:text-white">Terms &amp; Conditions</a>.
+                </p>
             </div>
 
             <!-- Premium Plan -->
@@ -223,8 +278,8 @@
                     <p class="text-xs text-green-400 font-semibold mt-1">★ Includes 6 Months "Peace of Mind" Plan Free</p>
                 </div>
                 <ul class="space-y-3.5 mb-8 flex-1 text-sm text-gray-300">
-                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Up to 10 custom pages</li>
-                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Custom on-site drone &amp; team photography</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Up to 10 custom pages (2 revision rounds)</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>On-site drone &amp; team photos (60-mi radius)</li>
                     <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Google Business Profile optimization</li>
                     <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>6 Months Peace of Mind Plan included ($534 value)</li>
                 </ul>
@@ -232,13 +287,16 @@
                     class="w-full bg-white/10 hover:bg-primary text-white text-center py-3.5 px-6 rounded-xl font-bold transition-all border border-white/10">
                     Claim Premium Build →
                 </a>
+                <p class="text-[11px] text-gray-500 text-center mt-2.5">
+                    By purchasing, you agree to our <a href="terms.html" target="_blank" class="underline hover:text-gray-300">Terms &amp; Conditions</a>.
+                </p>
             </div>
         </div>
 
         <!-- Existing Client / Standalone Subscription Box -->
         <div class="max-w-3xl mx-auto text-center bg-white/5 border border-white/10 rounded-xl p-6">
             <p class="text-sm text-gray-300">
-                Already paid for your build and just want to activate the <strong>$89/mo Peace of Mind Plan</strong>?
+                Already paid for your build and just want to activate the <strong>$89/mo Peace of Mind Plan</strong> (or $890/yr annual plan)?
                 <a href="#" onclick="return handleCheckout(event, 'standaloneCare')" class="text-blue-400 hover:text-blue-300 font-semibold underline ml-1">
                     Subscribe to Monthly Care Only →
                 </a>
@@ -250,7 +308,9 @@
     <footer class="bg-darker py-8 border-t border-white/10 text-center text-sm text-gray-500">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p>&copy; 2026 624 Siteworks (Appleton, WI). Secure payments powered by Stripe.</p>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="terms.html" class="hover:text-white transition-colors text-gray-300 font-medium">Terms &amp; Conditions</a>
+                <span>•</span>
                 <a href="tel:9202345633" class="hover:text-white transition-colors font-semibold text-gray-300">Call / Text: (920) 234-5633</a>
                 <span>•</span>
                 <a href="mailto:hello@624siteworks.com" class="hover:text-white transition-colors">hello@624siteworks.com</a>
@@ -276,6 +336,24 @@
             previewLink.classList.remove('hidden');
         }
 
+        function toggleQuickTerms() {
+            const drawer = document.getElementById('quick-terms-drawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        function clearTermsError() {
+            const agreed = document.getElementById('terms-agree-checkbox').checked;
+            const box = document.getElementById('terms-agreement-box');
+            const err = document.getElementById('terms-error-msg');
+            if (agreed) {
+                err.classList.add('hidden');
+                box.classList.remove('border-amber-400', 'ring-2', 'ring-amber-400/30');
+                box.classList.add('border-green-500/50');
+            } else {
+                box.classList.remove('border-green-500/50');
+            }
+        }
+
         function updatePricingDisplay() {
             const includeCare = document.getElementById('care-plan-toggle').checked;
             const notes = document.querySelectorAll('.care-plan-PriceNote');
@@ -292,6 +370,20 @@
 
         function handleCheckout(event, tier) {
             event.preventDefault();
+
+            // Enforce Terms & Conditions acknowledgment before redirecting to Stripe
+            const termsCheckbox = document.getElementById('terms-agree-checkbox');
+            if (!termsCheckbox || !termsCheckbox.checked) {
+                const box = document.getElementById('terms-agreement-box');
+                const err = document.getElementById('terms-error-msg');
+                const drawer = document.getElementById('quick-terms-drawer');
+                err.classList.remove('hidden');
+                drawer.classList.remove('hidden');
+                box.classList.add('border-amber-400', 'ring-2', 'ring-amber-400/30');
+                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+
             const includeCare = document.getElementById('care-plan-toggle').checked;
             let targetUrl = '';
 
