@@ -96,7 +96,19 @@ $CarePrice = Invoke-StripePost "prices" @{
 }
 Write-Host "  + Created Peace of Mind Monthly Care Plan ($89/mo)" -ForegroundColor Green
 
-Write-Host "`n[2/3] Generating 6 Stripe Payment Links..." -ForegroundColor Cyan
+# 5. On-Site Photo, Video & Drone Package ($495 one-off)
+$PhotoProd = Invoke-StripePost "products" @{
+    "name"        = "On-Site Brand Photo, Video & Drone Package (624 Siteworks)"
+    "description" = "Up to 2 hours on-site within 60 miles of Appleton, WI. Includes 15-25 edited high-res photos, FAA-compliant drone aerials & ambient video clips, and full commercial usage rights."
+}
+$PhotoPrice = Invoke-StripePost "prices" @{
+    "product"     = $PhotoProd.id
+    "unit_amount" = "49500"
+    "currency"    = "usd"
+}
+Write-Host "  + Created On-Site Photo, Video & Drone Package ($495)" -ForegroundColor Green
+
+Write-Host "`n[2/3] Generating 7 Stripe Payment Links..." -ForegroundColor Cyan
 $CustomConfirmMsg = "Thank you! Jason from 624 Siteworks will reach out within 1 business day to schedule your customization & domain launch call."
 
 # Link 1: Starter + $89/mo Care Plan
@@ -157,6 +169,15 @@ $LinkCareOnly = Invoke-StripePost "payment_links" @{
     "after_completion[hosted_confirmation][custom_message]" = $CustomConfirmMsg
 }
 
+# Link 7: Standalone / Add-On Photo, Video & Drone Package ($495)
+$LinkPhotoOnly = Invoke-StripePost "payment_links" @{
+    "line_items[0][price]"                          = $PhotoPrice.id
+    "line_items[0][quantity]"                       = "1"
+    "phone_number_collection[enabled]"              = "true"
+    "after_completion[type]"                        = "hosted_confirmation"
+    "after_completion[hosted_confirmation][custom_message]" = $CustomConfirmMsg
+}
+
 Write-Host "`n[3/3] Updating claim.html with your live Stripe Payment Links..." -ForegroundColor Cyan
 
 $ClaimPath = Join-Path $PSScriptRoot "claim.html"
@@ -168,11 +189,12 @@ $ClaimHtml = $ClaimHtml -replace "proWithCarePlan:\s*'[^']*'",     "proWithCareP
 $ClaimHtml = $ClaimHtml -replace "proBuildOnly:\s*'[^']*'",        "proBuildOnly:        '$($LinkProOnly.url)'"
 $ClaimHtml = $ClaimHtml -replace "premiumBuild:\s*'[^']*'",        "premiumBuild:        '$($LinkPremium.url)'"
 $ClaimHtml = $ClaimHtml -replace "standaloneCarePlan:\s*'[^']*'",  "standaloneCarePlan:  '$($LinkCareOnly.url)'"
+$ClaimHtml = $ClaimHtml -replace "standalonePhotoPackage:\s*'[^']*'", "standalonePhotoPackage: '$($LinkPhotoOnly.url)'"
 
 Set-Content -Path $ClaimPath -Value $ClaimHtml -Encoding UTF8
 
 Write-Host "`n============================================================" -ForegroundColor Green
-Write-Host " SUCCESS! All 6 Stripe Payment Links created & wired into claim.html!" -ForegroundColor Green
+Write-Host " SUCCESS! All 7 Stripe Payment Links created & wired into claim.html!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host " Starter + $89/mo : $($LinkStarterCare.url)"
 Write-Host " Starter ($595)   : $($LinkStarterOnly.url)"
@@ -180,4 +202,5 @@ Write-Host " Pro + $89/mo     : $($LinkProCare.url)"
 Write-Host " Pro ($995)       : $($LinkProOnly.url)"
 Write-Host " Premium ($1,695) : $($LinkPremium.url)"
 Write-Host " Care Only ($89/m): $($LinkCareOnly.url)"
+Write-Host " Photo/Video($495): $($LinkPhotoOnly.url)"
 Write-Host "============================================================`n" -ForegroundColor Green

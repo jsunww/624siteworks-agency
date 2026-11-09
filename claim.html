@@ -69,7 +69,10 @@
             premiumBuild:        'https://buy.stripe.com/5kQaEX5BK22Mc109eLbEA04',          // $1,695 one-time
 
             // Standalone "Peace of Mind" Monthly Plan ($89/mo) for existing clients
-            standaloneCarePlan:  'https://buy.stripe.com/7sY8wPc08azi7KKaiPbEA05'
+            standaloneCarePlan:  'https://buy.stripe.com/7sY8wPc08azi7KKaiPbEA05',
+
+            // Standalone / Add-On On-Site Photo, Video & Drone Package ($495 one-time)
+            standalonePhotoPackage: ''
         };
     </script>
 
@@ -148,7 +151,7 @@
                         <h3 class="text-lg font-bold text-white">Include the "Peace of Mind" Plan (+$89/mo)</h3>
                     </div>
                     <p class="text-sm text-gray-300 mt-1.5">
-                        Includes enterprise global hosting, SSL security, domain management, and <strong>up to 2 content update requests/mo</strong> (up to 30 min each; unused requests do not roll over). Cancel anytime, or ask about our <strong>$890/yr annual plan (2 months free!)</strong> during kickoff.
+                        Includes enterprise global hosting, SSL security, domain management, and <strong>up to 2 consolidated edits/mo (or 6/quarter)</strong>—monthly credits roll over within each calendar quarter (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec). Cancel anytime, or ask about our <strong>$890/yr annual plan (2 months free!)</strong> during kickoff.
                     </p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer shrink-0 self-end sm:self-center">
@@ -168,7 +171,7 @@
                         I have read and agree to the <a href="terms.html" target="_blank" class="text-blue-400 hover:text-blue-300 underline font-bold">624 Siteworks Terms &amp; Conditions</a>
                     </label>
                     <p class="text-xs text-gray-400 mt-1 leading-relaxed">
-                        By checking this box and proceeding to payment, you acknowledge our package page limits (extra pages $150/page), 2 pre-launch revision rounds, 14-day content turnaround window, and Peace of Mind Plan update policy (up to 2 update requests/month, no rollover; out-of-scope work $125/hr).
+                        By checking this box and proceeding to payment, you acknowledge our package page limits (extra pages $150/page), 2 pre-launch revision rounds, 14-day content turnaround window, and Peace of Mind Plan update policy (up to 2 consolidated edits/month or 6/quarter rolling over within Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec; out-of-scope work $125/hr).
                         <button type="button" onclick="toggleQuickTerms()" class="text-blue-400 hover:text-blue-300 underline font-medium ml-1">
                             View Quick Scope Summary ▾
                         </button>
@@ -188,12 +191,12 @@
                         Includes 2 consolidated rounds of revisions after your kickoff call. Additional revision rounds or custom features are billed at $125/hr.
                     </div>
                     <div class="bg-darker/80 p-3 rounded-lg border border-white/5">
-                        <strong class="text-blue-300 block mb-0.5">3. Peace of Mind Updates ($89/mo or $890/yr):</strong>
-                        Includes up to 2 minor content update requests per calendar month (up to 30 mins each). Unused requests do not roll over.
+                        <strong class="text-blue-300 block mb-0.5">3. Quarterly Edit Rollover (2/mo • 6/qtr):</strong>
+                        Includes 2 consolidated edits/mo (up to 30 mins each). Credits roll over within each strict calendar quarter (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec), then reset.
                     </div>
                     <div class="bg-darker/80 p-3 rounded-lg border border-white/5">
-                        <strong class="text-blue-300 block mb-0.5">4. Photography &amp; Refunds:</strong>
-                        On-site photo/drone sessions cover up to 2 hrs within 60 miles of Appleton, WI. One-time build fees are non-refundable once customization begins.
+                        <strong class="text-blue-300 block mb-0.5">4. Media Shoot &amp; Refunds:</strong>
+                        On-site photo/video/drone sessions ($495 or included in Premium) cover up to 2 hrs within 60 miles of Appleton, WI. One-time build fees are non-refundable once customization begins.
                     </div>
                 </div>
                 <div class="text-right pt-1">
@@ -208,7 +211,7 @@
         </div>
 
         <!-- Pricing & Checkout Cards -->
-        <div class="grid lg:grid-cols-3 gap-8 mb-16">
+        <div class="grid lg:grid-cols-3 gap-8 mb-12">
             <!-- Starter Plan -->
             <div class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col">
                 <h3 class="text-2xl font-bold mb-2">Starter</h3>
@@ -268,20 +271,23 @@
 
             <!-- Premium Plan -->
             <div class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col">
-                <h3 class="text-2xl font-bold mb-2">Premium</h3>
-                <p class="text-gray-400 text-sm mb-6">Complete market dominance with on-site photography &amp; drone media.</p>
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-2xl font-bold">Premium</h3>
+                    <span class="bg-green-500/20 text-green-300 border border-green-500/30 text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">Saves $329+</span>
+                </div>
+                <p class="text-gray-400 text-sm mb-6">Complete market dominance with on-site photo, video &amp; drone media included.</p>
                 <div class="mb-6">
                     <div class="flex items-baseline gap-1.5">
                         <span class="text-4xl font-extrabold text-white">$1,695</span>
                         <span class="text-gray-400 text-sm">one-time build</span>
                     </div>
-                    <p class="text-xs text-green-400 font-semibold mt-1">★ Includes 6 Months "Peace of Mind" Plan Free</p>
+                    <p class="text-xs text-green-400 font-semibold mt-1">★ $2,024+ Value — Includes Photo/Video + 6 Mos Care Free</p>
                 </div>
                 <ul class="space-y-3.5 mb-8 flex-1 text-sm text-gray-300">
                     <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Up to 10 custom pages (2 revision rounds)</li>
-                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>On-site drone &amp; team photos (60-mi radius)</li>
-                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Google Business Profile optimization</li>
-                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>6 Months Peace of Mind Plan included ($534 value)</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>On-Site Photo, Video &amp; Drone Package Included ($495 value)</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>6 Months Peace of Mind Plan Included ($534 value)</li>
+                    <li class="flex items-start"><span class="text-green-400 mr-2.5 font-bold">✓</span>Google Business Profile setup &amp; optimization</li>
                 </ul>
                 <a id="btn-premium" href="#" onclick="return handleCheckout(event, 'premium')"
                     class="w-full bg-white/10 hover:bg-primary text-white text-center py-3.5 px-6 rounded-xl font-bold transition-all border border-white/10">
@@ -290,6 +296,36 @@
                 <p class="text-[11px] text-gray-500 text-center mt-2.5">
                     By purchasing, you agree to our <a href="terms.html" target="_blank" class="underline hover:text-gray-300">Terms &amp; Conditions</a>.
                 </p>
+            </div>
+        </div>
+
+        <!-- Stand-Alone or Add-On Photo, Video & Drone Package ($495) -->
+        <div id="media-package" class="max-w-5xl mx-auto mb-12 bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="md:w-2/3">
+                    <div class="flex flex-wrap items-center gap-2.5 mb-2">
+                        <span class="bg-primary/20 text-blue-300 border border-primary/40 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">Stand-Alone or Add-On</span>
+                        <h3 class="text-xl font-bold text-white">On-Site Brand Photo, Video &amp; Drone Package</h3>
+                    </div>
+                    <p class="text-sm text-gray-300 leading-relaxed mb-4">
+                        Want authentic photos and video of your crew, trucks, and active job sites without upgrading to Premium—or booking a stand-alone shoot for your business? Add this package to <strong>Starter ($1,090 total)</strong> or <strong>Pro ($1,490 total)</strong>, or book it as a <strong>stand-alone session ($495)</strong>.
+                        <span class="text-green-400 font-medium block mt-1">💡 Tip: Buying Pro ($995) + this Photo/Video Shoot ($495) + 6 months of Care ($534) is $2,024 separately—or choose the $1,695 Premium Build above to get all three and save $329+!</span>
+                    </p>
+                    <ul class="grid sm:grid-cols-2 gap-2.5 text-xs text-gray-300">
+                        <li class="flex items-center"><span class="text-primary mr-2 font-bold">+</span> Up to 2 hours on-site (within 60 mi of Appleton, WI)</li>
+                        <li class="flex items-center"><span class="text-primary mr-2 font-bold">+</span> 15–25 edited high-resolution photos</li>
+                        <li class="flex items-center"><span class="text-primary mr-2 font-bold">+</span> FAA-compliant drone aerials &amp; ambient video clips</li>
+                        <li class="flex items-center"><span class="text-primary mr-2 font-bold">+</span> Full commercial usage rights included</li>
+                    </ul>
+                </div>
+                <div class="md:w-1/3 w-full text-left md:text-center border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
+                    <div class="text-3xl font-extrabold text-white mb-1">$495</div>
+                    <p class="text-xs text-gray-400 mb-4">One-time flat rate</p>
+                    <a href="#" onclick="return handleCheckout(event, 'photoPackage')"
+                        class="block w-full bg-white/10 hover:bg-primary text-white text-center py-3 px-5 rounded-xl font-bold text-sm transition-all border border-white/10">
+                        Book Photo / Video Package →
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -395,6 +431,15 @@
                 targetUrl = STRIPE_PAYMENT_LINKS.premiumBuild;
             } else if (tier === 'standaloneCare') {
                 targetUrl = STRIPE_PAYMENT_LINKS.standaloneCarePlan;
+            } else if (tier === 'photoPackage') {
+                if (STRIPE_PAYMENT_LINKS.standalonePhotoPackage && !STRIPE_PAYMENT_LINKS.standalonePhotoPackage.includes('REPLACE_')) {
+                    targetUrl = STRIPE_PAYMENT_LINKS.standalonePhotoPackage;
+                } else {
+                    const subj = encodeURIComponent('Book On-Site Photo, Video & Drone Package ($495)' + (businessName ? ' - ' + businessName : ''));
+                    const body = encodeURIComponent('Hi Jason,\n\nI have read and agree to the 624 Siteworks Terms & Conditions and would like to book the On-Site Photo, Video & Drone Package ($495)' + (businessName ? ' for ' + businessName : '') + '.\n\nPlease send over the invoice link and available shoot dates!\n\nPhone: ');
+                    window.location.href = 'mailto:hello@624siteworks.com?subject=' + subj + '&body=' + body;
+                    return false;
+                }
             }
 
             if (!targetUrl || targetUrl.includes('REPLACE_')) {
