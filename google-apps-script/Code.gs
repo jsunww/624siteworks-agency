@@ -25,8 +25,9 @@
 const CONFIG = {
   SHEET_NAME: 'Prospect Pipeline',
   DEFAULT_SERVICE_AREA: 'Fox Valley & Northeast Wisconsin (Appleton, Neenah, Menasha, Kaukauna, Greenville)',
-  MIN_REVIEWS: 5,
-  DEFAULT_SCRAPE_LIMIT: 20,
+  MIN_REVIEWS: 0,
+  MIN_QUALIFYING_SCORE: 70,
+  DEFAULT_SCRAPE_LIMIT: 40,
   GEMINI_MODEL: 'gemini-3.8-flash',
   SENDER_NAME: 'Jason Woodrow',
   AGENCY_NAME: '624 Siteworks',
@@ -124,6 +125,8 @@ function handleLeadEngineApiRequest_(params) {
       const city = params.city || '';
       const domain = params.domain || '';
       res = researchBusinessSocialsAndWeb_(bizName, city, domain);
+    } else if (action === 'purgeUsableWebsites') {
+      res = purgeUsableWebsitesCore();
     } else if (action === 'saveKeys') {
       const props = PropertiesService.getScriptProperties();
       if (params.serperKey) props.setProperty('SERPER_API_KEY', params.serperKey.trim());
@@ -484,13 +487,34 @@ function scrapeAndAuditLeadsCore(query) {
 
   const scoredCandidates = [];
   let crawledEmailCount = 0;
+  let skippedUsableCount = 0;
+
+  // Prioritize auditing businesses with no site, Facebook/social URLs, plain HTTP, or free subdomains first
+  normalizedPlaces.sort((a, b) => {
+    const scorePriority = (item) => {
+      const s = (item.site || '').toLowerCase();
+      if (!s) return 100;
+      if (/(facebook\.com|fb\.com|instagram\.com|yelp\.com|nextdoor\.com|angi\.com|homeadvisor\.com|bbb\.org|linktr\.ee|business\.site)/i.test(s)) return 95;
+      if (/(wixsite\.com|godaddysites\.com|weebly\.com|wordpress\.com|blogspot\.com|angelfire\.com|tripod\.com)/i.test(s)) return 85;
+      if (s.startsWith('http://')) return 75;
+      return 10;
+    };
+    return scorePriority(b) - scorePriority(a);
+  });
+
+  const startTimeMs = new Date().getTime();
 
   for (let i = 0; i < normalizedPlaces.length; i++) {
+    // Guard against Google Apps Script 6-minute execution limit (stop auditing after 240s)
+    if (new Date().getTime() - startTimeMs > 240000) break;
+
     const item = normalizedPlaces[i];
     const bizName = (item.name || '').trim();
     const reviewsCount = Number(item.reviews || 0);
 
-    if (!bizName || reviewsCount < CONFIG.MIN_REVIEWS) continue;
+    if (!bizName) continue;
+    // Skip national franchises or chains without local phone numbers if needed
+    if (!item.phone && !item.site && !item.facebook) continue;
     if (existingNames.has(bizName.toLowerCase())) continue;
 
     existingNames.add(bizName.toLowerCase());
@@ -509,6 +533,12 @@ function scrapeAndAuditLeadsCore(query) {
       workingHours: item.working_hours,
       query: query
     });
+
+    // STRICT FILTER: Only insert prospects that are Facebook-only, No Website, Broken/Parked, or Really Bad (score >= 70)
+    if (!audit.isQualifiedProspect || audit.badnessScore < (CONFIG.MIN_QUALIFYING_SCORE || 70)) {
+      skippedUsableCount++;
+      continue;
+    }
 
     if (!email && audit.email) {
       email = audit.email;
@@ -544,7 +574,14 @@ function scrapeAndAuditLeadsCore(query) {
   }
 
   if (!scoredCandidates.length) {
-    return { success: true, insertedCount: 0, crawledEmailCount: 0, leads: [], message: 'No new leads matched the filter (reviews >= ' + CONFIG.MIN_REVIEWS + ').' };
+    return {
+      success: true,
+      insertedCount: 0,
+      skippedUsableCount: skippedUsableCount,
+      crawledEmailCount: 0,
+      leads: [],
+      message: 'Audited ' + normalizedPlaces.length + ' businesses (' + skippedUsableCount + ' skipped because they already have usable websites).'
+    };
   }
 
   scoredCandidates.sort((a, b) => b.badnessScore - a.badnessScore);
@@ -586,6 +623,7 @@ function scrapeAndAuditLeadsCore(query) {
     success: true,
     provider: providerLabel,
     insertedCount: rowsToInsert.length,
+    skippedUsableCount: skippedUsableCount,
     crawledEmailCount: crawledEmailCount,
     leads: scoredCandidates.map((c, idx) => ({
       rowNumber: startRow + idx,
@@ -603,6 +641,14 @@ function scrapeAndAuditLeadsCore(query) {
 
 /**
  * Audits a business's website and search engine presence.
+ * STRICT QUALIFICATION GATE:
+ * Only qualifies businesses that:
+ *   1. Have NO website listed on Google Maps
+ *   2. Are Facebook-only / Social-only / Directory-only
+ *   3. Have a BROKEN, DEAD, PARKED, EXPIRED, or UNDER-CONSTRUCTION website
+ *   4. Have a REALLY BAD website (HTTP-only with broken SSL, amateur free subdomain,
+ *      not mobile-friendly / missing viewport, or severely outdated / empty skeleton page)
+ * Businesses with working, mobile-friendly HTTPS websites are marked isQualifiedProspect: false and skipped.
  */
 function auditWebsiteAndSeoPresence_(info) {
   let score = 0;
@@ -611,180 +657,216 @@ function auditWebsiteAndSeoPresence_(info) {
   let foundFacebook = '';
 
   const rawSite = (info.siteUrl || '').trim();
-  const isFacebookOnly = rawSite.includes('facebook.com') || rawSite.includes('fb.com') || (!rawSite && info.fbUrl);
+  const isSocialOrDirectoryOnly = /(facebook\.com|fb\.com|instagram\.com|yelp\.com|nextdoor\.com|angi\.com|homeadvisor\.com|bbb\.org|linktr\.ee|business\.site|yellowpages\.com|manta\.com|thumbtack\.com)/i.test(rawSite) || (!rawSite && info.fbUrl);
 
-  if (!info.workingHours) {
-    score += 8;
-    issues.push('GBP INCOMPLETE: No operating hours listed on Google Maps');
-  }
-  if (info.reviewsCount < 12) {
-    score += 7;
-    issues.push('LOW REVIEWS: Only ' + info.reviewsCount + ' Google reviews (vulnerable to competitors)');
-  }
-
+  // 1. NO WEBSITE AT ALL
   if (!rawSite && !info.fbUrl) {
-    score += 90;
-    issues.unshift('NO WEBSITE: Zero website on Google Maps (losing organic search leads)');
-    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook);
+    score = 96;
+    issues.push('NO WEBSITE: Zero website listed on Google Maps (relying only on word-of-mouth)');
+    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, 'No Website Listed', true);
   }
 
-  if (isFacebookOnly) {
-    score += 85;
-    issues.unshift('FACEBOOK-ONLY: Using Facebook instead of a real website (invisible in Google organic search)');
-    return finalizeAuditReport_(score, issues, foundEmail, rawSite || info.fbUrl);
+  // 2. FACEBOOK-ONLY OR SOCIAL/DIRECTORY LINK AS WEBSITE
+  if (isSocialOrDirectoryOnly) {
+    score = 92;
+    const socialUrl = rawSite || info.fbUrl;
+    if (/facebook\.com|fb\.com/i.test(socialUrl)) {
+      issues.push('FACEBOOK-ONLY: Using a Facebook page instead of a real website');
+    } else if (/business\.site/i.test(socialUrl)) {
+      issues.push('DEAD GOOGLE BUSINESS SITE: Using shut-down Google .business.site link');
+    } else {
+      issues.push('NO REAL WEBSITE: Linking to a directory/social profile (' + socialUrl.slice(0, 45) + ') instead of a website');
+    }
+    return finalizeAuditReport_(score, issues, foundEmail, socialUrl, socialUrl, true);
   }
 
-  if (/(wixsite\.com|godaddysites\.com|weebly\.com|wordpress\.com|squarespace\.com|business\.site)/i.test(rawSite)) {
-    score += 55;
-    issues.push('FREE SUBDOMAIN: Using an amateur free builder subdomain URL');
-  }
+  // Check if URL is an amateur free builder subdomain
+  const isFreeSubdomain = /(wixsite\.com|godaddysites\.com|weebly\.com|wordpress\.com|blogspot\.com|mysite\.com|angelfire\.com|tripod\.com|squarespace\.com|webnode\.com|jimdofree\.com|yolasite\.com|bravesites\.com)/i.test(rawSite);
 
-  const cleanDomain = rawSite.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-  const httpsUrl = 'https://' + cleanDomain;
-  const httpUrl = 'http://' + cleanDomain;
+  let cleanDomain = rawSite.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  const fetchHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+  };
 
-  let baseUrl = httpsUrl;
+  let baseUrl = 'https://' + cleanDomain;
   let hasWorkingHttps = false;
   let homeHtml = '';
   let homeStatus = 0;
   let isStrictHttpOnly = false;
-  const t0 = new Date().getTime();
 
-  // 1. First test: Validate real HTTPS SSL certificate
-  try {
-    const httpsResp = UrlFetchApp.fetch(httpsUrl, {
+  // Helper to test HTTPS on given host path
+  const tryFetchUrl = (urlToTry, validateCert) => {
+    return UrlFetchApp.fetch(urlToTry, {
       method: 'get',
+      headers: fetchHeaders,
       muteHttpExceptions: true,
       followRedirects: true,
-      validateHttpsCertificates: true
+      validateHttpsCertificates: validateCert
     });
+  };
+
+  // 3A. Test HTTPS (try exact domain first, then www. if bare domain fails SSL)
+  try {
+    const httpsResp = tryFetchUrl('https://' + cleanDomain, true);
     const status = httpsResp.getResponseCode();
     const content = httpsResp.getContentText() || '';
     if (status >= 200 && status < 400 && content.length > 200) {
       hasWorkingHttps = true;
       homeStatus = status;
       homeHtml = content;
-      baseUrl = httpsUrl;
+      baseUrl = 'https://' + cleanDomain;
+    } else {
+      homeStatus = status;
+      homeHtml = content;
     }
-  } catch (sslErr) {
-    // SSL handshake failed, certificate expired/untrusted, or domain does not listen on 443
-    hasWorkingHttps = false;
+  } catch (sslErr1) {
+    // If bare domain failed SSL handshake, try www. prefix over HTTPS before declaring SSL broken
+    if (!cleanDomain.toLowerCase().startsWith('www.')) {
+      try {
+        const wwwResp = tryFetchUrl('https://www.' + cleanDomain, true);
+        const status2 = wwwResp.getResponseCode();
+        const content2 = wwwResp.getContentText() || '';
+        if (status2 >= 200 && status2 < 400 && content2.length > 200) {
+          hasWorkingHttps = true;
+          homeStatus = status2;
+          homeHtml = content2;
+          baseUrl = 'https://www.' + cleanDomain;
+        }
+      } catch (sslErr2) {
+        hasWorkingHttps = false;
+      }
+    }
   }
 
-  // 2. If HTTPS failed, fallback to HTTP to check if site is only reachable over insecure HTTP
-  if (!hasWorkingHttps) {
+  // 3B. If HTTPS failed completely, fallback to HTTP
+  if (!hasWorkingHttps && homeStatus === 0) {
     try {
-      const httpResp = UrlFetchApp.fetch(httpUrl, {
-        method: 'get',
-        muteHttpExceptions: true,
-        followRedirects: true,
-        validateHttpsCertificates: false
-      });
+      const httpResp = tryFetchUrl('http://' + cleanDomain, false);
       homeStatus = httpResp.getResponseCode();
       homeHtml = httpResp.getContentText() || '';
-      baseUrl = httpUrl;
+      baseUrl = 'http://' + cleanDomain;
       isStrictHttpOnly = true;
     } catch (httpErr) {
-      score += 80;
-      issues.unshift('BROKEN WEBSITE: Website link on Google Maps is dead or unreachable');
-      return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, '');
+      score = 94;
+      issues.push('BROKEN WEBSITE: Website link on Google Maps is dead, expired, or unreachable');
+      return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, rawSite, true);
     }
   }
 
-  const loadMs = new Date().getTime() - t0;
-
-  // 3. Mark NOT SECURE only if the site genuinely fails SSL or is stuck on plain HTTP
-  if (isStrictHttpOnly || (!hasWorkingHttps && homeStatus < 400)) {
-    score += 35;
-    issues.push('NOT SECURE (HTTP): Missing HTTPS SSL security (browsers warn visitors)');
-  }
-
+  // Extract contact email / Facebook from HTML if any HTML was returned
   const ignoredExtensions = /\.(png|jpe?g|gif|webp|svg|ico|css|js|woff2?|ttf|eot|mp4|pdf)$/i;
   const ignoredDomains = /(sentry\.io|wixpress\.com|example\.com|domain\.com|email\.com|yoursite\.com|wordpress\.org|w3\.org|schema\.org|googleapis\.com)/i;
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g;
   const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi;
   const fbRegex = /https?:\/\/(?:www\.)?facebook\.com\/[a-zA-Z0-9._-]+/i;
 
-  if (homeStatus >= 400 || !homeHtml || homeHtml.length < 200) {
+  if (homeHtml) {
+    const extractedHome = extractContactFromHtml_(homeHtml, ignoredExtensions, ignoredDomains, emailRegex, mailtoRegex, fbRegex);
+    foundEmail = extractedHome.email;
+    foundFacebook = extractedHome.facebook;
+  }
+
+  // Guard: If HTTP 403/503 is just a Cloudflare bot challenge on a live HTTPS site, treat as a working site (skip!)
+  const isCloudflareChallenge = (homeStatus === 403 || homeStatus === 503) && hasWorkingHttps && /cloudflare|cf-browser-verification|Just a moment\.\.\.|Attention Required!/i.test(homeHtml);
+  if (isCloudflareChallenge) {
+    return finalizeAuditReport_(10, ['USABLE WEBSITE (Cloudflare Protected) - Skip'], foundEmail, foundFacebook, baseUrl, false);
+  }
+
+  // 4. BROKEN HTTP STATUS OR EMPTY SITE
+  if (homeStatus >= 400 || !homeHtml || homeHtml.length < 300) {
+    score = 90;
+    issues.push('BROKEN / EMPTY WEBSITE: Website returned HTTP ' + (homeStatus || 'Error') + ' or blank page');
+    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true);
+  }
+
+  // 5. PARKED / EXPIRED / UNDER CONSTRUCTION / SUSPENDED DOMAIN DETECTION
+  const visibleText = homeHtml
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const titleAndH1Text = ((homeHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '') + ' ' +
+    ((homeHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '');
+
+  const hardParkedRegex = /(domain is parked|parked free|courtesy of godaddy|sedoparking|hugedomains|afternic|this domain may be for sale|buy this domain|website expired|this site is currently unavailable|account suspended|cgi-sys\/suspendedpage|default web site page|future home of something quite cool|deployment not found|this wix site is not yet published)/i;
+  const placeholderRegex = /(website coming soon|^coming soon$|under construction|site not found)/i;
+  const isParkedOrPlaceholder = hardParkedRegex.test(homeHtml) || hardParkedRegex.test(visibleText) ||
+    placeholderRegex.test(titleAndH1Text) || (visibleText.length < 1500 && placeholderRegex.test(visibleText));
+
+  if (isParkedOrPlaceholder) {
+    score = 90;
+    issues.push('PARKED / EXPIRED / UNDER CONSTRUCTION: Domain shows a parked, expired, or "Coming Soon" placeholder page');
+    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true);
+  }
+
+  // 6. EVALUATE GENUINELY BAD / UNUSABLE WEBSITE CRITERIA
+  let hasMajorDefect = false;
+
+  // Defect A: Insecure HTTP-Only (No working SSL certificate)
+  if (isStrictHttpOnly || !hasWorkingHttps) {
+    score += 78;
+    hasMajorDefect = true;
+    issues.push('NOT SECURE (HTTP-ONLY): Missing SSL certificate (browsers show "Not Secure" warning to customers)');
+  }
+
+  // Defect B: Amateur Free Subdomain (.wixsite.com, .weebly.com, .godaddysites.com, etc.)
+  if (isFreeSubdomain) {
+    score += 78;
+    hasMajorDefect = true;
+    issues.push('FREE SUBDOMAIN: Using an amateur free builder subdomain (' + cleanDomain + ') instead of a custom domain');
+  }
+
+  // Defect C: Not Mobile-Friendly (Missing viewport meta tag)
+  const hasViewport = /<meta[^>]+name=["']?viewport["']?/i.test(homeHtml);
+  if (!hasViewport) {
+    score += 78;
+    hasMajorDefect = true;
+    issues.push('NOT MOBILE-FRIENDLY: Missing mobile viewport tag (renders as broken desktop layout on phones)');
+  }
+
+  // Defect D: Severely Outdated 1990s/2000s HTML or Empty Skeleton Page (< 300 chars of real text)
+  const hasObsoleteMarkup = /(<frameset|<frame\s|<marquee|ShockwaveFlash|Microsoft FrontPage|Adobe GoLive|Claris Home Page)/i.test(homeHtml);
+  const isSkeletonPage = visibleText.length < 300;
+  const hasAncientCopyrightOnly = /(?:copyright|\u00A9|&copy;)\s*(?:199\d|200\d|201[0-7])\b/i.test(homeHtml) && !/202[0-6]/.test(homeHtml);
+
+  if (hasObsoleteMarkup) {
+    score += 78;
+    hasMajorDefect = true;
+    issues.push('ANCIENT HTML: Built with obsolete 1990s/2000s web markup (framesets/Flash/FrontPage)');
+  } else if (isSkeletonPage) {
     score += 75;
-    issues.unshift('BROKEN / EMPTY SITE: Homepage returned HTTP ' + homeStatus);
-    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook);
+    hasMajorDefect = true;
+    issues.push('EMPTY / SKELETON SITE: Homepage has almost zero text content (' + visibleText.length + ' chars)');
+  } else if (hasAncientCopyrightOnly && !/href=["']tel:/i.test(homeHtml)) {
+    score += 75;
+    hasMajorDefect = true;
+    issues.push('ABANDONED / OUTDATED SITE: Outdated pre-2018 copyright & no mobile click-to-call');
   }
 
-  if (loadMs > 2200) {
-    score += 20;
-    issues.push('SLOW RESPONSE: Server took ' + (loadMs / 1000).toFixed(1) + 's just to send HTML');
+  // If the website has NO major defects, it is a USABLE WEBSITE -> Disqualify & Skip!
+  if (!hasMajorDefect) {
+    return finalizeAuditReport_(15, ['USABLE WEBSITE: Has working HTTPS, custom domain, mobile viewport, and active content (Skip)'], foundEmail, foundFacebook, baseUrl, false);
   }
 
-  if (/wix\.com|wixstatic\.com/i.test(homeHtml)) {
-    score += 25;
-    issues.push('BLOATED BUILDER: Built on Wix (heavy JS, weak local SEO)');
-  } else if (/godaddy\.com|wsimg\.com/i.test(homeHtml)) {
-    score += 30;
-    issues.push('TEMPLATE BUILDER: Basic GoDaddy Website Builder template');
-  } else if (/wp-content|wp-includes/i.test(homeHtml)) {
-    score += 15;
-    issues.push('WORDPRESS SITE: Vulnerable to plugin bloat & slow mobile speed');
-  } else if (/squarespace\.com/i.test(homeHtml)) {
-    score += 20;
-    issues.push('TEMPLATE BUILDER: Built on Squarespace');
-  } else if (/weebly\.com/i.test(homeHtml)) {
-    score += 30;
-    issues.push('OUTDATED BUILDER: Built on Weebly');
-  }
-
-  if (!/<meta[^>]+name=["']?viewport["']?/i.test(homeHtml)) {
-    score += 35;
-    issues.push('NOT MOBILE-FRIENDLY: Missing mobile viewport tag (fails mobile indexing)');
-  }
-
-  const titleMatch = homeHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const titleText = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
-  if (!titleText) {
-    score += 25;
-    issues.push('MISSING SEO TITLE: No <title> tag on homepage');
-  } else if (titleText.length < 15 || /^(home|welcome|untitled|index)$/i.test(titleText)) {
-    score += 25;
-    issues.push('WEAK SEO TITLE: Generic title ("' + titleText + '") missing city & service keywords');
-  } else if (!/(appleton|neenah|menasha|kaukauna|greenville|oshkosh|green bay|fox valley|wisconsin|\bwi\b)/i.test(titleText)) {
-    score += 15;
-    issues.push('NO LOCAL KEYWORDS IN TITLE: Title tag does not mention their city or Fox Valley');
-  }
-
-  if (!/<meta[^>]+name=["']?description["']?[^>]+content=["'][^"']{20,}/i.test(homeHtml)) {
-    score += 15;
-    issues.push('NO META DESCRIPTION: Missing search snippet description for Google results');
-  }
-
-  if (!/<h1[\s>]/i.test(homeHtml)) {
-    score += 15;
-    issues.push('MISSING H1 HEADING: No primary <h1> tag for Google search indexing');
-  }
-
-  if (!/application\/ld\+json/i.test(homeHtml)) {
-    score += 12;
-    issues.push('NO LOCAL SCHEMA: Missing JSON-LD LocalBusiness schema markup');
-  }
-
+  // Add secondary context notes ONLY for already-qualified bad sites (to enrich the pitch)
   if (!/href=["']tel:/i.test(homeHtml)) {
-    score += 20;
-    issues.push('NO CLICK-TO-CALL: Phone number is not tappable (no tel: link) for mobile leads');
+    score += 6;
+    issues.push('NO CLICK-TO-CALL: Phone number is not tappable on mobile');
+  }
+  if (!/<h1[\s>]/i.test(homeHtml)) {
+    score += 5;
+    issues.push('MISSING H1 HEADING: Weak search engine structure');
   }
 
-  const extractedHome = extractContactFromHtml_(homeHtml, ignoredExtensions, ignoredDomains, emailRegex, mailtoRegex, fbRegex);
-  foundEmail = extractedHome.email;
-  foundFacebook = extractedHome.facebook;
-
+  // Crawl /contact or /about to find email for qualified prospects only
   if (!foundEmail) {
     const subpaths = ['/contact', '/contact-us', '/about'];
     for (let i = 0; i < subpaths.length; i++) {
       try {
-        const subResp = UrlFetchApp.fetch(baseUrl + subpaths[i], {
-          method: 'get',
-          muteHttpExceptions: true,
-          followRedirects: true,
-          validateHttpsCertificates: false
-        });
+        const subResp = tryFetchUrl(baseUrl + subpaths[i], false);
         if (subResp.getResponseCode() === 200) {
           const subExtracted = extractContactFromHtml_(
             subResp.getContentText() || '',
@@ -806,30 +888,95 @@ function auditWebsiteAndSeoPresence_(info) {
     }
   }
 
-  return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl);
+  return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true);
 }
 
-function finalizeAuditReport_(rawScore, issues, email, facebook, verifiedUrl) {
-  const cappedScore = Math.min(100, rawScore);
-  let tierLabel = 'LOW PRIORITY';
-  if (cappedScore >= 75) {
-    tierLabel = 'HOT PROSPECT';
-  } else if (cappedScore >= 45) {
-    tierLabel = 'STRONG PROSPECT';
-  } else if (cappedScore >= 25) {
-    tierLabel = 'MODERATE';
+function finalizeAuditReport_(rawScore, issues, email, facebook, verifiedUrl, isQualifiedProspect) {
+  const cappedScore = isQualifiedProspect ? Math.max(70, Math.min(100, rawScore)) : Math.min(30, rawScore);
+  let tierLabel = 'USABLE SITE - SKIP';
+  if (isQualifiedProspect) {
+    tierLabel = cappedScore >= 85 ? 'HOT PROSPECT' : 'QUALIFIED BAD SITE';
   }
 
   const summary = issues.length
     ? issues.join(' | ')
-    : 'Site passes basic technical checks (pitch conversion speed & design upgrade)';
+    : 'Usable website (Skip)';
 
   return {
+    isQualifiedProspect: Boolean(isQualifiedProspect),
     badnessScore: cappedScore,
     reportText: '[' + tierLabel + ' - ' + cappedScore + '/100] ' + summary,
     email: email,
     facebook: facebook,
     verifiedUrl: verifiedUrl || ''
+  };
+}
+
+/**
+ * Purges / deletes unbuilt rows from "Prospect Pipeline" that already have usable websites,
+ * and marks any previously drafted usable-website rows as "Skip / Disqualified".
+ */
+function purgeUsableWebsitesCore() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) return { success: true, removedCount: 0, message: 'Sheet not found' };
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, removedCount: 0, message: 'No rows to purge' };
+
+  const values = sheet.getRange(2, 1, lastRow - 1, TOTAL_COLS).getValues();
+  const rowsToDelete = [];
+  let markedSkipCount = 0;
+
+  // Real qualifying defect keywords
+  const qualifyingDefectRegex = /(NO WEBSITE|FACEBOOK-ONLY|NO REAL WEBSITE|DEAD GOOGLE BUSINESS SITE|BROKEN|EMPTY|PARKED|EXPIRED|UNDER CONSTRUCTION|NOT SECURE|HTTP-ONLY|FREE SUBDOMAIN|NOT MOBILE-FRIENDLY|ANCIENT HTML|SKELETON SITE|ABANDONED)/i;
+
+  for (let i = values.length - 1; i >= 0; i--) {
+    const rowNum = i + 2;
+    const row = values[i];
+    const bizName = String(row[COL.BUSINESS_NAME - 1] || '').trim();
+    const domainStatus = String(row[COL.DOMAIN_STATUS - 1] || '').trim();
+    const siteIssues = String(row[COL.SITE_ISSUES - 1] || '').trim();
+    const previewUrl = String(row[COL.PREVIEW_URL - 1] || '').trim();
+
+    const scoreMatch = siteIssues.match(/(\d+)\/100/);
+    const rowScore = scoreMatch ? parseInt(scoreMatch[1], 10) : 0;
+
+    const isNoSiteOrFb = !domainStatus || /no website|facebook\.com|fb\.com|instagram\.com|yelp\.com|business\.site/i.test(domainStatus);
+    let isQualified = isNoSiteOrFb;
+
+    if (!isNoSiteOrFb && !previewUrl) {
+      // Live re-audit custom domains on unbuilt rows so legacy http:// rows that actually redirect to working https:// sites are purged
+      const reAudit = auditWebsiteAndSeoPresence_({
+        bizName: bizName,
+        siteUrl: domainStatus,
+        fbUrl: '',
+        reviewsCount: 10
+      });
+      isQualified = reAudit.isQualifiedProspect && reAudit.badnessScore >= 70;
+    } else if (!isNoSiteOrFb && previewUrl) {
+      isQualified = rowScore >= 70 && qualifyingDefectRegex.test(siteIssues) && !/WORDPRESS SITE|TEMPLATE BUILDER: Built on Squarespace|BLOATED BUILDER: Built on Wix/i.test(siteIssues);
+    }
+
+    if (!isQualified) {
+      if (!previewUrl) {
+        rowsToDelete.push(rowNum);
+      } else {
+        sheet.getRange(rowNum, COL.LEAD_STATUS).setValue('Skip / Disqualified');
+        markedSkipCount++;
+      }
+    }
+  }
+
+  for (let j = 0; j < rowsToDelete.length; j++) {
+    sheet.deleteRow(rowsToDelete[j]);
+  }
+
+  SpreadsheetApp.flush();
+  return {
+    success: true,
+    deletedRowCount: rowsToDelete.length,
+    markedSkipCount: markedSkipCount
   };
 }
 
@@ -865,36 +1012,62 @@ function extractContactFromHtml_(html, ignoredExtensions, ignoredDomains, emailR
 }
 
 function fetchLeadsFromSerper_(apiKey, query) {
-  const resp = UrlFetchApp.fetch('https://google.serper.dev/maps', {
-    method: 'post',
-    contentType: 'application/json',
-    headers: { 'X-API-KEY': apiKey },
-    payload: JSON.stringify({ q: query, gl: 'us', hl: 'en' }),
-    muteHttpExceptions: true
-  });
+  const allPlaces = [];
+  const seenTitles = new Set();
 
-  const code = resp.getResponseCode();
-  const text = resp.getContentText();
-  if (code < 200 || code >= 300) {
-    throw new Error('Serper.dev HTTP ' + code + ': ' + text.slice(0, 300));
+  // Fetch up to 3 pages (up to 60 local businesses) from Google Maps via Serper
+  // because Page 1 is dominated by companies with good websites, while Pages 2-3
+  // have the highest concentration of Facebook-only, No-Website, and Broken-Site contractors!
+  for (let pageNum = 1; pageNum <= 3; pageNum++) {
+    try {
+      const resp = UrlFetchApp.fetch('https://google.serper.dev/maps', {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { 'X-API-KEY': apiKey },
+        payload: JSON.stringify({ q: query, gl: 'us', hl: 'en', page: pageNum }),
+        muteHttpExceptions: true
+      });
+
+      const code = resp.getResponseCode();
+      const text = resp.getContentText();
+      if (code < 200 || code >= 300) {
+        if (pageNum === 1) {
+          throw new Error('Serper.dev HTTP ' + code + ': ' + text.slice(0, 300));
+        }
+        break;
+      }
+
+      const data = JSON.parse(text);
+      const places = Array.isArray(data.places) ? data.places : [];
+      if (!places.length) break;
+
+      for (let i = 0; i < places.length; i++) {
+        const p = places[i];
+        const titleKey = String(p.title || '').trim().toLowerCase();
+        if (!titleKey || seenTitles.has(titleKey)) continue;
+        seenTitles.add(titleKey);
+
+        allPlaces.push({
+          name: p.title || '',
+          full_address: p.address || '',
+          phone: p.phoneNumber || '',
+          site: p.website || '',
+          rating: p.rating || '',
+          reviews: p.ratingCount || 0,
+          working_hours: p.openingHours || '',
+          type: p.type || (Array.isArray(p.types) ? p.types[0] : ''),
+          logo: p.thumbnailUrl || '',
+          email: '',
+          facebook: (p.website && p.website.includes('facebook.com')) ? p.website : ''
+        });
+      }
+    } catch (err) {
+      if (pageNum === 1) throw err;
+      break;
+    }
   }
 
-  const data = JSON.parse(text);
-  const places = Array.isArray(data.places) ? data.places : [];
-
-  return places.map(p => ({
-    name: p.title || '',
-    full_address: p.address || '',
-    phone: p.phoneNumber || '',
-    site: p.website || '',
-    rating: p.rating || '',
-    reviews: p.ratingCount || 0,
-    working_hours: p.openingHours || '',
-    type: p.type || (Array.isArray(p.types) ? p.types[0] : ''),
-    logo: p.thumbnailUrl || '',
-    email: '',
-    facebook: (p.website && p.website.includes('facebook.com')) ? p.website : ''
-  }));
+  return allPlaces;
 }
 
 function fetchLeadsFromOutscraper_(apiKey, query) {
@@ -1181,38 +1354,43 @@ function createDraftsCore() {
 
     try {
       const screenshotBlob = captureSiteScreenshotBlob_(previewUrl, bizName);
+      const qrBlob = captureQrCodeBlob_(previewUrl, bizName);
       const claimUrl = CONFIG.CLAIM_BASE_URL + '?business=' + encodeURIComponent(bizName) + '&preview=' + encodeURIComponent(previewUrl);
 
-      const subject = 'I built a custom website concept for ' + bizName + ' (Preview inside)';
+      const subject = 'Quick note from Jason in Appleton — ' + bizName;
 
       let plainImprovements = '';
       if (improvements.length > 0) {
-        plainImprovements = 'A few specific improvements I noticed for your online presence that this concept delivers:\n' +
+        plainImprovements = 'Simply swapping in this new site helps your business right away:\n' +
           improvements.map(function(item) {
-            return '- ' + item.title + ': ' + item.desc;
+            return '• ' + item.title + ': ' + item.desc;
           }).join('\n') + '\n\n';
       }
 
       const plainBody =
         'Hi ' + bizName + ' team,\n\n' +
-        'I\'m Jason Woodrow with 624 Siteworks right here in Appleton. I noticed your strong local reputation and put together a live, mobile-optimized 4-page website concept tailored specifically for ' + bizName + '.\n\n' +
-        'View your live interactive preview here:\n' + previewUrl + '\n\n' +
+        'I\'m Jason Woodrow, and I run a small local studio right here in Appleton (624 Siteworks)—not an out-of-state marketing agency.\n\n' +
+        'While looking at Fox Valley contractors, I noticed ' + bizName + ' has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:\n' +
+        previewUrl + '\n\n' +
         plainImprovements +
-        'If you like the direction, we can customize any text, photos, or branding and launch it on your domain for a flat one-time build fee:\n' + claimUrl + '\n\n' +
-        'Have questions or want to talk about your website? Call or text me directly at ' + CONFIG.AGENCY_PHONE + '.\n\n' +
-        'Best regards,\nJason Woodrow\n624 Siteworks - Appleton, WI\nCall / Text: ' + CONFIG.AGENCY_PHONE + '\n' + CONFIG.AGENCY_URL;
+        'Zero obligation—I already built the draft. If you want to put it on your domain, my flat options are at ' + claimUrl + ', or just call/text my cell at ' + CONFIG.AGENCY_PHONE + '.\n\n' +
+        'Best,\nJason Woodrow\n624 Siteworks · Appleton, WI · ' + CONFIG.AGENCY_PHONE + '\n' + CONFIG.AGENCY_URL;
 
       const htmlBody = buildHtmlPitchEmail_({
         bizName: bizName,
         previewUrl: previewUrl,
         claimUrl: claimUrl,
         improvements: improvements,
-        hasInlineScreenshot: Boolean(screenshotBlob)
+        hasInlineScreenshot: Boolean(screenshotBlob),
+        hasInlineQr: Boolean(qrBlob)
       });
 
-      const draftOptions = { htmlBody: htmlBody };
+      const draftOptions = { htmlBody: htmlBody, inlineImages: {} };
       if (screenshotBlob) {
-        draftOptions.inlineImages = { sitePreview: screenshotBlob };
+        draftOptions.inlineImages.sitePreview = screenshotBlob;
+      }
+      if (qrBlob) {
+        draftOptions.inlineImages.qrPreview = qrBlob;
       }
 
       GmailApp.createDraft(recipientEmail, subject, plainBody, draftOptions);
@@ -1253,14 +1431,50 @@ function captureSiteScreenshotBlob_(previewUrl, bizName) {
   return null;
 }
 
+function captureQrCodeBlob_(previewUrl, bizName) {
+  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=' + encodeURIComponent(previewUrl);
+  const safeSlug = bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'preview';
+  try {
+    const response = UrlFetchApp.fetch(qrUrl, {
+      method: 'get',
+      muteHttpExceptions: true,
+      followRedirects: true
+    });
+    if (response.getResponseCode() >= 200 && response.getResponseCode() < 300) {
+      return response.getBlob().setName(safeSlug + '-qr.png');
+    }
+  } catch (e) {}
+  return null;
+}
+
 function buildHtmlPitchEmail_(data) {
   const screenshotMarkup = data.hasInlineScreenshot
-    ? '<div style="margin: 24px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);">' +
+    ? '<div style="margin: 22px 0 16px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);">' +
         '<a href="' + data.previewUrl + '" target="_blank" style="display: block; text-decoration: none;">' +
-          '<img src="cid:sitePreview" alt="' + data.bizName + ' Concept Website Preview" style="display: block; width: 100%; max-width: 640px; height: auto; border: 0;" />' +
+          '<img src="cid:sitePreview" alt="' + data.bizName + ' Website Preview" style="display: block; width: 100%; max-width: 640px; height: auto; border: 0;" />' +
         '</a>' +
       '</div>'
     : '';
+
+  const fallbackQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=' + encodeURIComponent(data.previewUrl);
+  const qrImgSrc = data.hasInlineQr ? 'cid:qrPreview' : fallbackQrUrl;
+
+  const qrCardMarkup =
+    '<table cellpadding="0" cellspacing="0" border="0" style="margin: 18px 0 24px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; width: 100%; max-width: 520px;">' +
+      '<tr>' +
+        '<td style="padding-right: 16px; vertical-align: middle; width: 136px;">' +
+          '<a href="' + data.previewUrl + '" target="_blank" style="display: inline-block; background: #ffffff; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0;">' +
+            '<img src="' + qrImgSrc + '" width="124" height="124" alt="Scan QR Code to preview on phone" style="display: block; width: 124px; height: 124px; border: 0;" />' +
+          '</a>' +
+        '</td>' +
+        '<td style="vertical-align: middle;">' +
+          '<div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #059669; margin-bottom: 4px;">Scan With Your Phone Camera</div>' +
+          '<div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Test the Mobile View in Your Hand</div>' +
+          '<div style="font-size: 13px; color: #475569; line-height: 1.45; margin-bottom: 10px;">Reading this on a computer? Point your phone camera right at this QR code to open <strong>' + data.bizName + '</strong>\'s mobile preview immediately.</div>' +
+          '<a href="' + data.previewUrl + '" target="_blank" style="display: inline-block; padding: 8px 14px; background-color: #0f172a; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">Or Click to Open Preview &rarr;</a>' +
+        '</td>' +
+      '</tr>' +
+    '</table>';
 
   let improvementsMarkup = '';
   if (data.improvements && data.improvements.length > 0) {
@@ -1269,39 +1483,29 @@ function buildHtmlPitchEmail_(data) {
     }).join('');
 
     improvementsMarkup =
-      '<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">' +
-        '<p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">' +
-          'A few specific improvements I noticed for your online setup:' +
+      '<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb; border-radius: 8px; padding: 14px 18px; margin: 18px 0;">' +
+        '<p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #334155;">' +
+          'How simply swapping in this new site helps ' + data.bizName + ':' +
         '</p>' +
-        '<ul style="margin: 0; padding-left: 20px; color: #1e293b; font-size: 14px; line-height: 1.6;">' +
+        '<ul style="margin: 0; padding-left: 18px; color: #1e293b; font-size: 14px; line-height: 1.55;">' +
           listItems +
         '</ul>' +
       '</div>';
   }
 
   return (
-    '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 640px; line-height: 1.6; font-size: 16px;">' +
+    '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 620px; line-height: 1.55; font-size: 15px;">' +
       '<p style="margin-top: 0;">Hi <strong>' + data.bizName + '</strong> team,</p>' +
-      '<p>I\'m Jason Woodrow, founder of <strong>624 Siteworks</strong> right here in Appleton. While looking at top-rated local contractors in the Fox Valley, I noticed your strong Google reviews and decided to build a custom, blazing-fast 4-page website concept specifically for <strong>' + data.bizName + '</strong>.</p>' +
-      '<p style="margin: 22px 0;">' +
-        '<a href="' + data.previewUrl + '" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 26px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">' +
-          'View Your Live Interactive Website Preview &rarr;' +
-        '</a>' +
-      '</p>' +
+      '<p>I\'m Jason Woodrow, and I run a small local studio right here in Appleton (<strong>624 Siteworks</strong>)—not an out-of-state marketing agency.</p>' +
+      '<p>While looking at Fox Valley contractors, I noticed <strong>' + data.bizName + '</strong> has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:</p>' +
       screenshotMarkup +
-      '<p style="font-size: 14px; color: #475569; margin-top: 8px;">' +
-        '<em>Click the image above or visit <a href="' + data.previewUrl + '" style="color: #2563eb;">' + data.previewUrl + '</a> to test it on your phone or computer.</em>' +
-      '</p>' +
+      qrCardMarkup +
       improvementsMarkup +
-      '<p>Unlike bloated WordPress templates that load slowly and require constant plugin updates, we hand-craft clean static websites engineered to rank locally in Northeast Wisconsin and turn visitors into phone calls.</p>' +
-      '<p><strong>What happens if you like it?</strong><br/>' +
-      'There\'s zero obligation. If you\'d like to talk about your website or have any questions, call or text me directly at <a href="tel:9202345633" style="color: #2563eb; font-weight: 700;">' + CONFIG.AGENCY_PHONE + '</a>. You can also view our flat-rate build options or lock in this design directly here: <a href="' + data.claimUrl + '" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>' +
-      '<p style="margin-top: 28px; margin-bottom: 4px;">Best regards,</p>' +
-      '<p style="margin: 0;">' +
+      '<p><strong>Zero obligation:</strong> I already built the draft. If you want to put it on your domain, my flat options are <a href="' + data.claimUrl + '" style="color: #2563eb; font-weight: 700;">right here</a>, or just call/text my cell at <a href="tel:9202345633" style="color: #2563eb; font-weight: 700;">' + CONFIG.AGENCY_PHONE + '</a>.</p>' +
+      '<p style="margin-top: 20px; margin-bottom: 0;">' +
+        'Best,<br/>' +
         '<strong>Jason Woodrow</strong><br/>' +
-        '624 Siteworks | Appleton, WI<br/>' +
-        '<a href="tel:9202345633" style="color: #0f172a; text-decoration: none; font-weight: 600;">' + CONFIG.AGENCY_PHONE + '</a><br/>' +
-        '<a href="' + CONFIG.AGENCY_URL + '" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>' +
+        '624 Siteworks · Appleton, WI · <a href="tel:9202345633" style="color: #0f172a; text-decoration: none; font-weight: 600;">' + CONFIG.AGENCY_PHONE + '</a> · <a href="' + CONFIG.AGENCY_URL + '" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>' +
       '</p>' +
     '</div>'
   );

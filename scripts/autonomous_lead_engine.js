@@ -717,7 +717,7 @@ async function runTheScout(targetNiche) {
     throw new Error(`Gate 1 Scraper failed: ${result.error || 'Unknown error'}`);
   }
 
-  logSuccess(`Scraped & audited ${result.insertedCount || 0} leads from ${result.provider || 'Google Maps'}.`);
+  logSuccess(`Scraped & audited ${result.insertedCount || 0} qualified leads (skipped ${result.skippedUsableCount || 0} usable websites) from ${result.provider || 'Google Maps'}.`);
   logSub(`Website crawler discovered ${result.crawledEmailCount || 0} direct email address(es).`);
   return result;
 }
@@ -726,8 +726,126 @@ async function runTheScout(targetNiche) {
 // AGENT 2: THE DIAGNOSER & RANKER
 // ============================================================================
 
+const QUALIFYING_DEFECT_REGEX = /NO WEBSITE|FACEBOOK-ONLY|NO REAL WEBSITE|DEAD GOOGLE BUSINESS SITE|BROKEN|EMPTY|PARKED|EXPIRED|UNDER CONSTRUCTION|NOT SECURE|HTTP-ONLY|FREE SUBDOMAIN|NOT MOBILE-FRIENDLY|ANCIENT HTML|SKELETON SITE|ABANDONED/i;
+
+function isLeadQualifiedProspect(lead) {
+  const score = Number(lead.badnessScore ?? 0);
+  if (score < 70) return false;
+
+  const domain = String(lead.domainStatus || '').trim();
+  const domainLower = domain.toLowerCase();
+  const issues = String(lead.siteIssues || '');
+
+  if (issues.includes('[USABLE SITE - SKIP]')) return false;
+  if (!domain || domainLower.includes('no website')) return true;
+  if (/(facebook\.com|fb\.com|m\.facebook\.com|instagram\.com|yelp\.com|bbb\.org|angi\.com|nextdoor\.com|yellowpages\.com|thumbtack\.com|houzz\.com)/i.test(domainLower)) return true;
+  if (/(business\.site|wixsite\.com|weebly\.com|godaddysites\.com|wordpress\.com|blogspot\.com|sites\.google\.com|square\.site|jimdofree\.com|webnode\.page|ueniweb\.com|mystrikingly\.com|carrd\.co)/i.test(domainLower)) return true;
+  if (domainLower.startsWith('http://')) return true;
+
+  return QUALIFYING_DEFECT_REGEX.test(issues);
+}
+
+async function verifyLeadDoesNotHaveUsableSite(lead) {
+  const domain = String(lead.domainStatus || '').trim();
+  const domainLower = domain.toLowerCase();
+
+  // Immediate pass for No Website, Social/Directory-only, or Free Subdomains
+  if (!domain || domainLower.includes('no website')) return { qualified: true, reason: 'No website listed' };
+  if (/(facebook\.com|fb\.com|m\.facebook\.com|instagram\.com|yelp\.com|bbb\.org|angi\.com|nextdoor\.com|yellowpages\.com|thumbtack\.com|houzz\.com)/i.test(domainLower)) {
+    return { qualified: true, reason: 'Social/Directory-only link' };
+  }
+  if (/(business\.site|wixsite\.com|weebly\.com|godaddysites\.com|wordpress\.com|blogspot\.com|sites\.google\.com|square\.site|jimdofree\.com|webnode\.page|ueniweb\.com|mystrikingly\.com|carrd\.co)/i.test(domainLower)) {
+    return { qualified: true, reason: 'Free builder subdomain' };
+  }
+
+  // Always test HTTPS first (even if Google Maps recorded an older http:// link)
+  const cleanHost = domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  const httpsUrl = `https://${cleanHost}`;
+  const httpUrl = `http://${cleanHost}`;
+  const fetchHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+  };
+
+  try {
+    let res;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 9000);
+      res = await fetch(httpsUrl, { signal: controller.signal, redirect: 'follow', headers: fetchHeaders });
+      clearTimeout(timeout);
+    } catch (httpsErr) {
+      // HTTPS failed (SSL error / no cert) -> check if HTTP-only works
+      const controller2 = new AbortController();
+      const timeout2 = setTimeout(() => controller2.abort(), 8000);
+      const httpRes = await fetch(httpUrl, { signal: controller2.signal, redirect: 'follow', headers: fetchHeaders });
+      clearTimeout(timeout2);
+      if (httpRes.ok) {
+        return { qualified: true, reason: 'Strict HTTP-only website (missing/broken SSL certificate)' };
+      }
+      return { qualified: true, reason: `HTTP ${httpRes.status} broken response` };
+    }
+
+    if (!res.ok || res.status >= 400) {
+      return { qualified: true, reason: `HTTP ${res.status} broken response` };
+    }
+
+    const finalUrl = (res.url || httpsUrl).toLowerCase();
+    if (finalUrl.startsWith('http://')) {
+      return { qualified: true, reason: 'Redirects to insecure HTTP' };
+    }
+    if (/(facebook\.com|fb\.com|instagram\.com)/i.test(finalUrl)) {
+      return { qualified: true, reason: 'Redirects to social media page' };
+    }
+
+    const html = await res.text();
+    if (!html || html.trim().length < 250) {
+      return { qualified: true, reason: 'Empty / blank response' };
+    }
+
+    const textContent = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const titleAndH1Text = ((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '') + ' ' +
+      ((html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '');
+
+    const hardParkedRegex = /(domain is parked|parked free|courtesy of godaddy|sedoparking|hugedomains|afternic|this domain may be for sale|buy this domain|website expired|this site is currently unavailable|account suspended|cgi-sys\/suspendedpage|default web site page|future home of something quite cool|deployment not found|this wix site is not yet published)/i;
+    const placeholderRegex = /(website coming soon|^coming soon$|under construction|site not found)/i;
+    if (
+      hardParkedRegex.test(html) ||
+      hardParkedRegex.test(textContent) ||
+      placeholderRegex.test(titleAndH1Text) ||
+      (textContent.length < 1500 && placeholderRegex.test(textContent))
+    ) {
+      return { qualified: true, reason: 'Parked, expired, or under construction domain' };
+    }
+
+    const hasViewport = /<meta[^>]*name=["']?viewport["']?/i.test(html);
+    if (!hasViewport) {
+      return { qualified: true, reason: 'Missing mobile viewport tag (non-responsive desktop site)' };
+    }
+
+    if (textContent.length < 300) {
+      return { qualified: true, reason: `Skeleton page (${textContent.length} chars of text)` };
+    }
+
+    if (/<frameset|<frame\s|<marquee|<blink|Generator["']\s+content=["']Microsoft FrontPage/i.test(html)) {
+      return { qualified: true, reason: '1990s/2000s obsolete HTML layout' };
+    }
+
+    // If it passed all checks (working HTTPS, mobile viewport, >300 chars content, not parked), it is a USABLE site!
+    return { qualified: false, reason: 'Live check confirmed working, mobile-friendly HTTPS website' };
+  } catch (err) {
+    // DNS failure, SSL error, or connection timeout means the website isn't working
+    return { qualified: true, reason: `Unreachable / SSL or DNS error (${err.message})` };
+  }
+}
+
 async function runTheDiagnoser(targetNiche, countToPick = 2) {
-  logStep(2, 'The Diagnoser & Ranker', 'Querying Prospect Pipeline to rank worst-scoring leads...');
+  logStep(2, 'The Diagnoser & Ranker', 'Querying Prospect Pipeline for qualified No-Website / Facebook-Only / Broken / Bad-Website leads...');
 
   const getUrl = `${CONFIG.APPS_SCRIPT_URL}?action=getPipeline`;
   const res = await fetch(getUrl);
@@ -747,23 +865,66 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
       lead.leadStatus.toLowerCase().includes('disqualif') ||
       lead.leadStatus.toLowerCase().includes('draft created')
     );
-    return !hasPreview && !isDismissed;
+    return !hasPreview && !isDismissed && isLeadQualifiedProspect(lead);
   });
 
   if (candidates.length === 0) {
-    throw new Error('No unbuilt leads found in the pipeline for today. Check your Google Sheet!');
+    return [];
   }
 
-  // Prioritize unbuilt candidates matching today's scheduled niche trade
+  // Prioritize unbuilt candidates matching today's scheduled niche trade (with trade synonyms)
+  const tradeKeywordsMap = {
+    hvac: /hvac|heating|cooling|air conditioning|mechanical|refrigeration|furnace/i,
+    plumbing: /plumb|piping|drain|sewer|water heater/i,
+    roofing: /roof|shingle|exterior|siding|gutter/i,
+    concrete: /concrete|masonry|flatwork|paving|cement/i,
+    fencing: /fenc|deck|post hole|railing/i,
+    landscaping: /landscap|lawn|hardscap|outdoor|turf/i,
+    excavation: /excavat|grading|earthwork|demolition|sitework|dirt/i,
+    electrical: /electr|wiring|lighting|generator/i,
+    painting: /paint|staining|coating|drywall/i,
+    tree: /tree|arborist|stump|forestry/i
+  };
+  const tradeKey = Object.keys(tradeKeywordsMap).find(k => targetNiche.trade.toLowerCase().includes(k));
+  const tradeMatcher = tradeKey ? tradeKeywordsMap[tradeKey] : new RegExp(targetNiche.trade, 'i');
+
   const nicheCandidates = candidates.filter(lead => {
-    const text = `${lead.businessName} ${lead.ratingReviews || ''} ${lead.aiPrompt || ''}`.toLowerCase();
-    return text.includes(targetNiche.trade.toLowerCase());
+    const text = `${lead.businessName} ${lead.ratingReviews || ''} ${lead.aiPrompt || ''}`;
+    return tradeMatcher.test(text);
   });
 
-  const pool = nicheCandidates.length >= countToPick ? nicheCandidates : candidates;
-  pool.sort((a, b) => (Number(b.badnessScore ?? 0)) - (Number(a.badnessScore ?? 0)));
-  const chosenLeads = pool.slice(0, countToPick);
-  logSuccess(`Selected the top ${chosenLeads.length} worst prospects for today's automated build:`);
+  nicheCandidates.sort((a, b) => (Number(b.badnessScore ?? 0)) - (Number(a.badnessScore ?? 0)));
+  const otherCandidates = candidates
+    .filter(c => !nicheCandidates.includes(c))
+    .sort((a, b) => (Number(b.badnessScore ?? 0)) - (Number(a.badnessScore ?? 0)));
+  const pool = [...nicheCandidates, ...otherCandidates];
+
+  const chosenLeads = [];
+  for (const candidate of pool) {
+    if (chosenLeads.length >= countToPick) break;
+    const check = await verifyLeadDoesNotHaveUsableSite(candidate);
+    if (!check.qualified) {
+      logWarn(`Skipping "${candidate.businessName}" (${candidate.domainStatus}): ${check.reason}`);
+      await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=updateLead`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateLead',
+          rowNumber: candidate.rowNumber,
+          status: 'Skip / Disqualified'
+        })
+      });
+      continue;
+    }
+    logSub(`Verified "${candidate.businessName}": ${check.reason}`);
+    chosenLeads.push(candidate);
+  }
+
+  if (chosenLeads.length === 0) {
+    return [];
+  }
+
+  logSuccess(`Selected the top ${chosenLeads.length} qualified prospects for today's automated build:`);
 
   for (let i = 0; i < chosenLeads.length; i++) {
     const lead = chosenLeads[i];
@@ -2372,26 +2533,41 @@ async function runAutonomousLeadEngine() {
   const isDryRun = args.includes('--dry-run');
   const countToBuild = 2;
 
-  // Determine current niche from rotation schedule
+  // Determine current niche from rotation schedule, advancing automatically if a niche has < 2 qualified leads
   const state = loadState();
-  const nextIndex = (state.lastRunIndex + 1) % ROTATING_NICHES.length;
-  const targetNiche = ROTATING_NICHES[nextIndex];
+  let nextIndex = (state.lastRunIndex + 1) % ROTATING_NICHES.length;
+  let targetNiche = ROTATING_NICHES[nextIndex];
+  let chosenLeads = [];
 
-  console.log(`\n📅 Scheduled Niche [${nextIndex + 1}/10]: \x1b[33m${targetNiche.trade}\x1b[0m in \x1b[32m${targetNiche.city}\x1b[0m`);
-  console.log(`🔎 Maps Query: "${targetNiche.query}"`);
-  if (isDryRun) {
-    console.log('⚡ Running in DRY-RUN mode (no deployments or drafts).');
+  for (let attempt = 0; attempt < ROTATING_NICHES.length; attempt++) {
+    targetNiche = ROTATING_NICHES[nextIndex];
+    console.log(`\n📅 Scheduled Niche [${nextIndex + 1}/${ROTATING_NICHES.length}]: \x1b[33m${targetNiche.trade}\x1b[0m in \x1b[32m${targetNiche.city}\x1b[0m`);
+    console.log(`🔎 Maps Query: "${targetNiche.query}"`);
+    if (isDryRun && attempt === 0) {
+      console.log('⚡ Running in DRY-RUN mode (no deployments or drafts).');
+    }
+
+    // Agent 1: The Scout
+    await runTheScout(targetNiche);
+
+    // Agent 2: The Diagnoser & Ranker
+    chosenLeads = await runTheDiagnoser(targetNiche, countToBuild);
+
+    if (chosenLeads.length >= countToBuild) {
+      break;
+    }
+
+    logWarn(`Only ${chosenLeads.length}/${countToBuild} qualified prospects found for "${targetNiche.query}". Advancing to next niche...`);
+    nextIndex = (nextIndex + 1) % ROTATING_NICHES.length;
   }
 
-  // Agent 1: The Scout
-  await runTheScout(targetNiche);
-
-  // Agent 2: The Diagnoser & Ranker
-  const chosenLeads = await runTheDiagnoser(targetNiche, countToBuild);
+  if (chosenLeads.length === 0) {
+    throw new Error('No qualified prospects (No-Website, Facebook-Only, Broken, or Really Bad websites) found across niches.');
+  }
 
   if (isDryRun) {
     logSuccess('Dry run complete. Selected leads ready for build:');
-    chosenLeads.forEach(l => console.log(`   - ${l.businessName} (Badness: ${l.badnessScore}/100)`));
+    chosenLeads.forEach(l => console.log(`   - ${l.businessName} (Badness: ${l.badnessScore}/100 | Domain: ${l.domainStatus || 'No Website'})`));
     return;
   }
 

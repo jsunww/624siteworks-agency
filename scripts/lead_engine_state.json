@@ -1,7 +1,7 @@
 {
-  "lastRunIndex": 1,
-  "lastRunDate": "2026-11-07T12:52:56.928Z",
-  "totalSitesBuilt": 4,
+  "lastRunIndex": 2,
+  "lastRunDate": "2026-11-09T12:02:35.921Z",
+  "totalSitesBuilt": 6,
   "runs": [
     {
       "date": "2026-11-06T21:11:01.552Z",
@@ -40,6 +40,26 @@
           "name": "Nasi Roofing, LLC",
           "url": "https://nasi-roofing-llc.pages.dev",
           "score": 45
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09T12:02:35.921Z",
+      "niche": {
+        "trade": "Fencing",
+        "city": "Oshkosh, WI",
+        "query": "Fence contractor, Oshkosh, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Whirlwind Post Holes and Fencing",
+          "url": "https://whirlwind-post-holes-and-fencing.pages.dev",
+          "score": 77
+        },
+        {
+          "name": "H&S Fencing & Supply",
+          "url": "https://h-s-fencing-supply.pages.dev",
+          "score": 30
         }
       ]
     }
