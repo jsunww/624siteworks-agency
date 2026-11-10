@@ -872,32 +872,14 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
     return [];
   }
 
-  // Prioritize unbuilt candidates matching today's scheduled niche trade (with trade synonyms)
-  const tradeKeywordsMap = {
-    hvac: /hvac|heating|cooling|air conditioning|mechanical|refrigeration|furnace/i,
-    plumbing: /plumb|piping|drain|sewer|water heater/i,
-    roofing: /roof|shingle|exterior|siding|gutter/i,
-    concrete: /concrete|masonry|flatwork|paving|cement/i,
-    fencing: /fenc|deck|post hole|railing/i,
-    landscaping: /landscap|lawn|hardscap|outdoor|turf/i,
-    excavation: /excavat|grading|earthwork|demolition|sitework|dirt/i,
-    electrical: /electr|wiring|lighting|generator/i,
-    painting: /paint|staining|coating|drywall/i,
-    tree: /tree|arborist|stump|forestry/i
-  };
-  const tradeKey = Object.keys(tradeKeywordsMap).find(k => targetNiche.trade.toLowerCase().includes(k));
-  const tradeMatcher = tradeKey ? tradeKeywordsMap[tradeKey] : new RegExp(targetNiche.trade, 'i');
-
+  // Prioritize unbuilt candidates matching today's scheduled niche trade
   const nicheCandidates = candidates.filter(lead => {
-    const text = `${lead.businessName} ${lead.ratingReviews || ''} ${lead.aiPrompt || ''}`;
-    return tradeMatcher.test(text);
+    const text = `${lead.businessName} ${lead.ratingReviews || ''} ${lead.aiPrompt || ''}`.toLowerCase();
+    return text.includes(targetNiche.trade.toLowerCase());
   });
 
-  nicheCandidates.sort((a, b) => (Number(b.badnessScore ?? 0)) - (Number(a.badnessScore ?? 0)));
-  const otherCandidates = candidates
-    .filter(c => !nicheCandidates.includes(c))
-    .sort((a, b) => (Number(b.badnessScore ?? 0)) - (Number(a.badnessScore ?? 0)));
-  const pool = [...nicheCandidates, ...otherCandidates];
+  const pool = nicheCandidates.length >= countToPick ? nicheCandidates : candidates;
+  pool.sort((a, b) => (Number(b.badnessScore ?? 0)) - (Number(a.badnessScore ?? 0)));
 
   const chosenLeads = [];
   for (const candidate of pool) {
@@ -1731,11 +1713,11 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
             <label for="custType" class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--c-accent);">Project Type</label>
             <select id="custType" class="w-full rounded-lg px-3 py-2.5 text-xs font-semibold focus:outline-none" style="background-color: var(--c-bg); color: var(--c-text-main); border: 1px solid var(--c-border);">
               ${(branding.calculatorOptions || [
-                trade === 'Roofing' ? 'Asphalt Shingle Roof' : (trade === 'Concrete' ? 'Stamped Patio' : 'Custom ' + trade),
-                trade === 'Roofing' ? 'Standing Seam Metal' : (trade === 'Concrete' ? 'Driveway Slab' : 'Commercial ' + trade),
-                trade === 'Roofing' ? 'Flat / Commercial Roof' : (trade === 'Concrete' ? 'Foundation / Footing' : 'Architectural ' + trade),
-                'Repairs & Restoration'
-              ]).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
+      trade === 'Roofing' ? 'Asphalt Shingle Roof' : (trade === 'Concrete' ? 'Stamped Patio' : 'Custom ' + trade),
+      trade === 'Roofing' ? 'Standing Seam Metal' : (trade === 'Concrete' ? 'Driveway Slab' : 'Commercial ' + trade),
+      trade === 'Roofing' ? 'Flat / Commercial Roof' : (trade === 'Concrete' ? 'Foundation / Footing' : 'Architectural ' + trade),
+      'Repairs & Restoration'
+    ]).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
             </select>
           </div>
           <div>
@@ -2250,7 +2232,7 @@ async function runPostBuildLighthouseCheck(siteUrl) {
     const s = Math.round((cats.seo?.score || 0) * 100);
     const ab = cats['agentic-browsing'];
     const abScore = ab?.score !== undefined ? Math.round(ab.score * 4) : 4;
-    try { fs.unlinkSync(tempLhPath); } catch (_) {}
+    try { fs.unlinkSync(tempLhPath); } catch (_) { }
 
     const passed = p >= 95 && a >= 95 && bp >= 95 && s >= 95 && abScore === 4;
     if (passed) {
@@ -2269,7 +2251,7 @@ async function runPostBuildLighthouseCheck(siteUrl) {
     };
   } catch (err) {
     logWarn(`Post-build Lighthouse check could not run synchronously: ${err.message}`);
-    try { if (fs.existsSync(tempLhPath)) fs.unlinkSync(tempLhPath); } catch (_) {}
+    try { if (fs.existsSync(tempLhPath)) fs.unlinkSync(tempLhPath); } catch (_) { }
     return { passed: true, performance: 99, accessibility: 100, bestPractices: 100, seo: 100 };
   }
 }
