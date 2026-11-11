@@ -1023,23 +1023,29 @@ RULES FOR AESTHETICS & DIFFERENTIATION:
    - For landscaping / tree services: Use rich evergreen / moss (#166534, #15803D) with warm bronze earth tones.
 2. If real extracted colors from their website exist, incorporate their exact primary hue.
 3. Choose an intentional Layout Style: 'split-hero-timber' (warm craft layout with photo cards), 'shield-banner-estimator' (bold contractor banner with quick calculator), or 'modern-architectural' (sleek clean lines).
+4. Modern Design System Rules (STRICT):
+   - Pure white (#FFFFFF) main body with alternating ultra-light tint (#F8FAFB or #F1F5F9) sections.
+   - High-contrast dark grounding sections: navigation header, mid-page CTA banner, and footer should use deep rich charcoal/navy (#0F172A or #111827).
+   - Soft dark typography: Headings must use rich charcoal/slate (#111827 or #1E293B, NEVER pure harsh #000000). Body text must use refined slate (#475569 or #334155).
+   - Primary color: Strong bold trade hue.
+   - Accent color: Vibrant complementary highlight.
 
 Return ONLY valid JSON matching this schema:
 {
   "displayBrandName": "Concise core brand name for header & logo (e.g. 'Synergy Midwest' rather than an 80-character tagline)",
   "aestheticVibe": "e.g. Warm Cedar Timber & Craftsmanship",
   "layoutStyle": "split-hero-timber" or "shield-banner-estimator" or "modern-architectural",
-  "themeMode": "dark" or "light",
+  "themeMode": "light",
   "palette": {
     "primary": "#hex",
     "primaryHover": "#hex",
-    "secondary": "#hex",
+    "secondary": "#0f172a",
     "accent": "#hex",
-    "background": "#hex",
-    "surface": "#hex",
-    "border": "#hex",
-    "textPrimary": "#hex",
-    "textSecondary": "#hex"
+    "background": "#ffffff",
+    "surface": "#ffffff",
+    "border": "#e2e8f0",
+    "textPrimary": "#111827",
+    "textSecondary": "#475569"
   },
   "tagline": "Punchy local headline e.g. 'Custom Cedar, Vinyl & Iron Craftsmanship in Appleton'",
   "ownerStory": "2-3 authentic sentences about their local roots, family ownership, or specialized craftsmanship in Northeast Wisconsin.",
@@ -1068,27 +1074,27 @@ Return ONLY valid JSON matching this schema:
       displayBrandName: bizName,
       aestheticVibe: isWood ? 'Warm Cedar Timber & Craftsmanship' : 'Modern Heavy-Duty Contractor',
       layoutStyle: isWood ? 'split-hero-timber' : 'shield-banner-estimator',
-      themeMode: 'dark',
+      themeMode: 'light',
       palette: isWood ? {
         primary: '#9a3412',
         primaryHover: '#7c2d12',
-        secondary: '#1c1917',
+        secondary: '#0f172a',
         accent: '#f59e0b',
-        background: '#0c0a09',
-        surface: '#1c1917',
-        border: '#292524',
-        textPrimary: '#fafaf9',
-        textSecondary: '#a8a29e'
+        background: '#ffffff',
+        surface: '#ffffff',
+        border: '#e2e8f0',
+        textPrimary: '#111827',
+        textSecondary: '#475569'
       } : {
         primary: '#1e3a8a',
         primaryHover: '#172554',
         secondary: '#0f172a',
         accent: '#eab308',
-        background: '#020617',
-        surface: '#0f172a',
-        border: '#1e293b',
-        textPrimary: '#f8fafc',
-        textSecondary: '#94a3b8'
+        background: '#ffffff',
+        surface: '#ffffff',
+        border: '#e2e8f0',
+        textPrimary: '#111827',
+        textSecondary: '#475569'
       },
       tagline: `Premier ${trade} Solutions in ${city}`,
       ownerStory: `${bizName} is proud to deliver reliable craftsmanship, transparent communication, and long-lasting durability for homeowners and businesses across Northeast Wisconsin.`,
@@ -1371,18 +1377,23 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
       :root {
         --c-primary: ${p.primary};
         --c-primary-hover: ${p.primaryHover};
-        --c-secondary: ${p.secondary};
+        --c-secondary: ${p.secondary || '#0f172a'};
         --c-accent: ${p.accent};
-        --c-bg: ${p.background};
-        --c-surface: ${p.surface};
-        --c-border: ${p.border};
-        --c-text-main: ${p.textPrimary};
-        --c-text-muted: ${p.textSecondary};
+        --c-bg: #ffffff;
+        --c-bg-tint: #f8fafc;
+        --c-surface: #ffffff;
+        --c-border: #e2e8f0;
+        --c-dark-section: #0f172a;
+        --c-text-main: #111827;
+        --c-text-muted: #475569;
       }
       ${fontCss}
       body {
-        background-color: var(--c-bg);
-        color: var(--c-text-main);
+        background-color: #ffffff;
+        color: #111827;
+      }
+      h1, h2, h3, h4, .brand-heading {
+        color: #111827;
       }
       .brand-btn-primary {
         background-color: var(--c-primary);
@@ -1397,8 +1408,8 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         font-weight: 700;
       }
       .brand-surface-card {
-        background-color: var(--c-surface);
-        border: 1px solid var(--c-border);
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
       }
       /* Header & Responsive Navigation Styles */
       .site-header-inner {
@@ -1873,25 +1884,25 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     </div>
   </section>
 
-  <!-- Asymmetric Services Grid (1 Hero Card + 2 Stacked Cards) -->
-  <section class="py-24" style="background-color: var(--c-secondary);">
+  <!-- Asymmetric Services Grid (1 Hero Card + 2 Stacked Cards) - Pure White #FFFFFF -->
+  <section class="py-24" style="background-color: #FFFFFF;">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center max-w-3xl mx-auto mb-16">
-        <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-accent);">Commercial &amp; Residential</span>
-        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Engineered ${escapeHtml(trade)} Solutions</h2>
-        <p class="mt-3 text-base" style="color: var(--c-text-muted);">Built to withstand Wisconsin freeze-thaw cycles with commercial durability.</p>
+        <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-primary);">${escapeHtml(trade)} Services</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 brand-heading" style="color: #111827;">Engineered ${escapeHtml(trade)} Solutions</h2>
+        <p class="mt-3 text-base" style="color: #475569;">Built to withstand Wisconsin freeze-thaw cycles with commercial durability.</p>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
         <!-- Featured Service 1 (Span 7) -->
-        <div class="lg:col-span-7 brand-surface-card rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between">
+        <div class="lg:col-span-7 bg-white rounded-3xl overflow-hidden shadow-xl border flex flex-col justify-between" style="border-color: #E2E8F0;">
           <div class="h-72 overflow-hidden relative">
             <img src="${assetPaths.service1Url}" alt="${escapeHtml(branding.services[0]?.name || ('Featured ' + trade))}" class="w-full h-full object-cover">
             <span class="absolute top-4 left-4 text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg brand-btn-primary shadow-lg">Featured Service</span>
           </div>
           <div class="p-8 lg:p-10">
-            <h3 class="text-2xl font-bold mb-3 brand-heading" style="color: var(--c-text-main);">${escapeHtml(branding.services[0]?.name || ('Commercial & Residential ' + trade))}</h3>
-            <p class="text-base leading-relaxed mb-6" style="color: var(--c-text-muted);">${escapeHtml(branding.services[0]?.desc || ('Engineered for heavy-duty commercial and residential ' + trade.toLowerCase() + ' performance across Northeast Wisconsin.'))}</p>
-            <a href="contact.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: var(--c-accent);">
+            <h3 class="text-2xl font-bold mb-3 brand-heading" style="color: #111827;">${escapeHtml(branding.services[0]?.name || ('Commercial & Residential ' + trade))}</h3>
+            <p class="text-base leading-relaxed mb-6" style="color: #475569;">${escapeHtml(branding.services[0]?.desc || ('Engineered for heavy-duty commercial and residential ' + trade.toLowerCase() + ' performance across Northeast Wisconsin.'))}</p>
+            <a href="contact.html" class="inline-flex items-center gap-2 font-bold text-sm" style="color: var(--c-primary);">
               Request Consultation &rarr;
             </a>
           </div>
@@ -1899,20 +1910,20 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
 
         <!-- Stacked Services 2 & 3 (Span 5) -->
         <div class="lg:col-span-5 flex flex-col gap-8 justify-between">
-          <div class="brand-surface-card rounded-3xl p-6 shadow-xl flex items-center gap-6">
+          <div class="bg-white rounded-3xl p-6 shadow-md border flex items-center gap-6" style="border-color: #E2E8F0;">
             <img src="${assetPaths.service2Url}" alt="${escapeHtml(branding.services[1]?.name || ('Custom ' + trade))}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
             <div>
-              <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">02 • Custom</span>
-              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[1]?.name || ('Custom ' + trade + ' Solutions'))}</h4>
-              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[1]?.desc || ('Tailored architectural ' + trade.toLowerCase() + ' crafted for high durability.'))}</p>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-primary);">02 • Custom</span>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: #111827;">${escapeHtml(branding.services[1]?.name || ('Custom ' + trade + ' Solutions'))}</h4>
+              <p class="text-xs leading-relaxed" style="color: #475569;">${escapeHtml(branding.services[1]?.desc || ('Tailored architectural ' + trade.toLowerCase() + ' crafted for high durability.'))}</p>
             </div>
           </div>
-          <div class="brand-surface-card rounded-3xl p-6 shadow-xl flex items-center gap-6">
+          <div class="bg-white rounded-3xl p-6 shadow-md border flex items-center gap-6" style="border-color: #E2E8F0;">
             <img src="${assetPaths.service3Url}" alt="${escapeHtml(branding.services[2]?.name || ('Repairs & Upgrades'))}" class="w-32 h-32 rounded-2xl object-cover flex-shrink-0">
             <div>
-              <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-accent);">03 • Maintenance</span>
-              <h4 class="text-lg font-bold brand-heading mb-1" style="color: var(--c-text-main);">${escapeHtml(branding.services[2]?.name || ('Emergency ' + trade + ' Repairs & Upgrades'))}</h4>
-              <p class="text-xs leading-relaxed" style="color: var(--c-text-muted);">${escapeHtml(branding.services[2]?.desc || ('Fast turnaround repairs, scheduled maintenance, and storm restoration.'))}</p>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider block mb-1" style="color: var(--c-primary);">03 • Maintenance</span>
+              <h4 class="text-lg font-bold brand-heading mb-1" style="color: #111827;">${escapeHtml(branding.services[2]?.name || ('Emergency ' + trade + ' Repairs & Upgrades'))}</h4>
+              <p class="text-xs leading-relaxed" style="color: #475569;">${escapeHtml(branding.services[2]?.desc || ('Fast turnaround repairs, scheduled maintenance, and storm restoration.'))}</p>
             </div>
           </div>
         </div>
@@ -1920,42 +1931,42 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     </div>
   </section>
 
-  <!-- Contractor Standards Comparison Table (Us vs Typical) -->
-  <section class="py-20 border-t" style="background-color: var(--c-bg); border-color: var(--c-border);">
+  <!-- Contractor Standards Comparison Table (Us vs Typical) - Ultra-Light Tint #F8FAFC -->
+  <section class="py-20 border-t" style="background-color: #F8FAFC; border-color: #E2E8F0;">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-12">
-        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">The Wisconsin Standard</span>
-        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">${escapeHtml(bizName)} vs Standard Subcontractors</h2>
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-primary);">The Wisconsin Standard</span>
+        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: #111827;">${escapeHtml(bizName)} vs Standard Subcontractors</h2>
       </div>
-      <div class="overflow-x-auto rounded-2xl brand-surface-card shadow-xl border" style="border-color: var(--c-border);">
+      <div class="overflow-x-auto rounded-2xl bg-white shadow-xl border" style="border-color: #E2E8F0;">
         <table class="w-full text-left text-sm">
           <thead>
-            <tr class="border-b" style="border-color: var(--c-border); background-color: var(--c-secondary);">
-              <th class="p-4 font-bold" style="color: var(--c-text-main);">Installation Factor</th>
+            <tr class="border-b" style="border-color: #E2E8F0; background-color: #0F172A;">
+              <th class="p-4 font-bold text-white">Installation Factor</th>
               <th class="p-4 font-black" style="color: var(--c-accent);">${escapeHtml(bizName)}</th>
-              <th class="p-4 font-normal" style="color: var(--c-text-muted);">Typical Subcontractors</th>
+              <th class="p-4 font-normal text-slate-300">Typical Subcontractors</th>
             </tr>
           </thead>
-          <tbody class="divide-y" style="border-color: var(--c-border);">
+          <tbody class="divide-y" style="border-color: #E2E8F0;">
             <tr>
-              <td class="p-4 font-semibold" style="color: var(--c-text-main);">${trade === 'Roofing' ? 'Materials & Underlayment' : (trade === 'Concrete' ? 'Base Preparation' : 'Installation Depth')}</td>
-              <td class="p-4 font-bold text-emerald-400">✔ ${trade === 'Roofing' ? 'Architectural Shingles + Ice & Water Barrier' : (trade === 'Concrete' ? '6" Compacted Crushed Gravel Base' : '48" Below Frost Line')}</td>
-              <td class="p-4 text-stone-400">${trade === 'Roofing' ? 'Basic 15lb felt (prone to leaks)' : (trade === 'Concrete' ? 'Thin sand or raw dirt' : '30" – 36" (Prone to heaving)')}</td>
+              <td class="p-4 font-semibold" style="color: #111827;">${trade === 'Roofing' ? 'Materials & Underlayment' : (trade === 'Concrete' ? 'Base Preparation' : 'Installation Depth')}</td>
+              <td class="p-4 font-bold text-emerald-600">✔ ${trade === 'Roofing' ? 'Architectural Shingles + Ice & Water Barrier' : (trade === 'Concrete' ? '6" Compacted Crushed Gravel Base' : '48" Below Frost Line')}</td>
+              <td class="p-4 text-slate-500">${trade === 'Roofing' ? 'Basic 15lb felt (prone to leaks)' : (trade === 'Concrete' ? 'Thin sand or raw dirt' : '30" – 36" (Prone to heaving)')}</td>
             </tr>
             <tr>
-              <td class="p-4 font-semibold" style="color: var(--c-text-main);">${trade === 'Roofing' ? 'Flashing & Clean-Up' : (trade === 'Concrete' ? 'Reinforcement & Mix' : 'Fasteners & Hardware')}</td>
-              <td class="p-4 font-bold text-emerald-400">✔ ${trade === 'Roofing' ? 'Heavy-Gauge Flashing + Magnetic Nail Sweep' : (trade === 'Concrete' ? 'Tied Rebar Grid + 4,000 PSI Mix' : 'Powder-Coated Stainless')}</td>
-              <td class="p-4 text-stone-400">${trade === 'Roofing' ? 'Thin tin & loose nails in grass' : (trade === 'Concrete' ? 'Unreinforced or wire on ground' : 'Standard galvanized (rusts)')}</td>
+              <td class="p-4 font-semibold" style="color: #111827;">${trade === 'Roofing' ? 'Flashing & Clean-Up' : (trade === 'Concrete' ? 'Reinforcement & Mix' : 'Fasteners & Hardware')}</td>
+              <td class="p-4 font-bold text-emerald-600">✔ ${trade === 'Roofing' ? 'Heavy-Gauge Flashing + Magnetic Nail Sweep' : (trade === 'Concrete' ? 'Tied Rebar Grid + 4,000 PSI Mix' : 'Powder-Coated Stainless')}</td>
+              <td class="p-4 text-slate-500">${trade === 'Roofing' ? 'Thin tin & loose nails in grass' : (trade === 'Concrete' ? 'Unreinforced or wire on ground' : 'Standard galvanized (rusts)')}</td>
             </tr>
             <tr>
-              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Estimate Turnaround</td>
-              <td class="p-4 font-bold text-emerald-400">✔ 24 – 48 Hours Written Proposal</td>
-              <td class="p-4 text-stone-400">1 – 3 Weeks waiting</td>
+              <td class="p-4 font-semibold" style="color: #111827;">Estimate Turnaround</td>
+              <td class="p-4 font-bold text-emerald-600">✔ 24 – 48 Hours Written Proposal</td>
+              <td class="p-4 text-slate-500">1 – 3 Weeks waiting</td>
             </tr>
             <tr>
-              <td class="p-4 font-semibold" style="color: var(--c-text-main);">Workmanship Guarantee</td>
-              <td class="p-4 font-bold text-emerald-400">✔ Multi-Year Craftsmanship Warranty</td>
-              <td class="p-4 text-stone-400">90-Day limited or none</td>
+              <td class="p-4 font-semibold" style="color: #111827;">Workmanship Guarantee</td>
+              <td class="p-4 font-bold text-emerald-600">✔ Multi-Year Craftsmanship Warranty</td>
+              <td class="p-4 text-slate-500">90-Day limited or none</td>
             </tr>
           </tbody>
         </table>
@@ -1963,22 +1974,52 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     </div>
   </section>
 
-  <!-- High-Contrast Project Portfolio -->
-  <section class="py-20" style="background-color: var(--c-secondary);">
+  <!-- High-Impact Mid-Page CTA Banner (High-Contrast Dark Grounding Section #0F172A) -->
+  <section class="py-16 lg:py-20 text-white relative overflow-hidden" style="background-color: #0F172A;">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6" style="background-color: rgba(255, 255, 255, 0.1); color: var(--c-accent);">
+        <span>🛡 Wisconsin Climate Engineered • Zero Obligation Estimates</span>
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-black tracking-tight max-w-3xl mx-auto text-white leading-tight">
+        Ready for Straight Lines, Solid Craftsmanship &amp; Honest Pricing?
+      </h2>
+      <p class="mt-4 text-base sm:text-lg max-w-2xl mx-auto text-slate-300 leading-relaxed">
+        Speak directly with ${escapeHtml(bizName)} for rapid scheduling, transparent proposals, and dependable craftsmanship across ${city} and Northeast Wisconsin.
+      </p>
+      <div class="flex flex-wrap items-center justify-center gap-4 pt-8">
+        <a href="contact.html" class="brand-btn-primary px-8 py-4 rounded-xl font-extrabold text-sm sm:text-base shadow-xl transition-all hover:scale-105">
+          Request Free Written Estimate &rarr;
+        </a>
+        <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-sm sm:text-base border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-white transition-all">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+          <span>Call ${escapeHtml(phone)}</span>
+        </a>
+      </div>
+      <div class="flex flex-wrap items-center justify-center gap-8 pt-8 text-xs font-semibold text-slate-400">
+        <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> 10-Year Craftsmanship Warranty</span>
+        <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> Fully Licensed &amp; Insured</span>
+        <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> Rapid 24-48hr Estimate Turnaround</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recent Project Gallery - Pure White #FFFFFF -->
+  <section class="py-20" style="background-color: #FFFFFF;">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-12">
-        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-accent);">${city} Installations</span>
-        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: var(--c-text-main);">Recent ${escapeHtml(trade)} Project Gallery</h2>
+        <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-primary);">${city} Field Portfolio</span>
+        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: #111827;">Recent ${escapeHtml(trade)} Project Gallery</h2>
+        <p class="mt-2 text-sm" style="color: #475569;">Verified client installations completed across Northeast Wisconsin.</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         ${assetPaths.gallery.map((gUrl, idx) => `
-          <div class="rounded-2xl overflow-hidden brand-surface-card shadow-lg group border" style="border-color: var(--c-border);">
+          <div class="rounded-2xl overflow-hidden bg-white shadow-lg group border" style="border-color: #E2E8F0;">
             <div class="h-64 overflow-hidden">
               <img src="${gUrl}" alt="${escapeHtml(trade)} Project ${idx + 1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
             </div>
-            <div class="p-4 flex items-center justify-between text-xs font-semibold">
-              <span style="color: var(--c-text-main);">${escapeHtml(trade)} Project #${idx + 1}</span>
-              <span style="color: var(--c-accent);">${city}</span>
+            <div class="p-4 flex items-center justify-between text-xs font-semibold" style="border-top: 1px solid #F1F5F9;">
+              <span style="color: #111827;">${escapeHtml(trade)} Project #${idx + 1}</span>
+              <span style="color: var(--c-primary);">${city}</span>
             </div>
           </div>
         `).join('')}
@@ -1987,13 +2028,13 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   </section>
   `}
 
-  <!-- AI Direct Answer Summary (GEO / Voice Search) -->
-  <section id="ai-summary" class="py-12 border-y" style="background-color: ${p.surface}; border-color: ${p.border};">
+  <!-- AI Direct Answer Summary (GEO / Voice Search) - Ultra-Light Tint #F8FAFC -->
+  <section id="ai-summary" class="py-12 border-y" style="background-color: #F8FAFC; border-color: #E2E8F0;">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="p-6 rounded-2xl brand-surface-card">
-        <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color: ${p.accent};">Company Summary for Property Owners</p>
-        <p class="text-sm leading-relaxed" style="color: ${p.textPrimary};">
-          <strong>${escapeHtml(bizName)}</strong> is a premier ${trade.toLowerCase()} contractor headquartered in ${city}, providing professional services across ${serviceArea}. Call <a href="tel:${cleanPhone}" class="font-bold underline" style="color: ${p.accent};">${escapeHtml(phone)}</a> for free on-site consultations and transparent pricing.
+      <div class="p-6 rounded-2xl bg-white border shadow-sm" style="border-color: #E2E8F0;">
+        <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color: var(--c-primary);">Company Summary for Property Owners</p>
+        <p class="text-sm leading-relaxed" style="color: #334155;">
+          <strong style="color: #111827;">${escapeHtml(bizName)}</strong> is a premier ${trade.toLowerCase()} contractor headquartered in ${city}, providing professional services across ${serviceArea}. Call <a href="tel:${cleanPhone}" class="font-bold underline" style="color: var(--c-primary);">${escapeHtml(phone)}</a> for free on-site consultations and transparent pricing.
         </p>
       </div>
     </div>
