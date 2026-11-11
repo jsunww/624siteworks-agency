@@ -1,7 +1,7 @@
 {
-  "lastRunIndex": 2,
-  "lastRunDate": "2026-11-09T12:02:35.921Z",
-  "totalSitesBuilt": 6,
+  "lastRunIndex": 3,
+  "lastRunDate": "2026-11-10T12:02:55.774Z",
+  "totalSitesBuilt": 8,
   "runs": [
     {
       "date": "2026-11-06T21:11:01.552Z",
@@ -60,6 +60,26 @@
           "name": "H&S Fencing & Supply",
           "url": "https://h-s-fencing-supply.pages.dev",
           "score": 30
+        }
+      ]
+    },
+    {
+      "date": "2026-11-10T12:02:55.774Z",
+      "niche": {
+        "trade": "HVAC",
+        "city": "Kaukauna, WI",
+        "query": "HVAC contractor, Kaukauna, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Schuh & Mulry Heating & Cooling Inc.",
+          "url": "https://schuh-mulry-heating-cooling-inc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Synergy Midwest - Heating, Cooling, Geothermal, Solar Services & Blower Door Testing",
+          "url": "https://synergy-midwest-heating-cooling-geothermal-solar-s.pages.dev",
+          "score": 78
         }
       ]
     }

@@ -1026,7 +1026,7 @@ RULES FOR AESTHETICS & DIFFERENTIATION:
 
 Return ONLY valid JSON matching this schema:
 {
-  "displayBrandName": "${bizName}",
+  "displayBrandName": "Concise core brand name for header & logo (e.g. 'Synergy Midwest' rather than an 80-character tagline)",
   "aestheticVibe": "e.g. Warm Cedar Timber & Craftsmanship",
   "layoutStyle": "split-hero-timber" or "shield-banner-estimator" or "modern-architectural",
   "themeMode": "dark" or "light",
@@ -1296,7 +1296,11 @@ function getContrastColor(hexColor) {
 }
 
 function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths) {
-  const bizName = branding.displayBrandName || lead.businessName;
+  const rawBizName = branding.displayBrandName || lead.businessName;
+  const cleanDisplayBizName = rawBizName
+    .split(/\s+[-–—|]\s+(?:heating|cooling|hvac|fence|fencing|roofing|concrete|tree|plumbing|electric|specialists|services|contractor|paving|foundation|blower door)/i)[0]
+    .trim() || rawBizName;
+  const bizName = cleanDisplayBizName;
   const slug = sanitizeSlug(bizName);
   const phone = lead.phone || CONFIG.AGENCY_PHONE;
   const cleanPhone = phone.replace(/[^\d+]/g, '');
@@ -1340,8 +1344,8 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
 
   // Logo rendering
   const logoMarkup = assetPaths.hasRealLogo
-    ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" width="60" height="40" class="h-10 w-auto rounded-lg object-contain bg-white/10 p-1">`
-    : `<div class="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-xl shadow-lg" style="background-color: ${p.primary}; color: #ffffff;">${bizName.charAt(0)}</div>`;
+    ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" width="60" height="40" class="brand-logo-img rounded-lg object-contain bg-white/10 p-1 shrink-0">`
+    : `<div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-lg shrink-0" style="background-color: ${p.primary}; color: #ffffff;">${bizName.charAt(0)}</div>`;
 
   const isCraft = branding.layoutStyle === 'split-hero-timber' || /deck|timber|wood|make/i.test(bizName);
   const fontUrl = isCraft
@@ -1396,34 +1400,146 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         background-color: var(--c-surface);
         border: 1px solid var(--c-border);
       }
+      /* Header & Responsive Navigation Styles */
+      .site-header-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        min-height: 4rem;
+      }
+      @media (min-width: 640px) {
+        .site-header-inner {
+          min-height: 5rem;
+          gap: 1rem;
+        }
+      }
+      .brand-logo-img {
+        max-height: 2.25rem;
+        max-width: 44px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+      @media (min-width: 640px) {
+        .brand-logo-img {
+          max-height: 2.75rem;
+          max-width: 140px;
+        }
+      }
+      .brand-title-main {
+        display: block;
+        font-weight: 800;
+        font-size: 0.875rem;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .brand-title-sub {
+        display: block;
+        font-size: 0.625rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 0.125rem;
+      }
+      @media (min-width: 640px) {
+        .brand-title-main {
+          font-size: 1.15rem;
+        }
+        .brand-title-sub {
+          font-size: 0.725rem;
+        }
+      }
+      @media (min-width: 1024px) {
+        .brand-title-main {
+          font-size: 1.25rem;
+        }
+      }
+      #mobileNavDrawer.hidden {
+        display: none !important;
+      }
+      #mobileNavDrawer:not(.hidden) {
+        display: block !important;
+      }
     </style>
   `;
 
   // Common Header
   const headerHtml = `
     <header class="sticky top-0 z-50 backdrop-blur-md border-b" style="background-color: ${p.secondary}f0; border-color: ${p.border};">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-        <a href="index.html" class="flex items-center gap-3">
+      <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 site-header-inner">
+        <a href="index.html" class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-1 sm:mr-4">
           ${logoMarkup}
-          <div>
-            <span class="font-extrabold text-lg sm:text-xl tracking-tight block" style="color: ${p.textPrimary};">${escapeHtml(bizName)}</span>
-            <span class="text-xs font-semibold tracking-wide uppercase block" style="color: ${p.accent};">${trade} Specialists • ${city}</span>
+          <div class="min-w-0 flex-1 overflow-hidden">
+            <span class="brand-title-main" style="color: ${p.textPrimary};">${escapeHtml(cleanDisplayBizName)}</span>
+            <span class="brand-title-sub" style="color: ${p.accent};">${trade} Specialists &bull; ${city}</span>
           </div>
         </a>
-        <nav class="hidden md:flex items-center gap-8 font-medium text-sm" style="color: ${p.textSecondary};">
+        <nav class="hidden md:flex items-center gap-6 lg:gap-8 font-medium text-sm" style="color: ${p.textSecondary};">
           <a href="index.html" class="hover:text-white transition-colors">Home</a>
           <a href="services.html" class="hover:text-white transition-colors">Services</a>
           <a href="about.html" class="hover:text-white transition-colors">About Us</a>
           <a href="contact.html" class="hover:text-white transition-colors">Free Estimate</a>
         </nav>
-        <div class="flex items-center gap-4">
-          ${socialRowHtml}
-          <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 brand-btn-primary px-4 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-            <span>${escapeHtml(phone)}</span>
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+          ${socialIconsHtml.length > 0 ? `
+            <div class="hidden lg:flex items-center gap-1.5">
+              ${socialIconsHtml.join('')}
+            </div>
+          ` : ''}
+          <a href="tel:${cleanPhone}" class="inline-flex items-center gap-1.5 brand-btn-primary px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all whitespace-nowrap shrink-0">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+            <span class="hidden sm:inline">${escapeHtml(phone)}</span>
+            <span class="sm:hidden font-extrabold">Call</span>
           </a>
+          <button type="button" onclick="toggleMobileNav()" aria-label="Toggle Navigation" class="md:hidden inline-flex items-center justify-center p-2 rounded-xl border transition-colors shrink-0" style="border-color: ${p.border}; color: ${p.textPrimary}; background-color: ${p.surface};">
+            <svg id="mobileMenuOpenIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <svg id="mobileMenuCloseIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
         </div>
       </div>
+
+      <!-- Mobile Navigation Drawer -->
+      <div id="mobileNavDrawer" class="hidden md:hidden border-t px-4 py-4 space-y-3 shadow-2xl backdrop-blur-md" style="background-color: ${p.secondary}; border-color: ${p.border};">
+        <div class="space-y-1">
+          <a href="index.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">Home</a>
+          <a href="services.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">Services</a>
+          <a href="about.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">About Us</a>
+          <a href="contact.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">Free Estimate</a>
+        </div>
+        <div class="pt-3 border-t flex items-center justify-between" style="border-color: ${p.border};">
+          <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 brand-btn-primary px-4 py-2 rounded-lg font-bold text-xs shadow-md">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+            <span>${escapeHtml(phone)}</span>
+          </a>
+          ${socialIconsHtml.length > 0 ? `<div class="flex items-center gap-2">${socialIconsHtml.join('')}</div>` : ''}
+        </div>
+      </div>
+      <script>
+        function toggleMobileNav() {
+          var d = document.getElementById('mobileNavDrawer');
+          var o = document.getElementById('mobileMenuOpenIcon');
+          var c = document.getElementById('mobileMenuCloseIcon');
+          if (d) {
+            var isHidden = d.classList.toggle('hidden');
+            if (o && c) {
+              if (isHidden) {
+                o.classList.remove('hidden');
+                c.classList.add('hidden');
+              } else {
+                o.classList.add('hidden');
+                c.classList.remove('hidden');
+              }
+            }
+          }
+        }
+      </script>
     </header>
   `;
 
@@ -2630,11 +2746,81 @@ async function rebuildSpecificSlugs(slugsToRebuild) {
   }
 }
 
+// Support running on-demand for a single lead or row without waiting for 6am
+async function runSingleLeadPipeline(identifier) {
+  console.log(`\n============================================================================`);
+  console.log(`⚡ ON-DEMAND AUTONOMOUS PIPELINE: Kicking off for "${identifier}"...`);
+  console.log(`============================================================================\n`);
+
+  const getUrl = `${CONFIG.APPS_SCRIPT_URL}?action=getPipeline`;
+  const res = await fetch(getUrl);
+  const data = await res.json();
+  const leads = data.leads || [];
+
+  const isNumericRow = /^\d+$/.test(String(identifier).trim());
+  const rowTarget = isNumericRow ? parseInt(identifier, 10) : null;
+
+  const match = leads.find(l => {
+    if (rowTarget && l.rowNumber === rowTarget) return true;
+    const s = sanitizeSlug(l.businessName);
+    const cleanLeadName = l.businessName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanId = String(identifier).toLowerCase().replace(/[^a-z0-9]/g, '');
+    return s === cleanId || cleanLeadName.includes(cleanId) || cleanId.includes(cleanLeadName);
+  });
+
+  if (!match) {
+    throw new Error(`Could not find lead matching "${identifier}" in Google Sheet pipeline.`);
+  }
+
+  const tradeKey = match.ratingReviews?.includes('-') ? match.ratingReviews.split('-')[1].trim() : 'Contractor';
+  const city = match.serviceArea?.includes('(') ? match.serviceArea.split('(')[1].split(',')[0].trim() + ', WI' : 'Appleton, WI';
+  const targetNiche = { trade: tradeKey, city: city, query: `${tradeKey} contractor, ${city}` };
+
+  console.log(`📍 Found Lead: ${match.businessName} (Row #${match.rowNumber}) | Trade: ${tradeKey} | Area: ${city}`);
+
+  // 1. Research & Build & Deploy
+  logStep(3, 'The Builder', `Executing bespoke build & Cloudflare deployment for "${match.businessName}"...`);
+  const buildResult = await buildAndDeploySpecSite(match, targetNiche);
+
+  // 2. Draft Outreach in Zoho Mail
+  logStep(4, 'The Pitcher', `Drafting outreach email in Zoho Mail for "${match.businessName}"...`);
+  await draftOutreachEmail(match, buildResult.previewUrl, buildResult.branding, buildResult.researchData);
+
+  // 3. Gate 4: Generate rich Gmail drafts with inline site preview screenshots
+  logSub('Triggering Google Apps Script Gate 4 (Gmail outreach draft)...');
+  try {
+    const gate4Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate4`, { method: 'POST' });
+    const gate4Data = await gate4Res.json();
+    logSuccess(`Google Apps Script Gate 4 created ${gate4Data.draftCount || 0} Gmail draft(s).`);
+  } catch (e) {
+    logWarn(`Gate 4 Gmail draft creation note: ${e.message}`);
+  }
+
+  console.log('\n============================================================================');
+  console.log(` ✔ ON-DEMAND RUN COMPLETE FOR "${match.businessName}"!`);
+  console.log(` 🌐 Live Spec Site: ${buildResult.previewUrl}`);
+  console.log(` ✉  Zoho Mail Draft & Gmail Draft Created.`);
+  console.log(` 📊 Google Sheet Row #${match.rowNumber} updated to "Ready to Email".`);
+  console.log('============================================================================\n');
+  return buildResult;
+}
+
 const cliArgs = process.argv.slice(2);
 if (cliArgs.includes('--rebuild')) {
   const rebuildIndex = cliArgs.indexOf('--rebuild');
   const targetSlugs = cliArgs.slice(rebuildIndex + 1);
   rebuildSpecificSlugs(targetSlugs.length ? targetSlugs : ['crown-fence-llc', 'make-fence-and-deck']).catch(console.error);
+} else if (cliArgs.includes('--row') || cliArgs.includes('--lead')) {
+  const flag = cliArgs.includes('--row') ? '--row' : '--lead';
+  const target = cliArgs[cliArgs.indexOf(flag) + 1];
+  if (!target) {
+    console.error(`Error: ${flag} requires an argument (e.g. ${flag} 2 or ${flag} "Delrar Inc.")`);
+    process.exit(1);
+  }
+  runSingleLeadPipeline(target).catch(err => {
+    logError(`ERROR: ${err.message}`);
+    process.exit(1);
+  });
 } else {
   runAutonomousLeadEngine().catch(err => {
     logError(`FATAL ERROR in autonomous lead engine: ${err.message}`);
