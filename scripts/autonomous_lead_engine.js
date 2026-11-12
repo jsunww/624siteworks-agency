@@ -13,7 +13,7 @@
  *     with custom color palettes, real & trade photography, downloads/optimizes images,
  *     deploys to Cloudflare Pages, updates Google Sheet, and registers in Demo Sites Hub.
  *  5. The Pitcher: Creates tailored outreach emails saved directly into Zoho Mail Drafts.
- *  6. Daily Digest: Delivers completion summary to jason@624films.com.
+ *  6. Daily Digest: Delivers completion summary to hello@624siteworks.com.
  * 
  * Schedule: Runs weekdays at 6:00 AM Central (CRON_TZ=America/Chicago 0 6 * * 1-5).
  * ============================================================================
@@ -55,8 +55,8 @@ const CONFIG = {
   ZOHO_CLIENT_SECRET: process.env.ZOHO_CLIENT_SECRET || '',
   ZOHO_REFRESH_TOKEN: process.env.ZOHO_REFRESH_TOKEN || '',
   ZOHO_ACCOUNT_ID: process.env.ZOHO_ACCOUNT_ID || '',
-  ZOHO_FROM_ADDRESS: process.env.ZOHO_FROM_ADDRESS || 'jason@624films.com',
-  DIGEST_RECIPIENT: process.env.DIGEST_RECIPIENT || 'jason@624films.com',
+  ZOHO_FROM_ADDRESS: process.env.ZOHO_FROM_ADDRESS || 'hello@624siteworks.com',
+  DIGEST_RECIPIENT: process.env.DIGEST_RECIPIENT || 'hello@624siteworks.com',
 
   // Firebase Firestore REST API (Admin Hub Demo Sites)
   FIRESTORE_PROJECT_ID: process.env.FIRESTORE_PROJECT_ID || 'admin-hub-cc0a2',
@@ -581,7 +581,7 @@ async function createZohoDraft(toAddress, subject, htmlContent) {
     },
     body: JSON.stringify({
       fromAddress: CONFIG.ZOHO_FROM_ADDRESS,
-      toAddress: toAddress || 'hello@624films.com',
+      toAddress: toAddress || 'hello@624siteworks.com',
       subject: subject,
       content: htmlContent,
       mode: 'draft'
@@ -2568,7 +2568,7 @@ function generatePitchEmailMarkup(lead, previewUrl, branding, researchData) {
 
 async function draftOutreachEmail(lead, previewUrl, branding, researchData) {
   const bizName = lead.businessName;
-  const recipientEmail = lead.email || 'hello@624films.com';
+  const recipientEmail = lead.email || 'hello@624siteworks.com';
   const subject = `I built a custom website concept for ${bizName} (Preview inside)`;
   const htmlContent = generatePitchEmailMarkup(lead, previewUrl, branding, researchData);
 

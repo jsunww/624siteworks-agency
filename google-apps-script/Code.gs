@@ -30,6 +30,7 @@ const CONFIG = {
   DEFAULT_SCRAPE_LIMIT: 40,
   GEMINI_MODEL: 'gemini-3.8-flash',
   SENDER_NAME: 'Jason Woodrow',
+  SENDER_EMAIL: 'hello@624siteworks.com',
   AGENCY_NAME: '624 Siteworks',
   AGENCY_URL: 'https://624siteworks.com',
   CLAIM_BASE_URL: 'https://624siteworks.com/claim.html',
@@ -1385,12 +1386,31 @@ function createDraftsCore() {
         hasInlineQr: Boolean(qrBlob)
       });
 
-      const draftOptions = { htmlBody: htmlBody, inlineImages: {} };
+      const draftOptions = {
+        htmlBody: htmlBody,
+        name: (CONFIG.SENDER_NAME || 'Jason Woodrow') + ' | 624 Siteworks',
+        inlineImages: {}
+      };
       if (screenshotBlob) {
         draftOptions.inlineImages.sitePreview = screenshotBlob;
       }
       if (qrBlob) {
         draftOptions.inlineImages.qrPreview = qrBlob;
+      }
+
+      // Route sender from hello@624siteworks.com instead of 624films
+      try {
+        const aliases = GmailApp.getAliases();
+        const siteworksAlias = aliases.find(function(a) {
+          return a.toLowerCase().indexOf('624siteworks.com') !== -1;
+        });
+        if (siteworksAlias) {
+          draftOptions.from = siteworksAlias;
+        } else if (CONFIG.SENDER_EMAIL && aliases.indexOf(CONFIG.SENDER_EMAIL) !== -1) {
+          draftOptions.from = CONFIG.SENDER_EMAIL;
+        }
+      } catch (aliasErr) {
+        // Fallback to active session user if aliases are restricted
       }
 
       GmailApp.createDraft(recipientEmail, subject, plainBody, draftOptions);
