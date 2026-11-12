@@ -38,10 +38,10 @@ export async function onRequestPost(context) {
     const businessName = (data.businessName || "624 Siteworks Spec Preview").trim();
     const toEmail = env.LEAD_RECIPIENT_EMAIL || "hello@624siteworks.com";
 
-    const clientId = env.ZOHO_CLIENT_ID || "1000.3GVCAWDZLVTUEG6MSQFV33B7I0XY2P";
-    const clientSecret = env.ZOHO_CLIENT_SECRET || "7a8a84edc5a4c8a888126f2b31979594da544a87fb";
-    const refreshToken = env.ZOHO_REFRESH_TOKEN || "1000.695a401441a9a7da175653989a0d01e9.11c64008ddb6e284c66a1cda2f3eb3ee";
-    const accountId = env.ZOHO_ACCOUNT_ID || "1780626000000008002";
+    const clientId = env.ZOHO_CLIENT_ID || "1000.JJO8VEGSC6HYKIJ12Q5MPEEF7XGZ5E";
+    const clientSecret = env.ZOHO_CLIENT_SECRET || "ce34571bc44c82dc4ed2d6e118d84ab94aa32d2e08";
+    const refreshToken = env.ZOHO_REFRESH_TOKEN || "1000.f6a5a5aa3ca3653aa218bf027d621ac1.f3de66a78a5155cf73a1a793075b2a2c";
+    const accountId = env.ZOHO_ACCOUNT_ID || "5967598000000008002";
     const fromAddress = env.ZOHO_FROM_ADDRESS || `"${businessName} Website" <hello@624siteworks.com>`;
 
     const tokenRes = await fetch("https://accounts.zoho.com/oauth/v2/token", {

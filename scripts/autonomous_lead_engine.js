@@ -50,11 +50,11 @@ const CONFIG = {
   CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || '',
   CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
 
-  // Zoho Mail OAuth
-  ZOHO_CLIENT_ID: process.env.ZOHO_CLIENT_ID || '',
-  ZOHO_CLIENT_SECRET: process.env.ZOHO_CLIENT_SECRET || '',
-  ZOHO_REFRESH_TOKEN: process.env.ZOHO_REFRESH_TOKEN || '',
-  ZOHO_ACCOUNT_ID: process.env.ZOHO_ACCOUNT_ID || '',
+  // Zoho Mail OAuth (hello@624siteworks.com)
+  ZOHO_CLIENT_ID: process.env.ZOHO_CLIENT_ID || '1000.JJO8VEGSC6HYKIJ12Q5MPEEF7XGZ5E',
+  ZOHO_CLIENT_SECRET: process.env.ZOHO_CLIENT_SECRET || 'ce34571bc44c82dc4ed2d6e118d84ab94aa32d2e08',
+  ZOHO_REFRESH_TOKEN: process.env.ZOHO_REFRESH_TOKEN || '1000.f6a5a5aa3ca3653aa218bf027d621ac1.f3de66a78a5155cf73a1a793075b2a2c',
+  ZOHO_ACCOUNT_ID: process.env.ZOHO_ACCOUNT_ID || '5967598000000008002',
   ZOHO_FROM_ADDRESS: process.env.ZOHO_FROM_ADDRESS || 'hello@624siteworks.com',
   DIGEST_RECIPIENT: process.env.DIGEST_RECIPIENT || 'hello@624siteworks.com',
 
