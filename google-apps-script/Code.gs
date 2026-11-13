@@ -562,7 +562,7 @@ function scrapeAndAuditLeadsCore(query) {
     row[COL.PHONE - 1] = item.phone || '';
     row[COL.LOGO_URL - 1] = logoUrl;
     row[COL.DOMAIN_STATUS - 1] = domainStatus;
-    row[COL.EMAIL - 1] = email;
+    row[COL.EMAIL - 1] = email || 'No email found';
     row[COL.HOURS - 1] = hoursStr;
     row[COL.LEAD_STATUS - 1] = STATUS.SCRAPED;
     row[COL.RATING_REVIEWS - 1] = ratingBadge;
@@ -1196,9 +1196,8 @@ function enrichApprovedLeadsCore() {
       sheet.getRange(rowNumber, COL.SERVICE_3_NAME).setValue(aiData.service3Name || '');
       sheet.getRange(rowNumber, COL.SERVICE_3_DESC).setValue(aiData.service3Desc || '');
 
-      if (!existingEmail) {
-        const fallbackEmail = buildFallbackEmail_(bizName, domainStatus);
-        sheet.getRange(rowNumber, COL.EMAIL).setValue(fallbackEmail);
+      if (!existingEmail || existingEmail === 'No email found') {
+        sheet.getRange(rowNumber, COL.EMAIL).setValue('No email found');
       }
 
       sheet.getRange(rowNumber, COL.TRUST_FACTOR).setValue(aiData.trustFactor || '');
@@ -1249,7 +1248,7 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
       }
     };
 
-    const modelsToTry = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
     for (let m = 0; m < modelsToTry.length; m++) {
       try {
         const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelsToTry[m] + ':generateContent?key=' + encodeURIComponent(apiKey);
@@ -1358,7 +1357,7 @@ function createDraftsCore() {
       const qrBlob = captureQrCodeBlob_(previewUrl, bizName);
       const claimUrl = CONFIG.CLAIM_BASE_URL + '?business=' + encodeURIComponent(bizName) + '&preview=' + encodeURIComponent(previewUrl);
 
-      const subject = 'Quick note from Jason in Appleton — ' + bizName;
+      const subject = 'Appleton-based web designer here – I built a better-ranking site concept for you.';
 
       let plainImprovements = '';
       if (improvements.length > 0) {
@@ -1643,16 +1642,7 @@ function formatWorkingHours_(workingHours) {
 }
 
 function buildFallbackEmail_(bizName, domainStatus) {
-  if (domainStatus && /^https?:\/\//i.test(domainStatus) && !domainStatus.includes('facebook.com')) {
-    try {
-      const host = domainStatus.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
-      if (host && host.includes('.')) {
-        return 'info@' + host.toLowerCase();
-      }
-    } catch (e) {}
-  }
-  const slug = bizName.toLowerCase().replace(/[^a-z0-9]+/g, '');
-  return 'info@' + (slug || 'business') + '.com';
+  return 'No email found';
 }
 
 /**

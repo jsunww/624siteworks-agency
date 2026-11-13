@@ -1,7 +1,7 @@
 {
-  "lastRunIndex": 3,
-  "lastRunDate": "2026-11-10T12:02:55.774Z",
-  "totalSitesBuilt": 8,
+  "lastRunIndex": 4,
+  "lastRunDate": "2026-11-12T14:01:55.917Z",
+  "totalSitesBuilt": 10,
   "runs": [
     {
       "date": "2026-11-06T21:11:01.552Z",
@@ -80,6 +80,26 @@
           "name": "Synergy Midwest - Heating, Cooling, Geothermal, Solar Services & Blower Door Testing",
           "url": "https://synergy-midwest-heating-cooling-geothermal-solar-s.pages.dev",
           "score": 78
+        }
+      ]
+    },
+    {
+      "date": "2026-11-12T14:01:55.917Z",
+      "niche": {
+        "trade": "Plumbing",
+        "city": "Menasha, WI",
+        "query": "Plumbing contractor, Menasha, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Ken's Plumbing Inc",
+          "url": "https://ken-s-plumbing-inc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Dennee Plumbing",
+          "url": "https://dennee-plumbing.pages.dev",
+          "score": 92
         }
       ]
     }

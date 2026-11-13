@@ -23,6 +23,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { scrapeProspectWebsite } = require('./prospect_web_scraper.cjs');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -198,22 +202,28 @@ const TRADE_PHOTOGRAPHY_TAXONOMY = {
   },
   'HVAC': {
     ac_cooling: [
-      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80'   // Commercial air conditioning unit
+      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=1200&q=80',  // High-efficiency outdoor AC condenser unit
+      'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=1200&q=80'
     ],
     heating_furnace: [
-      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80'   // Industrial heating ventilation
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80',  // Industrial heating furnace equipment
+      'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?auto=format&fit=crop&w=1200&q=80'   // Modern mechanical heating plant
     ],
     ductwork_air: [
-      'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80'   // HVAC ductwork engineering
+      'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=1200&q=80'   // HVAC sheet metal ductwork engineering
     ],
     tuneup_diagnostics: [
-      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80'   // HVAC technician testing system
+      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80',  // HVAC technician testing system with manifold gauges
+      'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1200&q=80',  // HVAC tech precision control wiring
+      'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=1200&q=80'   // HVAC diagnostics & multimeter check
     ],
     hero: [
-      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80'
+      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=1200&q=80'
     ],
     about: [
-      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80'
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1200&q=80'
     ]
   },
   'Tree Service': {
@@ -305,11 +315,40 @@ const TRADE_PHOTOGRAPHY_TAXONOMY = {
     about: [
       'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80'
     ]
+  },
+  'Mechanical Contractor': {
+    process_piping: [
+      'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=1200&q=80'
+    ],
+    welding_fabrication: [
+      'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1574689049868-e94ed5301745?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=1200&q=80'
+    ],
+    waterjet_machining: [
+      'https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80'
+    ],
+    boilers_power_piping: [
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1200&q=80'
+    ],
+    hero: [
+      'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80'
+    ],
+    about: [
+      'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1516937941344-00b4e0337589?auto=format&fit=crop&w=1200&q=80'
+    ]
   }
 };
 
 function normalizeTradeCategory(tradeStr) {
   const t = (tradeStr || '').toLowerCase();
+  if (t.includes('mechanical') || t.includes('piping') || t.includes('welding') || t.includes('welder') || t.includes('fabricat') || t.includes('boiler') || t.includes('waterjet') || t.includes('chiller') || t.includes('process pipe') || t.includes('industrial pipe')) return 'Mechanical Contractor';
   if (t.includes('fence')) return 'Fencing';
   if (t.includes('roof')) return 'Roofing';
   if (t.includes('concrete') || t.includes('masonry')) return 'Concrete';
@@ -320,7 +359,7 @@ function normalizeTradeCategory(tradeStr) {
   if (t.includes('electr')) return 'Electricians';
   if (t.includes('asphalt') || t.includes('paving')) return 'Asphalt Paving';
   if (t.includes('foundation') || t.includes('waterproof') || t.includes('basement')) return 'Foundation Repair';
-  return 'Fencing';
+  return 'Mechanical Contractor';
 }
 
 function resolveContextualPhoto(tradeKey, contextText, role, offset = 0) {
@@ -436,6 +475,19 @@ function resolveContextualPhoto(tradeKey, contextText, role, offset = 0) {
     if (/wall|crack|injection/i.test(text)) return tradePool.wall_crack_repair[offset % tradePool.wall_crack_repair.length];
     if (/waterproof|drain|sump/i.test(text)) return tradePool.waterproofing_drainage[offset % tradePool.waterproofing_drainage.length];
     return tradePool.piering_stabilization[offset % tradePool.piering_stabilization.length];
+  }
+
+  if (normTrade === 'Mechanical Contractor') {
+    if (/weld|spool|arc|gmaw|gtaw|fcaw|asme|aws/i.test(text)) {
+      return tradePool.welding_fabrication[offset % tradePool.welding_fabrication.length];
+    }
+    if (/waterjet|cut|machin|cnc|flange/i.test(text)) {
+      return tradePool.waterjet_machining[offset % tradePool.waterjet_machining.length];
+    }
+    if (/boiler|power|steam|co-generation|chiller|refrigerat/i.test(text)) {
+      return tradePool.boilers_power_piping[offset % tradePool.boilers_power_piping.length];
+    }
+    return tradePool.process_piping[offset % tradePool.process_piping.length];
   }
 
   const firstCat = Object.values(tradePool)[0];
@@ -633,6 +685,7 @@ async function registerInFirestoreDemoSites(siteData) {
       industry: { stringValue: siteData.industry || 'Contractor' },
       city: { stringValue: siteData.city || 'Fox Valley, WI' },
       contactPhone: { stringValue: siteData.contactPhone || '' },
+      contactEmail: { stringValue: (siteData.contactEmail && siteData.contactEmail !== 'No email found') ? siteData.contactEmail : 'No email found' },
       createdAt: { timestampValue: new Date().toISOString() },
       lastDeployedAt: { stringValue: new Date().toISOString() },
       hidden: { booleanValue: false },
@@ -665,6 +718,7 @@ async function callGemini(promptText, model = CONFIG.GEMINI_MODEL) {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
@@ -687,7 +741,7 @@ async function callGemini(promptText, model = CONFIG.GEMINI_MODEL) {
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   } catch (err) {
     if (model !== CONFIG.GEMINI_FALLBACK_MODEL) {
-      logWarn(`Gemini call failed with ${model}: ${err.message}. Retrying with fallback...`);
+      logWarn(`Gemini call failed with ${model}: ${err.message}. Retrying with fallback ${CONFIG.GEMINI_FALLBACK_MODEL}...`);
       return await callGemini(promptText, CONFIG.GEMINI_FALLBACK_MODEL);
     }
     throw err;
@@ -930,9 +984,13 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
     }
 
     logSub('Running Gate 2 Gemini AI intake enrichment on Google Apps Script...');
-    const gate2Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate2`, { method: 'POST' });
-    const gate2Data = await gate2Res.json();
-    logSuccess(`Enriched ${gate2Data.enrichedCount || 0} lead(s) with tailored services & trust copy.`);
+    try {
+      const gate2Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate2`, { method: 'GET' });
+      const gate2Data = await gate2Res.json();
+      logSuccess(`Enriched ${gate2Data.enrichedCount || 0} lead(s) with tailored services & trust copy.`);
+    } catch (e) {
+      logWarn(`Gate 2 enrichment call returned or timed out (${e.message}), continuing with pipeline...`);
+    }
   }
 
   const refreshedRes = await fetch(getUrl);
@@ -947,6 +1005,20 @@ async function runTheDiagnoser(targetNiche, countToPick = 2) {
 // ============================================================================
 // AGENT 3A: DEEP ONLINE RESEARCHER (Socials, Media, Real Colors, Story)
 // ============================================================================
+
+// Check for junk or blog search results that must NEVER be placed on client spec sites
+function isJunkImageUrl(url) {
+  if (!url || typeof url !== 'string') return true;
+  const u = url.toLowerCase();
+  const junkHosts = [
+    'shopify.com', 'f-cdn.com', 'freelancer.com', 'mementor.no', 'sanity.io',
+    '99static.com', '99designs.com', 'ghost.io', 'novacare', 'wixstatic.com/media/generic',
+    'shutterstock', 'istockphoto', 'gettyimages', 'stock.adobe', 'facebook.com',
+    'fbsbx.com', 'lookaside', 'instagram.com', 'linkedin.com', 'yelp.com',
+    'yellowpages.com', 'bbb.org'
+  ];
+  return junkHosts.some(host => u.includes(host));
+}
 
 async function researchBusinessOnline(lead, tradeInfo) {
   const bizName = lead.businessName;
@@ -972,9 +1044,82 @@ async function researchBusinessOnline(lead, tradeInfo) {
     logWarn(`Social research endpoint error: ${e.message}`);
   }
 
+  // Filter out any third-party junk search result images that researchSocials may have returned
+  researchData.websiteImages = (researchData.websiteImages || []).filter(u => !isJunkImageUrl(u));
+
   // If lead already had a logo URL from Google Places, record it
-  if (lead.logoUrl && !researchData.websiteImages.includes(lead.logoUrl)) {
+  if (lead.logoUrl && !isJunkImageUrl(lead.logoUrl) && !researchData.websiteImages.includes(lead.logoUrl)) {
     researchData.websiteImages.unshift(lead.logoUrl);
+  }
+
+  // Resolve target domain: if Google Sheet says "No Website Listed", attempt to discover domain from name or snippets
+  let prospectDomain = domain;
+  if (!prospectDomain || prospectDomain.toLowerCase().includes('no website') || prospectDomain.toLowerCase().includes('facebook.com')) {
+    if (bizName.toLowerCase().includes('berken')) {
+      prospectDomain = 'http://www.berkenheating.com';
+    } else {
+      const snippetText = (researchData.snippets || []).join(' ');
+      const domainMatches = snippetText.match(/\b([a-zA-Z0-9-]+\.(?:com|org|net|biz))\b/gi) || [];
+      const excludedDomains = ['facebook.com', 'instagram.com', 'linkedin.com', 'bbb.org', 'yelp.com', 'shopify.com', '99designs.com', 'freelancer.com', 'google.com', 'yellowpages.com', 'mapquest.com', 'mementor.no', 'sanity.io'];
+      for (const dm of domainMatches) {
+        const cleanDm = dm.toLowerCase();
+        if (!excludedDomains.some(ex => cleanDm.includes(ex))) {
+          prospectDomain = `http://${cleanDm}`;
+          break;
+        }
+      }
+    }
+  }
+
+  // Deep Website Scraper Agent: Extract real colors, logo, authentic images & services directly from prospect site
+  if (prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com')) {
+    try {
+      logSub(`Deep-scraping prospect website (${prospectDomain}) for authentic colors, logo, and work photos...`);
+      const scraped = await scrapeProspectWebsite(prospectDomain);
+      if (scraped) {
+        if (scraped.colors?.primary) {
+          researchData.extractedColors = [
+            scraped.colors.primary,
+            ...(scraped.colors.extractedPalette || [])
+          ];
+          logSuccess(`Extracted authentic brand color palette: ${researchData.extractedColors.slice(0, 5).join(', ')}`);
+        }
+        if (scraped.logo) {
+          researchData.logo = scraped.logo;
+          researchData.websiteImages.unshift(scraped.logo);
+          logSuccess(`Discovered authentic brand logo: ${scraped.logo}`);
+        }
+        if (Array.isArray(scraped.images)) {
+          const authenticImgs = scraped.images
+            .map(imgObj => typeof imgObj === 'string' ? imgObj : imgObj.url)
+            .filter(u => u && !isJunkImageUrl(u));
+          // Authentic images take priority over any search snippets
+          researchData.websiteImages = [
+            ...authenticImgs,
+            ...researchData.websiteImages.filter(u => !isJunkImageUrl(u))
+          ];
+        }
+        if (scraped.services && scraped.services.length > 0) {
+          researchData.realServices = scraped.services;
+          logSuccess(`Detected real service offerings: ${scraped.services.map(s => s.name).join(' | ')}`);
+        }
+        if (scraped.phone && (!lead.phone || lead.phone.includes('234-5633'))) {
+          lead.phone = scraped.phone;
+        }
+        if (scraped.email && !lead.email) {
+          lead.email = scraped.email;
+        }
+        if (scraped.aboutSnippets && scraped.aboutSnippets.length > 0) {
+          researchData.snippets.push(...scraped.aboutSnippets);
+        }
+        if (scraped.certifications && scraped.certifications.length > 0) {
+          researchData.certifications = scraped.certifications;
+        }
+        researchData.scrapedWebsiteData = scraped;
+      }
+    } catch (scrapErr) {
+      logWarn(`Prospect website deep-scrape notice: ${scrapErr.message}`);
+    }
   }
 
   const foundSocials = Object.entries(researchData.socials || {})
@@ -1012,16 +1157,19 @@ BUSINESS CONTEXT:
 - Current Domain / Web: ${lead.domainStatus || 'None'}
 - Real Extracted Colors: ${researchData.extractedColors?.join(', ') || 'None found'}
 - Discovered Social Profiles: ${JSON.stringify(researchData.socials || {})}
-- Web Search Snippets & Facts: ${(researchData.snippets || []).slice(0, 4).join(' -- ')}
+- Real Detected Services from Website: ${researchData.realServices?.map(s => s.name).join(', ') || 'None'}
+- Web Search Snippets & Facts: ${(researchData.snippets || []).slice(0, 6).join(' -- ')}
 - Existing Vibe Notes: ${lead.vibe || 'Tailor to their brand name and trade'}
 
 RULES FOR AESTHETICS & DIFFERENTIATION:
 1. DO NOT use generic blue-slate if their name or trade suggests something more specific.
+   - For industrial mechanical / process piping / welding (e.g. Piping Service): Use industrial fire red (#E61010, #DC2626) with deep charcoal (#1E293B, #0F172A) and crisp industrial slate/white.
    - For timber, wood, deck builders (e.g. M.A.K.E.): Use rich cedar timber (#8B4513, #9A3412, #78350F) with warm charcoal slate (#18181B) and copper/amber CTA (#F59E0B).
    - For royal / castle / shield names (e.g. Crown Fence): Use royal midnight navy (#1E3A8A) with burnished gold (#D97706, #EAB308) and crisp white/slate surfaces.
    - For heavy industrial / masonry / concrete (e.g. Delrar): Use deep granite graphite (#334155, #1E293B) with safety orange / warm yellow (#EA580C, #F59E0B).
    - For landscaping / tree services: Use rich evergreen / moss (#166534, #15803D) with warm bronze earth tones.
 2. If real extracted colors from their website exist, incorporate their exact primary hue.
+3. If real detected services exist, BASE the 3 services in the JSON on their actual trade capabilities!
 3. Choose an intentional Layout Style: 'split-hero-timber' (warm craft layout with photo cards), 'shield-banner-estimator' (bold contractor banner with quick calculator), or 'modern-architectural' (sleek clean lines).
 4. Modern Design System Rules (STRICT):
    - Pure white (#FFFFFF) main body with alternating ultra-light tint (#F8FAFB or #F1F5F9) sections.
@@ -1070,26 +1218,18 @@ Return ONLY valid JSON matching this schema:
     logWarn(`Gemini branding fallback triggered: ${err.message}`);
     // Safe differentiated fallback
     const isWood = /fence|deck|timber|wood|carpenter/i.test(bizName);
+    const primColor = researchData.extractedColors?.[0] || (isWood ? '#9a3412' : '#1e3a8a');
+    const accColor = researchData.extractedColors?.[1] || (isWood ? '#f59e0b' : '#ff5007');
     return {
       displayBrandName: bizName,
       aestheticVibe: isWood ? 'Warm Cedar Timber & Craftsmanship' : 'Modern Heavy-Duty Contractor',
       layoutStyle: isWood ? 'split-hero-timber' : 'shield-banner-estimator',
       themeMode: 'light',
-      palette: isWood ? {
-        primary: '#9a3412',
-        primaryHover: '#7c2d12',
+      palette: {
+        primary: primColor,
+        primaryHover: primColor,
         secondary: '#0f172a',
-        accent: '#f59e0b',
-        background: '#ffffff',
-        surface: '#ffffff',
-        border: '#e2e8f0',
-        textPrimary: '#111827',
-        textSecondary: '#475569'
-      } : {
-        primary: '#1e3a8a',
-        primaryHover: '#172554',
-        secondary: '#0f172a',
-        accent: '#eab308',
+        accent: accColor,
         background: '#ffffff',
         surface: '#ffffff',
         border: '#e2e8f0',
@@ -1140,31 +1280,35 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
 
   logSub(`Collecting & contextually validating imagery for "${lead.businessName}" (${tradeKey})...`);
 
-  // 1. Gather all candidate real images
+  // 1. Gather all candidate real images (excluding known junk blogs/search domains)
   const rawCandidates = [
     lead.logoUrl,
     researchData.knowledgeGraph?.imageUrl,
     ...(researchData.websiteImages || [])
-  ].filter(u => u && typeof u === 'string' && u.startsWith('http'));
+  ].filter(u => u && typeof u === 'string' && u.startsWith('http') && !isJunkImageUrl(u));
 
   const seen = new Set();
   const verifiedRealImages = [];
 
-  for (const url of rawCandidates) {
-    if (verifiedRealImages.length >= 10) break;
-    if (seen.has(url)) continue;
-    seen.add(url);
+  // Fast concurrent image validity verification (max 15 candidates, 3s timeout)
+  const candidateChecks = await Promise.allSettled(
+    rawCandidates.slice(0, 15).map(async url => {
+      try {
+        const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000) });
+        const cType = res.headers.get('content-type') || '';
+        if ((res.ok || res.status === 204) && (cType.includes('image') || cType === '')) {
+          return url;
+        }
+      } catch (e) {}
+      return null;
+    })
+  );
 
-    // Skip Facebook HTML crawler URLs
-    if (url.includes('facebook.com') || url.includes('fbsbx.com') || url.includes('lookaside')) continue;
-
-    try {
-      const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) });
-      const cType = res.headers.get('content-type') || '';
-      if ((res.ok || res.status === 204) && (cType.includes('image') || cType === '')) {
-        verifiedRealImages.push(url);
-      }
-    } catch (e) { }
+  for (const r of candidateChecks) {
+    if (r.status === 'fulfilled' && r.value && !seen.has(r.value)) {
+      seen.add(r.value);
+      verifiedRealImages.push(r.value);
+    }
   }
 
   logSub(`Found ${verifiedRealImages.length} verified authentic website/profile image(s) for ${lead.businessName}.`);
@@ -1173,12 +1317,15 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
   let hasRealLogo = false;
 
   // Real logo extraction
-  if (verifiedRealImages.length > 0 && (lead.logoUrl || verifiedRealImages[0].includes('logo') || verifiedRealImages[0].includes('blob') || verifiedRealImages[0].includes('googleusercontent'))) {
-    const dlLogo = await downloadFile(verifiedRealImages[0], path.join(imgDir, 'brand-logo.jpg'));
+  const logoCandidate = researchData.logo || (verifiedRealImages.length > 0 && (lead.logoUrl || verifiedRealImages[0].includes('logo') || verifiedRealImages[0].includes('Header') || verifiedRealImages[0].includes('blob') || verifiedRealImages[0].includes('googleusercontent')) ? verifiedRealImages[0] : null);
+  if (logoCandidate) {
+    const dlLogo = await downloadFile(logoCandidate, path.join(imgDir, 'brand-logo.jpg'));
     if (dlLogo) {
       hasRealLogo = true;
-      realIdx = 1;
-      logSuccess(`Saved real brand logo/photo (${path.basename(verifiedRealImages[0]).slice(0, 30)}...)`);
+      if (verifiedRealImages.includes(logoCandidate)) {
+        verifiedRealImages.splice(verifiedRealImages.indexOf(logoCandidate), 1);
+      }
+      logSuccess(`Saved authentic brand logo (${path.basename(logoCandidate).slice(0, 30)}...)`);
     }
   }
 
@@ -1189,12 +1336,21 @@ async function prepareProjectAssets(siteDir, lead, branding, researchData, trade
       const u = verifiedRealImages[i].toLowerCase();
       if (
         (text.includes('wood') && (u.includes('wood') || u.includes('cedar') || u.includes('timber'))) ||
-        (text.includes('vinyl') && (u.includes('vinyl') || u.includes('pvc') || u.includes('picket'))) ||
-        (text.includes('chain link') && (u.includes('chain') || u.includes('cyclone'))) ||
+        (text.includes('vinyl') && (u.includes('vinyl') || u.includes('pvc') || u.includes('picket') || u.includes('chesterfield') || u.includes('bufftech'))) ||
+        (text.includes('chain link') && (u.includes('chain') || u.includes('cyclone') || u.includes('security'))) ||
+        ((text.includes('post hole') || text.includes('drilling') || text.includes('hole')) && (u.includes('digger') || u.includes('hole') || u.includes('post') || u.includes('drill'))) ||
+        (text.includes('farm') && (u.includes('farm') || u.includes('horse') || u.includes('board'))) ||
         (text.includes('shingle') && (u.includes('shingle') || u.includes('asphalt'))) ||
         (text.includes('metal') && u.includes('metal')) ||
         (text.includes('stamped') && u.includes('stamp')) ||
-        (text.includes('driveway') && u.includes('driveway'))
+        (text.includes('driveway') && u.includes('driveway')) ||
+        (text.includes('waterjet') && u.includes('waterjet')) ||
+        ((text.includes('fabricat') || text.includes('weld')) && (u.includes('fab') || u.includes('weld'))) ||
+        ((text.includes('install') || text.includes('process') || text.includes('piping')) && (u.includes('install') || u.includes('piping') || u.includes('photo'))) ||
+        (text.includes('boiler') && (u.includes('boiler') || u.includes('power'))) ||
+        ((text.includes('cooling') || text.includes('ac ') || text.includes('air cond')) && (u.includes('ac') || u.includes('cool') || u.includes('air'))) ||
+        ((text.includes('heating') || text.includes('furnace') || text.includes('heat pump')) && (u.includes('furn') || u.includes('heat'))) ||
+        (text.includes('duct') && u.includes('duct'))
       ) {
         const found = verifiedRealImages[i];
         verifiedRealImages.splice(i, 1);
@@ -1301,6 +1457,48 @@ function getContrastColor(hexColor) {
   return (yiq >= 140) ? '#0f172a' : '#ffffff';
 }
 
+function getComparisonFactors(trade) {
+  const t = (trade || '').toLowerCase();
+  if (t.includes('mechanical') || t.includes('piping') || t.includes('welding')) {
+    return [
+      { factor: 'Certification & Code Standards', us: 'ASME & AWS Certified Code Welding + NSF-61', them: 'Uncertified field welds without code audit' },
+      { factor: 'Testing & Fit-Up Precision', us: '100% Hydrostatic Testing & ±0.008" CNC Tolerances', them: 'Untested lines & rough hand cuts' },
+      { factor: 'Shop Capacity & Turnaround', us: '300+ Spools/Wk Shop Capacity + Prompt Quotes', them: '1 – 3 Weeks waiting with slow field fitting' },
+      { factor: 'Workmanship Guarantee', us: 'Multi-Year Industrial Craftsmanship Warranty', them: '90-Day limited or none' }
+    ];
+  }
+  if (t.includes('hvac') || t.includes('heat') || t.includes('cooling') || t.includes('air cond')) {
+    return [
+      { factor: 'Equipment Sizing & Efficiency', us: 'Manual J Load Calculations + High-SEER2 Systems', them: 'Rule-of-thumb guesswork & outdated units' },
+      { factor: 'Installation & Airflow Integrity', us: 'Sealed Mastic Ductwork & Nitrogen-Purged Brazing', them: 'Tape patches & unpurged lines (acid build-up)' },
+      { factor: 'Emergency Dispatch & Response', us: '24/7 Priority Dispatch Across Fox Valley', them: 'Voicemail delays during extreme cold/heat' },
+      { factor: 'Parts & Labor Coverage', us: '10-Year Equipment Warranty + Local Workmanship', them: 'Basic 1-year limited coverage' }
+    ];
+  }
+  if (t.includes('fence') || t.includes('fencing') || t.includes('post')) {
+    return [
+      { factor: 'Post Setting Depth & Anchoring', us: '48" Below Wisconsin Frost Line in Solid Compacted Concrete', them: '30" – 36" (Prone to frost heave & sagging)' },
+      { factor: 'Structural Posts & Fasteners', us: 'PostMaster Steel / Ring-Shank Stainless Hardware', them: 'Untreated wood posts & galvanized nails (black streaks)' },
+      { factor: 'Ground Contour Alignment', us: 'Custom Ground Contour Fitting & Reinforced Gate Latches', them: 'Stairstepped gaps & sagging standard gates' },
+      { factor: 'Craftsmanship Warranty', us: 'Multi-Year Structural & Wind-Resistant Guarantee', them: '90-Day limited or none' }
+    ];
+  }
+  if (t.includes('roof')) {
+    return [
+      { factor: 'Materials & Underlayment', us: 'Architectural Shingles + Ice & Water Barrier', them: 'Basic 15lb felt (prone to leaks)' },
+      { factor: 'Flashing & Clean-Up', us: 'Heavy-Gauge Flashing + Magnetic Nail Sweep', them: 'Thin tin & loose nails in grass' },
+      { factor: 'Turnaround Time', us: '24 – 48 Hours Written Proposal', them: '1 – 3 Weeks waiting' },
+      { factor: 'Workmanship Warranty', us: 'Multi-Year Craftsmanship Warranty', them: '1-Year basic warranty' }
+    ];
+  }
+  return [
+    { factor: 'Base Preparation', us: '6" Compacted Crushed Gravel Base', them: 'Thin sand or raw dirt' },
+    { factor: 'Reinforcement & Mix', us: 'Tied Rebar Grid + 4,000 PSI Mix', them: 'Unreinforced or wire on ground' },
+    { factor: 'Turnaround Time', us: '24 – 48 Hours Written Proposal', them: '1 – 3 Weeks waiting' },
+    { factor: 'Workmanship Warranty', us: 'Multi-Year Craftsmanship Warranty', them: '90-Day limited' }
+  ];
+}
+
 function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths) {
   const rawBizName = branding.displayBrandName || lead.businessName;
   const cleanDisplayBizName = rawBizName
@@ -1310,7 +1508,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   const slug = sanitizeSlug(bizName);
   const phone = lead.phone || CONFIG.AGENCY_PHONE;
   const cleanPhone = phone.replace(/[^\d+]/g, '');
-  const email = lead.email || `info@${slug}.com`;
+  const email = (lead.email && lead.email !== 'No email found') ? lead.email : '';
   const city = tradeInfo.city;
   const trade = tradeInfo.trade;
   const serviceArea = lead.serviceArea || `${city} and Northeast Wisconsin`;
@@ -1350,8 +1548,8 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
 
   // Logo rendering
   const logoMarkup = assetPaths.hasRealLogo
-    ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" width="60" height="40" class="brand-logo-img rounded-lg object-contain bg-white/10 p-1 shrink-0">`
-    : `<div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-lg shrink-0" style="background-color: ${p.primary}; color: #ffffff;">${bizName.charAt(0)}</div>`;
+    ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" width="160" height="60" class="brand-logo-img rounded-xl object-contain bg-white p-1.5 sm:p-2 shadow-sm shrink-0">`
+    : `<div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-md shrink-0 bg-white" style="color: ${p.primary}; border: 2px solid ${p.primary};">${bizName.charAt(0)}</div>`;
 
   const isCraft = branding.layoutStyle === 'split-hero-timber' || /deck|timber|wood|make/i.test(bizName);
   const fontUrl = isCraft
@@ -1416,27 +1614,28 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 0.5rem;
-        min-height: 4rem;
+        gap: 0.75rem;
+        min-height: 4.75rem;
       }
       @media (min-width: 640px) {
         .site-header-inner {
-          min-height: 5rem;
-          gap: 1rem;
+          min-height: 5.5rem;
+          gap: 1.25rem;
         }
       }
       .brand-logo-img {
-        max-height: 2.25rem;
-        max-width: 44px;
+        height: 3rem;
+        max-height: 3.25rem;
+        max-width: 140px;
         width: auto;
-        height: auto;
         object-fit: contain;
         flex-shrink: 0;
       }
       @media (min-width: 640px) {
         .brand-logo-img {
-          max-height: 2.75rem;
-          max-width: 140px;
+          height: 3.75rem;
+          max-height: 4.25rem;
+          max-width: 220px;
         }
       }
       .brand-title-main {
@@ -1447,6 +1646,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: #FFFFFF !important;
       }
       .brand-title-sub {
         display: block;
@@ -1483,16 +1683,16 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
 
   // Common Header
   const headerHtml = `
-    <header class="sticky top-0 z-50 backdrop-blur-md border-b" style="background-color: ${p.secondary}f0; border-color: ${p.border};">
+    <header class="sticky top-0 z-50 backdrop-blur-md border-b" style="background-color: ${p.secondary}f0; border-color: ${p.border || '#334155'};">
       <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 site-header-inner">
-        <a href="index.html" class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-1 sm:mr-4">
+        <a href="index.html" class="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1 mr-1 sm:mr-4">
           ${logoMarkup}
           <div class="min-w-0 flex-1 overflow-hidden">
-            <span class="brand-title-main" style="color: ${p.textPrimary};">${escapeHtml(cleanDisplayBizName)}</span>
+            <span class="brand-title-main" style="color: #FFFFFF !important;">${escapeHtml(cleanDisplayBizName)}</span>
             <span class="brand-title-sub" style="color: ${p.accent};">${trade} Specialists &bull; ${city}</span>
           </div>
         </a>
-        <nav class="hidden md:flex items-center gap-6 lg:gap-8 font-medium text-sm" style="color: ${p.textSecondary};">
+        <nav class="hidden md:flex items-center gap-6 lg:gap-8 font-bold text-sm text-slate-100">
           <a href="index.html" class="hover:text-white transition-colors">Home</a>
           <a href="services.html" class="hover:text-white transition-colors">Services</a>
           <a href="about.html" class="hover:text-white transition-colors">About Us</a>
@@ -1509,7 +1709,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
             <span class="hidden sm:inline">${escapeHtml(phone)}</span>
             <span class="sm:hidden font-extrabold">Call</span>
           </a>
-          <button type="button" onclick="toggleMobileNav()" aria-label="Toggle Navigation" class="md:hidden inline-flex items-center justify-center p-2 rounded-xl border transition-colors shrink-0" style="border-color: ${p.border}; color: ${p.textPrimary}; background-color: ${p.surface};">
+          <button type="button" onclick="toggleMobileNav()" aria-label="Toggle Navigation" class="md:hidden inline-flex items-center justify-center p-2.5 rounded-xl border border-white/20 text-white bg-white/10 hover:bg-white/20 transition-all shrink-0">
             <svg id="mobileMenuOpenIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
             <svg id="mobileMenuCloseIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -1517,14 +1717,14 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
       </div>
 
       <!-- Mobile Navigation Drawer -->
-      <div id="mobileNavDrawer" class="hidden md:hidden border-t px-4 py-4 space-y-3 shadow-2xl backdrop-blur-md" style="background-color: ${p.secondary}; border-color: ${p.border};">
+      <div id="mobileNavDrawer" class="hidden md:hidden border-t px-4 py-4 space-y-3 shadow-2xl backdrop-blur-md" style="background-color: ${p.secondary || '#0F172A'}; border-color: ${p.border || '#334155'};">
         <div class="space-y-1">
-          <a href="index.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">Home</a>
-          <a href="services.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">Services</a>
-          <a href="about.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">About Us</a>
-          <a href="contact.html" class="block px-3 py-2.5 rounded-lg font-semibold text-sm transition-colors hover:bg-white/5" style="color: ${p.textPrimary};">Free Estimate</a>
+          <a href="index.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm text-slate-100 hover:text-white hover:bg-white/10 transition-colors">Home</a>
+          <a href="services.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm text-slate-100 hover:text-white hover:bg-white/10 transition-colors">Services</a>
+          <a href="about.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm text-slate-100 hover:text-white hover:bg-white/10 transition-colors">About Us</a>
+          <a href="contact.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm text-slate-100 hover:text-white hover:bg-white/10 transition-colors">Free Estimate</a>
         </div>
-        <div class="pt-3 border-t flex items-center justify-between" style="border-color: ${p.border};">
+        <div class="pt-3 border-t flex items-center justify-between" style="border-color: ${p.border || '#334155'};">
           <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 brand-btn-primary px-4 py-2 rounded-lg font-bold text-xs shadow-md">
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
             <span>${escapeHtml(phone)}</span>
@@ -1670,7 +1870,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
               <span class="text-amber-400">★ 5.0</span> <span>Google Verified Reviews</span>
             </div>
             <div class="flex items-center gap-2 text-sm font-semibold" style="color: var(--c-text-main);">
-              <span class="text-emerald-400">✔</span> <span>Freedom &amp; Appleton Roots</span>
+              <span class="text-emerald-400">✔</span> <span>${escapeHtml(city)} &amp; Fox Valley Roots</span>
             </div>
             <div class="flex items-center gap-2 text-sm font-semibold" style="color: var(--c-text-main);">
               <span class="text-blue-400">🛡</span> <span>Wisconsin Climate Engineered</span>
@@ -1684,7 +1884,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
             <div class="absolute bottom-6 left-6 right-6 p-5 rounded-2xl backdrop-blur-md bg-black/60 border border-white/10 text-white">
               <span class="text-xs uppercase tracking-widest font-extrabold text-amber-400 block mb-1">Featured Custom Build</span>
-              <p class="font-bold text-base leading-snug">Precision Vinyl Railing &amp; Deck Architecture</p>
+              <p class="font-bold text-base leading-snug">${escapeHtml(branding.tagline || `${trade} Design & Installation`)}</p>
               <p class="text-xs text-stone-300 mt-1">Built to Wisconsin cold-climate structural tolerances.</p>
             </div>
           </div>
@@ -1783,7 +1983,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
           <p class="text-sm italic font-medium" style="color: var(--c-text-main);">
             "We treat every ${escapeHtml(trade.toLowerCase())} installation with the care, durability, and craftsmanship we'd demand for our own property. No shortcuts, no thin materials."
           </p>
-          <p class="text-xs uppercase tracking-wider font-bold mt-3" style="color: var(--c-accent);">Freedom &amp; Appleton, WI</p>
+          <p class="text-xs uppercase tracking-wider font-bold mt-3" style="color: var(--c-accent);">${escapeHtml(city)}, WI</p>
         </div>
       </div>
       <div class="lg:col-span-6">
@@ -1888,8 +2088,8 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
   <section class="py-24" style="background-color: #FFFFFF;">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center max-w-3xl mx-auto mb-16">
-        <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-primary);">${escapeHtml(trade)} Services</span>
-        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 brand-heading" style="color: #111827;">Engineered ${escapeHtml(trade)} Solutions</h2>
+        <span class="text-xs font-extrabold tracking-widest uppercase" style="color: var(--c-primary);">${escapeHtml(trade.replace(/\s*contractor\b/i, ''))} Services</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 brand-heading" style="color: #111827;">Engineered ${escapeHtml(trade.toLowerCase().includes('mechanical') ? 'Process Piping & Mechanical' : (trade.replace(/\s*contractor\b/i, '') || trade))} Solutions</h2>
         <p class="mt-3 text-base" style="color: #475569;">Built to withstand Wisconsin freeze-thaw cycles with commercial durability.</p>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
@@ -1942,32 +2142,19 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         <table class="w-full text-left text-sm">
           <thead>
             <tr class="border-b" style="border-color: #E2E8F0; background-color: #0F172A;">
-              <th class="p-4 font-bold text-white">Installation Factor</th>
+              <th class="p-4 font-bold text-white">Quality &amp; Installation Factor</th>
               <th class="p-4 font-black" style="color: var(--c-accent);">${escapeHtml(bizName)}</th>
               <th class="p-4 font-normal text-slate-300">Typical Subcontractors</th>
             </tr>
           </thead>
           <tbody class="divide-y" style="border-color: #E2E8F0;">
-            <tr>
-              <td class="p-4 font-semibold" style="color: #111827;">${trade === 'Roofing' ? 'Materials & Underlayment' : (trade === 'Concrete' ? 'Base Preparation' : 'Installation Depth')}</td>
-              <td class="p-4 font-bold text-emerald-600">✔ ${trade === 'Roofing' ? 'Architectural Shingles + Ice & Water Barrier' : (trade === 'Concrete' ? '6" Compacted Crushed Gravel Base' : '48" Below Frost Line')}</td>
-              <td class="p-4 text-slate-500">${trade === 'Roofing' ? 'Basic 15lb felt (prone to leaks)' : (trade === 'Concrete' ? 'Thin sand or raw dirt' : '30" – 36" (Prone to heaving)')}</td>
-            </tr>
-            <tr>
-              <td class="p-4 font-semibold" style="color: #111827;">${trade === 'Roofing' ? 'Flashing & Clean-Up' : (trade === 'Concrete' ? 'Reinforcement & Mix' : 'Fasteners & Hardware')}</td>
-              <td class="p-4 font-bold text-emerald-600">✔ ${trade === 'Roofing' ? 'Heavy-Gauge Flashing + Magnetic Nail Sweep' : (trade === 'Concrete' ? 'Tied Rebar Grid + 4,000 PSI Mix' : 'Powder-Coated Stainless')}</td>
-              <td class="p-4 text-slate-500">${trade === 'Roofing' ? 'Thin tin & loose nails in grass' : (trade === 'Concrete' ? 'Unreinforced or wire on ground' : 'Standard galvanized (rusts)')}</td>
-            </tr>
-            <tr>
-              <td class="p-4 font-semibold" style="color: #111827;">Estimate Turnaround</td>
-              <td class="p-4 font-bold text-emerald-600">✔ 24 – 48 Hours Written Proposal</td>
-              <td class="p-4 text-slate-500">1 – 3 Weeks waiting</td>
-            </tr>
-            <tr>
-              <td class="p-4 font-semibold" style="color: #111827;">Workmanship Guarantee</td>
-              <td class="p-4 font-bold text-emerald-600">✔ Multi-Year Craftsmanship Warranty</td>
-              <td class="p-4 text-slate-500">90-Day limited or none</td>
-            </tr>
+            ${getComparisonFactors(trade).map(row => `
+              <tr>
+                <td class="p-4 font-semibold" style="color: #111827;">${escapeHtml(row.factor)}</td>
+                <td class="p-4 font-bold text-emerald-600">✔ ${escapeHtml(row.us)}</td>
+                <td class="p-4 text-slate-500">${escapeHtml(row.them)}</td>
+              </tr>
+            `).join('')}
           </tbody>
         </table>
       </div>
@@ -1981,14 +2168,14 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         <span>🛡 Wisconsin Climate Engineered • Zero Obligation Estimates</span>
       </div>
       <h2 class="text-3xl sm:text-5xl font-black tracking-tight max-w-3xl mx-auto text-white leading-tight">
-        Ready for Straight Lines, Solid Craftsmanship &amp; Honest Pricing?
+        Ready for Precision Craftsmanship &amp; Dependable Service?
       </h2>
       <p class="mt-4 text-base sm:text-lg max-w-2xl mx-auto text-slate-300 leading-relaxed">
         Speak directly with ${escapeHtml(bizName)} for rapid scheduling, transparent proposals, and dependable craftsmanship across ${city} and Northeast Wisconsin.
       </p>
       <div class="flex flex-wrap items-center justify-center gap-4 pt-8">
         <a href="contact.html" class="brand-btn-primary px-8 py-4 rounded-xl font-extrabold text-sm sm:text-base shadow-xl transition-all hover:scale-105">
-          Request Free Written Estimate &rarr;
+          Request Free Written Proposal &rarr;
         </a>
         <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-sm sm:text-base border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-white transition-all">
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
@@ -1996,9 +2183,9 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
         </a>
       </div>
       <div class="flex flex-wrap items-center justify-center gap-8 pt-8 text-xs font-semibold text-slate-400">
-        <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> 10-Year Craftsmanship Warranty</span>
+        <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> Proven Wisconsin Craftsmanship</span>
         <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> Fully Licensed &amp; Insured</span>
-        <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> Rapid 24-48hr Estimate Turnaround</span>
+        <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✔</span> Rapid Proposal Turnaround</span>
       </div>
     </div>
   </section>
@@ -2008,7 +2195,7 @@ function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, asse
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-12">
         <span class="text-xs font-bold uppercase tracking-widest" style="color: var(--c-primary);">${city} Field Portfolio</span>
-        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: #111827;">Recent ${escapeHtml(trade)} Project Gallery</h2>
+        <h2 class="text-3xl font-extrabold mt-1 brand-heading" style="color: #111827;">Recent ${escapeHtml(trade.toLowerCase().includes('mechanical') ? 'Process Piping & Mechanical' : (trade.replace(/\s*contractor\b/i, '') || trade))} Project Gallery</h2>
         <p class="mt-2 text-sm" style="color: #475569;">Verified client installations completed across Northeast Wisconsin.</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -2414,7 +2601,13 @@ async function runPostBuildLighthouseCheck(siteUrl) {
 }
 
 async function buildAndDeploySpecSite(lead, tradeInfo) {
-  const slug = sanitizeSlug(lead.businessName);
+  let slug = sanitizeSlug(lead.businessName);
+  if (lead.previewUrl && lead.previewUrl.includes('.pages.dev')) {
+    const m = lead.previewUrl.match(/https:\/\/([a-z0-9-]+)\.pages\.dev/i);
+    if (m && m[1]) {
+      slug = m[1];
+    }
+  }
   const siteDir = path.join(CONFIG.SPEC_SITES_ROOT, slug);
 
   logSub(`Starting bespoke build for "${lead.businessName}" in: ${siteDir}`);
@@ -2499,7 +2692,8 @@ async function buildAndDeploySpecSite(lead, tradeInfo) {
       url: previewUrl,
       industry: detectedTrade,
       city: detectedCity,
-      contactPhone: lead.phone || ''
+      contactPhone: lead.phone || '',
+      contactEmail: (lead.email && lead.email !== 'No email found') ? lead.email : 'No email found'
     });
     logSuccess(`Added to Admin Hub Demo Sites collection (${slug}).`);
   } catch (e) {
@@ -2515,61 +2709,73 @@ async function buildAndDeploySpecSite(lead, tradeInfo) {
 
 function generatePitchEmailMarkup(lead, previewUrl, branding, researchData) {
   const bizName = lead.businessName;
+  const cityLabel = lead.serviceArea ? lead.serviceArea.split(',')[0].replace(/\(.*?\)/g, '').trim() : (branding?.city || 'Fox Valley');
+  const contactGreeting = lead.contactName ? `Hi ${escapeHtml(lead.contactName.split(' ')[0])},` : `Hi ${escapeHtml(bizName)} team,`;
   const claimUrl = `${CONFIG.CLAIM_BASE_URL}?business=${encodeURIComponent(bizName)}&preview=${encodeURIComponent(previewUrl)}`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(previewUrl)}`;
 
-  const bulletPoints = [];
-  if (!lead.domainStatus || lead.domainStatus.toLowerCase().includes('no website') || lead.domainStatus.toLowerCase().includes('facebook.com')) {
-    bulletPoints.push('<strong>Custom Digital Storefront:</strong> Tailored brand aesthetic (' + escapeHtml(branding.aestheticVibe) + ') so homeowners finding your Google reviews see your true craftsmanship.');
-    bulletPoints.push('<strong>One-Tap Calling &amp; Quote Form:</strong> Direct leads deliver straight to your phone and inbox.');
-    bulletPoints.push('<strong>Local Fox Valley SEO:</strong> Pre-built schema to help your business rank at the top of local contractor searches.');
-  } else {
-    bulletPoints.push('<strong>Blazing-Fast Speed &amp; Security:</strong> Modern static architecture with HTTPS SSL encryption and zero slow WordPress plugins.');
-    bulletPoints.push('<strong>Mobile-First Responsive Layout:</strong> Formats cleanly on smartphones without zooming.');
-    bulletPoints.push('<strong>Integrated Social &amp; Project Showcase:</strong> Highlights your completed builds and active social media presence.');
-  }
+  const qrBlockHtml = `
+    <table cellpadding="0" cellspacing="0" border="0" style="margin: 18px 0 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; max-width: 480px; width: 100%;">
+      <tr>
+        <td style="padding-right: 16px; vertical-align: middle; width: 130px;">
+          <a href="${escapeHtml(previewUrl)}" target="_blank" style="display: inline-block; background: #ffffff; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0; text-decoration: none;">
+            <img src="${escapeHtml(qrImageUrl)}" width="130" height="130" alt="Scan QR Code to preview ${escapeHtml(bizName)} on your phone" style="display: block; width: 130px; height: 130px; border: 0;" />
+          </a>
+        </td>
+        <td style="vertical-align: middle; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #059669; margin-bottom: 4px;">Scan With Your Phone</div>
+          <div style="font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">See how ${escapeHtml(bizName)} looks on mobile</div>
+          <div style="font-size: 12.5px; color: #475569; line-height: 1.45; margin-bottom: 10px;">Point your phone's camera at this QR code to open the live mobile preview right in your hand.</div>
+          <a href="${escapeHtml(previewUrl)}" target="_blank" style="display: inline-block; padding: 8px 14px; background-color: #0f172a; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">Open Live Preview &rarr;</a>
+        </td>
+      </tr>
+    </table>
+  `;
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 620px; line-height: 1.6; font-size: 16px;">
-      <p style="margin-top: 0;">Hi <strong>${escapeHtml(bizName)}</strong> team,</p>
-      <p>I'm Jason Woodrow, founder of <strong>624 Siteworks</strong> right here in Appleton. While researching top-rated local contractors in the Fox Valley, I noticed your strong customer reviews and built a custom, interactive 4-page website concept specifically for <strong>${escapeHtml(bizName)}</strong>.</p>
-      
-      <p style="margin: 24px 0;">
-        <a href="${previewUrl}" target="_blank" style="background-color: ${branding.palette?.primary || '#2563eb'}; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">
-          View Your Live Website Preview &rarr;
-        </a>
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #18181b; max-width: 620px; line-height: 1.6; font-size: 15px;">
+      <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">${contactGreeting}</p>
+
+      <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">
+        I'm Jason Woodrow, and I run a small local studio right here in Appleton (624 Siteworks)—not an out-of-state marketing agency.
       </p>
 
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid ${branding.palette?.primary || '#2563eb'}; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
-        <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">
-          Key upgrades this live concept delivers:
-        </p>
-        <ul style="margin: 0; padding-left: 20px; color: #1e293b; font-size: 14px; line-height: 1.6;">
-          ${bulletPoints.map(b => `<li style="margin-bottom: 8px;">${b}</li>`).join('')}
-        </ul>
-      </div>
+      <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">
+        While looking at ${escapeHtml(cityLabel)} contractors, I noticed ${escapeHtml(bizName)} has a great reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:<br/>
+        <a href="${escapeHtml(previewUrl)}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">${escapeHtml(previewUrl)}</a>
+      </p>
 
-      <p>Unlike bloated website builders that take months to launch and require ongoing maintenance, we hand-craft fast static websites engineered to turn Google searches into phone calls.</p>
-      
-      <p><strong>What happens if you like it?</strong><br/>
-      There's zero obligation. If you'd like to talk about your website or have any questions, call or text me directly at <a href="tel:9202345633" style="color: #2563eb; font-weight: 700;">(920) 234-5633</a>. If you'd like to claim this design, we can customize any text, photos, or service details, and connect it to your domain for a flat one-time build fee: <a href="${claimUrl}" style="color: #2563eb; font-weight: 600;">Claim &amp; Customize Your Site</a>.</p>
+      ${qrBlockHtml}
 
-      <p style="margin-top: 28px; margin-bottom: 4px;">Best regards,</p>
-      <p style="margin: 0;">
+      <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">
+        Simply swapping in this new site helps your business right away:<br/>
+        • <strong>Instant Page Speed &amp; Mobile Fit:</strong> Loads in under 1 second on phones so customers don't bounce back to Google.<br/>
+        • <strong>Stronger Local SEO:</strong> Built with ${escapeHtml(cityLabel)} search structure so you rank higher when homeowners search for your services.<br/>
+        • <strong>More Calls &amp; Quotes:</strong> One-tap click-to-call buttons and fast estimate forms that turn visitors into booked jobs.
+      </p>
+
+      <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">
+        Zero obligation—I already built the draft. If you want to put it on your domain, my flat options are at <a href="${claimUrl}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">${claimUrl}</a>, or just call/text my cell at (920) 234-5633.
+      </p>
+
+      <p style="margin: 20px 0 0 0; line-height: 1.6; color: #18181b; font-size: 15px;">
+        Best,<br/>
         <strong>Jason Woodrow</strong><br/>
-        624 Siteworks | Appleton, WI<br/>
-        <a href="tel:9202345633" style="color: #0f172a; text-decoration: none; font-weight: 700;">(920) 234-5633</a><br/>
-        <a href="https://624siteworks.com" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>
+        624 Siteworks · Appleton, WI · (920) 234-5633<br/>
+        <a href="https://624siteworks.com" target="_blank" style="color: #2563eb; text-decoration: none;">624siteworks.com</a>
       </p>
     </div>
   `;
-
-  return html;
 }
 
 async function draftOutreachEmail(lead, previewUrl, branding, researchData) {
   const bizName = lead.businessName;
-  const recipientEmail = lead.email || 'hello@624siteworks.com';
-  const subject = `I built a custom website concept for ${bizName} (Preview inside)`;
+  const isRealEmail = lead.email && lead.email !== 'No email found' && !lead.email.includes('example.com') && !lead.email.includes('@business.com');
+  const recipientEmail = isRealEmail ? lead.email : 'hello@624siteworks.com';
+  const baseSubject = 'Appleton-based web designer here – I built a better-ranking site concept for you.';
+  const subject = isRealEmail
+    ? baseSubject
+    : `[NO EMAIL FOUND - PITCH READY: ${bizName}] ${baseSubject}`;
   const htmlContent = generatePitchEmailMarkup(lead, previewUrl, branding, researchData);
 
   logSub(`Creating draft for "${bizName}" -> ${recipientEmail} in Zoho Mail...`);
@@ -2604,7 +2810,7 @@ async function sendDailyCompletionDigest(targetNiche, results) {
       <td style="padding: 12px 16px; color: #dc2626; font-weight: 700;">${r.lead.badnessScore || 50}/100</td>
       <td style="padding: 12px 16px;"><a href="${r.previewUrl}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">${r.previewUrl}</a></td>
       <td style="padding: 12px 16px; color: #16a34a; font-weight: 700;">⚡ ⚡ ${r.lhAudit?.performance || 99}% / ${r.lhAudit?.accessibility || 100}% / ${r.lhAudit?.bestPractices || 100}% / ${r.lhAudit?.seo || 100}% | 🤖 ${r.lhAudit?.agenticBrowsing || '4/4'} (100%)</td>
-      <td style="padding: 12px 16px; color: #475569;">${escapeHtml(r.lead.email || 'None on file')}</td>
+      <td style="padding: 12px 16px; color: #475569;">${escapeHtml((r.lead.email && r.lead.email !== 'No email found') ? r.lead.email : 'No email found')}</td>
       <td style="padding: 12px 16px; color: #16a34a; font-weight: 600;">✔ Draft Saved in Zoho</td>
     </tr>
   `).join('');
@@ -2732,7 +2938,7 @@ async function runAutonomousLeadEngine() {
   // Gate 4: Generate rich Gmail drafts with inline site preview screenshots
   logSub('Triggering Google Apps Script Gate 4 (Gmail outreach drafts)...');
   try {
-    const gate4Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate4`, { method: 'POST' });
+    const gate4Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate4`, { method: 'GET' });
     const gate4Data = await gate4Res.json();
     logSuccess(`Google Apps Script Gate 4 created ${gate4Data.draftCount || 0} Gmail draft(s).`);
   } catch (e) {
@@ -2830,7 +3036,7 @@ async function runSingleLeadPipeline(identifier) {
   // 3. Gate 4: Generate rich Gmail drafts with inline site preview screenshots
   logSub('Triggering Google Apps Script Gate 4 (Gmail outreach draft)...');
   try {
-    const gate4Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate4`, { method: 'POST' });
+    const gate4Res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=runGate4`, { method: 'GET' });
     const gate4Data = await gate4Res.json();
     logSuccess(`Google Apps Script Gate 4 created ${gate4Data.draftCount || 0} Gmail draft(s).`);
   } catch (e) {
