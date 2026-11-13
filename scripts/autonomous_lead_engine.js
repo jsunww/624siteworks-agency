@@ -5,7 +5,7 @@
  * 
  * Multi-Agent Autonomous Pipeline:
  *  1. The Scout: Scrapes and audits local trade leads via Google Apps Script (Serper/Maps).
- *  2. The Diagnoser & Ranker: Identifies the worst 2 websites, enriches with Gemini AI,
+ *  2. The Diagnoser & Ranker: Identifies up to the worst 5 qualifying websites, enriches with Gemini AI,
  *     and leaves the rest as an on-demand queue in Google Sheets.
  *  3. The Deep Researcher & Brand Stylist: Researches real social media pages (Facebook,
  *     Instagram, LinkedIn, BBB), extracts real website images, logo colors, and owner info.
@@ -898,7 +898,7 @@ async function verifyLeadDoesNotHaveUsableSite(lead) {
   }
 }
 
-async function runTheDiagnoser(targetNiche, countToPick = 2) {
+async function runTheDiagnoser(targetNiche, countToPick = 5) {
   logStep(2, 'The Diagnoser & Ranker', 'Querying Prospect Pipeline for qualified No-Website / Facebook-Only / Broken / Bad-Website leads...');
 
   const getUrl = `${CONFIG.APPS_SCRIPT_URL}?action=getPipeline`;
@@ -2741,7 +2741,7 @@ function generatePitchEmailMarkup(lead, previewUrl, branding, researchData) {
       </p>
 
       <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">
-        While looking at ${escapeHtml(cityLabel)} contractors, I noticed ${escapeHtml(bizName)} has a great reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:<br/>
+        While looking at ${escapeHtml(cityLabel)} businesses, I noticed ${escapeHtml(bizName)} has a great reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:<br/>
         <a href="${escapeHtml(previewUrl)}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">${escapeHtml(previewUrl)}</a>
       </p>
 
@@ -2841,7 +2841,7 @@ async function sendDailyCompletionDigest(targetNiche, results) {
       <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 13.5px; color: #334155;">
         <p style="margin: 0 0 6px 0;"><strong>What to do next:</strong></p>
         <ul style="margin: 0; padding-left: 18px;">
-          <li>Review the 2 new outreach emails in your <a href="https://mail.zoho.com" style="color: #2563eb;">Zoho Mail Drafts folder</a>.</li>
+          <li>Review the ${results.length} new outreach email${results.length === 1 ? '' : 's'} in your <a href="https://mail.zoho.com" style="color: #2563eb;">Zoho Mail Drafts folder</a>.</li>
           <li>Click the preview links above on your phone to audit the live sites.</li>
           <li>Check your <a href="https://624llc.com/624siteworks/demo_sites.html" style="color: #2563eb;">Demo Sites Hub</a> to view the newly synced cards.</li>
           <li>Send the drafts when you are ready to reach out!</li>
@@ -2856,7 +2856,7 @@ async function sendDailyCompletionDigest(targetNiche, results) {
 
   try {
     await sendZohoNotification(
-      `[624 Lead Engine] Daily Run Complete: 2 Spec Sites Deployed (${targetNiche.trade} in ${targetNiche.city})`,
+      `[624 Lead Engine] Daily Run Complete: ${results.length} Spec Site${results.length === 1 ? '' : 's'} Deployed (${targetNiche.trade} in ${targetNiche.city})`,
       emailHtml
     );
     logSuccess('Daily completion digest email delivered to Zoho Mail inbox.');
@@ -2876,9 +2876,9 @@ async function runAutonomousLeadEngine() {
 
   const args = process.argv.slice(2);
   const isDryRun = args.includes('--dry-run');
-  const countToBuild = 2;
+  const countToBuild = 5;
 
-  // Determine current niche from rotation schedule, advancing automatically if a niche has < 2 qualified leads
+  // Determine current niche from rotation schedule, advancing automatically if a niche has < 5 qualified leads
   const state = loadState();
   let nextIndex = (state.lastRunIndex + 1) % ROTATING_NICHES.length;
   let targetNiche = ROTATING_NICHES[nextIndex];
@@ -2902,8 +2902,10 @@ async function runAutonomousLeadEngine() {
       break;
     }
 
-    logWarn(`Only ${chosenLeads.length}/${countToBuild} qualified prospects found for "${targetNiche.query}". Advancing to next niche...`);
-    nextIndex = (nextIndex + 1) % ROTATING_NICHES.length;
+    if (attempt + 1 < ROTATING_NICHES.length) {
+      logWarn(`Only ${chosenLeads.length}/${countToBuild} qualified prospects found for "${targetNiche.query}". Advancing to next niche...`);
+      nextIndex = (nextIndex + 1) % ROTATING_NICHES.length;
+    }
   }
 
   if (chosenLeads.length === 0) {
@@ -2962,7 +2964,7 @@ async function runAutonomousLeadEngine() {
 
   console.log('\n============================================================================');
   console.log(' \x1b[32m✔ DAILY AUTONOMOUS RUN COMPLETED SUCCESSFULLY!\x1b[0m');
-  console.log(` 2 Spec Sites deployed, registered in Demo Sites, and drafts saved to Zoho Mail.`);
+  console.log(` ${results.length} Spec Site${results.length === 1 ? '' : 's'} deployed, registered in Demo Sites, and drafts saved to Zoho Mail.`);
   console.log('============================================================================\n');
 }
 

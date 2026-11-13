@@ -1370,7 +1370,7 @@ function createDraftsCore() {
       const plainBody =
         'Hi ' + bizName + ' team,\n\n' +
         'I\'m Jason Woodrow, and I run a small local studio right here in Appleton (624 Siteworks)—not an out-of-state marketing agency.\n\n' +
-        'While looking at Fox Valley contractors, I noticed ' + bizName + ' has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:\n' +
+        'While looking at Fox Valley businesses, I noticed ' + bizName + ' has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:\n' +
         previewUrl + '\n\n' +
         plainImprovements +
         'Zero obligation—I already built the draft. If you want to put it on your domain, my flat options are at ' + claimUrl + ', or just call/text my cell at ' + CONFIG.AGENCY_PHONE + '.\n\n' +
@@ -1516,7 +1516,7 @@ function buildHtmlPitchEmail_(data) {
     '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 620px; line-height: 1.55; font-size: 15px;">' +
       '<p style="margin-top: 0;">Hi <strong>' + data.bizName + '</strong> team,</p>' +
       '<p>I\'m Jason Woodrow, and I run a small local studio right here in Appleton (<strong>624 Siteworks</strong>)—not an out-of-state marketing agency.</p>' +
-      '<p>While looking at Fox Valley contractors, I noticed <strong>' + data.bizName + '</strong> has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:</p>' +
+      '<p>While looking at Fox Valley businesses, I noticed <strong>' + data.bizName + '</strong> has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:</p>' +
       screenshotMarkup +
       qrCardMarkup +
       improvementsMarkup +
@@ -1550,7 +1550,7 @@ function formatFriendlyWebsiteImprovements_(siteIssues, domainStatus) {
     });
     points.push({
       title: 'Local Google SEO',
-      desc: 'Built-in local search markup to help your business appear directly in Fox Valley and Northeast Wisconsin contractor searches.'
+      desc: 'Built-in local search markup to help your business appear directly in Fox Valley and Northeast Wisconsin business searches.'
     });
     return points;
   }
