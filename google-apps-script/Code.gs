@@ -126,6 +126,8 @@ function handleLeadEngineApiRequest_(params) {
       const city = params.city || '';
       const domain = params.domain || '';
       res = researchBusinessSocialsAndWeb_(bizName, city, domain);
+    } else if (action === 'researchCustomProspect') {
+      res = researchCustomProspectCore(params);
     } else if (action === 'purgeUsableWebsites') {
       res = purgeUsableWebsitesCore();
     } else if (action === 'saveKeys') {
@@ -656,15 +658,34 @@ function auditWebsiteAndSeoPresence_(info) {
   const issues = [];
   let foundEmail = '';
   let foundFacebook = '';
+  const includeFullBreakdown = Boolean(info.includeFullBreakdown);
 
   const rawSite = (info.siteUrl || '').trim();
   const isSocialOrDirectoryOnly = /(facebook\.com|fb\.com|instagram\.com|yelp\.com|nextdoor\.com|angi\.com|homeadvisor\.com|bbb\.org|linktr\.ee|business\.site|yellowpages\.com|manta\.com|thumbtack\.com)/i.test(rawSite) || (!rawSite && info.fbUrl);
+
+  const defaultMetrics = {
+    responseMs: null,
+    httpStatus: 0,
+    httpsOk: false,
+    mobileOk: false,
+    clickToCall: false,
+    hasH1: false,
+    hasMetaDesc: false,
+    hasSchema: false,
+    textLength: 0,
+    builderType: 'None',
+    titleText: '',
+    metaDescText: '',
+    extractedBizName: '',
+    extractedLocation: '',
+    extractedPhone: ''
+  };
 
   // 1. NO WEBSITE AT ALL
   if (!rawSite && !info.fbUrl) {
     score = 96;
     issues.push('NO WEBSITE: Zero website listed on Google Maps (relying only on word-of-mouth)');
-    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, 'No Website Listed', true);
+    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, 'No Website Listed', true, defaultMetrics, includeFullBreakdown);
   }
 
   // 2. FACEBOOK-ONLY OR SOCIAL/DIRECTORY LINK AS WEBSITE
@@ -678,7 +699,7 @@ function auditWebsiteAndSeoPresence_(info) {
     } else {
       issues.push('NO REAL WEBSITE: Linking to a directory/social profile (' + socialUrl.slice(0, 45) + ') instead of a website');
     }
-    return finalizeAuditReport_(score, issues, foundEmail, socialUrl, socialUrl, true);
+    return finalizeAuditReport_(score, issues, foundEmail, socialUrl, socialUrl, true, Object.assign({}, defaultMetrics, { builderType: 'Social / Directory' }), includeFullBreakdown);
   }
 
   // Check if URL is an amateur free builder subdomain
@@ -695,6 +716,7 @@ function auditWebsiteAndSeoPresence_(info) {
   let homeHtml = '';
   let homeStatus = 0;
   let isStrictHttpOnly = false;
+  let responseMs = null;
 
   // Helper to test HTTPS on given host path
   const tryFetchUrl = (urlToTry, validateCert) => {
@@ -709,7 +731,9 @@ function auditWebsiteAndSeoPresence_(info) {
 
   // 3A. Test HTTPS (try exact domain first, then www. if bare domain fails SSL)
   try {
+    const t0 = new Date().getTime();
     const httpsResp = tryFetchUrl('https://' + cleanDomain, true);
+    responseMs = new Date().getTime() - t0;
     const status = httpsResp.getResponseCode();
     const content = httpsResp.getContentText() || '';
     if (status >= 200 && status < 400 && content.length > 200) {
@@ -725,7 +749,9 @@ function auditWebsiteAndSeoPresence_(info) {
     // If bare domain failed SSL handshake, try www. prefix over HTTPS before declaring SSL broken
     if (!cleanDomain.toLowerCase().startsWith('www.')) {
       try {
+        const t1 = new Date().getTime();
         const wwwResp = tryFetchUrl('https://www.' + cleanDomain, true);
+        responseMs = new Date().getTime() - t1;
         const status2 = wwwResp.getResponseCode();
         const content2 = wwwResp.getContentText() || '';
         if (status2 >= 200 && status2 < 400 && content2.length > 200) {
@@ -743,7 +769,9 @@ function auditWebsiteAndSeoPresence_(info) {
   // 3B. If HTTPS failed completely, fallback to HTTP
   if (!hasWorkingHttps && homeStatus === 0) {
     try {
+      const t2 = new Date().getTime();
       const httpResp = tryFetchUrl('http://' + cleanDomain, false);
+      responseMs = new Date().getTime() - t2;
       homeStatus = httpResp.getResponseCode();
       homeHtml = httpResp.getContentText() || '';
       baseUrl = 'http://' + cleanDomain;
@@ -751,7 +779,7 @@ function auditWebsiteAndSeoPresence_(info) {
     } catch (httpErr) {
       score = 94;
       issues.push('BROKEN WEBSITE: Website link on Google Maps is dead, expired, or unreachable');
-      return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, rawSite, true);
+      return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, rawSite, true, defaultMetrics, includeFullBreakdown);
     }
   }
 
@@ -768,26 +796,71 @@ function auditWebsiteAndSeoPresence_(info) {
     foundFacebook = extractedHome.facebook;
   }
 
+  // Extract HTML metadata & builder signals
+  const rawTitleTag = ((homeHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const ogSiteName = ((homeHtml.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i) || [])[1] || '').trim();
+  const metaDescMatch = homeHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) || homeHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+  const metaDescText = metaDescMatch && metaDescMatch[1] ? metaDescMatch[1].replace(/\s+/g, ' ').trim() : '';
+  const visibleTextPre = homeHtml
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  let builderType = 'Custom / Standard';
+  if (/wixsite\.com|wixstatic\.com|wix-warmup-data/i.test(rawSite + ' ' + homeHtml)) builderType = 'Wix';
+  else if (/squarespace\.com|sqspcdn\.com/i.test(rawSite + ' ' + homeHtml)) builderType = 'Squarespace';
+  else if (/godaddysites\.com|wsimg\.com|godaddy/i.test(rawSite + ' ' + homeHtml)) builderType = 'GoDaddy Builder';
+  else if (/weebly\.com|editmysite\.com/i.test(rawSite + ' ' + homeHtml)) builderType = 'Weebly';
+  else if (/wp-content|wp-includes|wordpress\.com/i.test(rawSite + ' ' + homeHtml)) builderType = 'WordPress';
+
+  let extractedBizName = ogSiteName || '';
+  if (!extractedBizName && rawTitleTag) {
+    extractedBizName = rawTitleTag.split(/\s+(?:\||\u2014|\u2013|-)\s+/)[0].trim();
+  }
+  const phoneMatchHtml = homeHtml.match(/(?:href=["']tel:([^"']+)["'])|(?:\(?([2-9]\d{2})\)?[-.\s]?(\d{3})[-.\s]?(\d{4}))/i);
+  let extractedPhone = '';
+  if (phoneMatchHtml) {
+    if (phoneMatchHtml[1]) extractedPhone = phoneMatchHtml[1].replace(/^tel:/i, '').trim();
+    else if (phoneMatchHtml[2]) extractedPhone = `(${phoneMatchHtml[2]}) ${phoneMatchHtml[3]}-${phoneMatchHtml[4]}`;
+  }
+  const wiCityMatch = visibleTextPre.match(/\b(Appleton|Neenah|Menasha|Kaukauna|Kimberly|Little Chute|Greenville|Hortonville|Oshkosh|Green Bay|De Pere|Fond du Lac|Manitowoc|Sheboygan|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s*(WI|Wisconsin)\b/);
+  const extractedLocation = wiCityMatch ? `${wiCityMatch[1].trim()}, WI` : '';
+
+  const siteMetrics = {
+    responseMs: responseMs,
+    httpStatus: homeStatus,
+    httpsOk: Boolean(hasWorkingHttps && !isStrictHttpOnly),
+    mobileOk: /<meta[^>]+name=["']?viewport["']?/i.test(homeHtml),
+    clickToCall: /href=["']tel:/i.test(homeHtml),
+    hasH1: /<h1[\s>]/i.test(homeHtml),
+    hasMetaDesc: metaDescText.length >= 15,
+    hasSchema: /application\/ld\+json/i.test(homeHtml),
+    textLength: visibleTextPre.length,
+    builderType: builderType,
+    titleText: rawTitleTag,
+    metaDescText: metaDescText,
+    extractedBizName: extractedBizName,
+    extractedLocation: extractedLocation,
+    extractedPhone: extractedPhone
+  };
+
   // Guard: If HTTP 403/503 is just a Cloudflare bot challenge on a live HTTPS site, treat as a working site (skip!)
   const isCloudflareChallenge = (homeStatus === 403 || homeStatus === 503) && hasWorkingHttps && /cloudflare|cf-browser-verification|Just a moment\.\.\.|Attention Required!/i.test(homeHtml);
   if (isCloudflareChallenge) {
-    return finalizeAuditReport_(10, ['USABLE WEBSITE (Cloudflare Protected) - Skip'], foundEmail, foundFacebook, baseUrl, false);
+    return finalizeAuditReport_(includeFullBreakdown ? 20 : 10, ['USABLE WEBSITE (Cloudflare Protected)' + (includeFullBreakdown ? '' : ' - Skip')], foundEmail, foundFacebook, baseUrl, false, Object.assign({}, siteMetrics, { httpsOk: true }), includeFullBreakdown);
   }
 
   // 4. BROKEN HTTP STATUS OR EMPTY SITE
   if (homeStatus >= 400 || !homeHtml || homeHtml.length < 300) {
     score = 90;
     issues.push('BROKEN / EMPTY WEBSITE: Website returned HTTP ' + (homeStatus || 'Error') + ' or blank page');
-    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true);
+    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true, siteMetrics, includeFullBreakdown);
   }
 
   // 5. PARKED / EXPIRED / UNDER CONSTRUCTION / SUSPENDED DOMAIN DETECTION
-  const visibleText = homeHtml
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const visibleText = visibleTextPre;
 
   const titleAndH1Text = ((homeHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '') + ' ' +
     ((homeHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '');
@@ -800,7 +873,7 @@ function auditWebsiteAndSeoPresence_(info) {
   if (isParkedOrPlaceholder) {
     score = 90;
     issues.push('PARKED / EXPIRED / UNDER CONSTRUCTION: Domain shows a parked, expired, or "Coming Soon" placeholder page');
-    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true);
+    return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true, siteMetrics, includeFullBreakdown);
   }
 
   // 6. EVALUATE GENUINELY BAD / UNUSABLE WEBSITE CRITERIA
@@ -808,22 +881,22 @@ function auditWebsiteAndSeoPresence_(info) {
 
   // Defect A: Insecure HTTP-Only (No working SSL certificate)
   if (isStrictHttpOnly || !hasWorkingHttps) {
-    score += 78;
+    score += includeFullBreakdown ? 35 : 78;
     hasMajorDefect = true;
     issues.push('NOT SECURE (HTTP-ONLY): Missing SSL certificate (browsers show "Not Secure" warning to customers)');
   }
 
   // Defect B: Amateur Free Subdomain (.wixsite.com, .weebly.com, .godaddysites.com, etc.)
   if (isFreeSubdomain) {
-    score += 78;
+    score += includeFullBreakdown ? 30 : 78;
     hasMajorDefect = true;
     issues.push('FREE SUBDOMAIN: Using an amateur free builder subdomain (' + cleanDomain + ') instead of a custom domain');
   }
 
   // Defect C: Not Mobile-Friendly (Missing viewport meta tag)
-  const hasViewport = /<meta[^>]+name=["']?viewport["']?/i.test(homeHtml);
+  const hasViewport = siteMetrics.mobileOk;
   if (!hasViewport) {
-    score += 78;
+    score += includeFullBreakdown ? 30 : 78;
     hasMajorDefect = true;
     issues.push('NOT MOBILE-FRIENDLY: Missing mobile viewport tag (renders as broken desktop layout on phones)');
   }
@@ -834,35 +907,70 @@ function auditWebsiteAndSeoPresence_(info) {
   const hasAncientCopyrightOnly = /(?:copyright|\u00A9|&copy;)\s*(?:199\d|200\d|201[0-7])\b/i.test(homeHtml) && !/202[0-6]/.test(homeHtml);
 
   if (hasObsoleteMarkup) {
-    score += 78;
+    score += includeFullBreakdown ? 30 : 78;
     hasMajorDefect = true;
     issues.push('ANCIENT HTML: Built with obsolete 1990s/2000s web markup (framesets/Flash/FrontPage)');
   } else if (isSkeletonPage) {
-    score += 75;
+    score += includeFullBreakdown ? 28 : 75;
     hasMajorDefect = true;
     issues.push('EMPTY / SKELETON SITE: Homepage has almost zero text content (' + visibleText.length + ' chars)');
-  } else if (hasAncientCopyrightOnly && !/href=["']tel:/i.test(homeHtml)) {
-    score += 75;
+  } else if (hasAncientCopyrightOnly && !siteMetrics.clickToCall) {
+    score += includeFullBreakdown ? 22 : 75;
     hasMajorDefect = true;
     issues.push('ABANDONED / OUTDATED SITE: Outdated pre-2018 copyright & no mobile click-to-call');
   }
 
-  // If the website has NO major defects, it is a USABLE WEBSITE -> Disqualify & Skip!
-  if (!hasMajorDefect) {
-    return finalizeAuditReport_(15, ['USABLE WEBSITE: Has working HTTPS, custom domain, mobile viewport, and active content (Skip)'], foundEmail, foundFacebook, baseUrl, false);
+  // For automated Gate 1 bulk scrape, disqualify sites with NO major defect immediately
+  if (!hasMajorDefect && !includeFullBreakdown) {
+    return finalizeAuditReport_(15, ['USABLE WEBSITE: Has working HTTPS, custom domain, mobile viewport, and active content (Skip)'], foundEmail, foundFacebook, baseUrl, false, siteMetrics, false);
   }
 
-  // Add secondary context notes ONLY for already-qualified bad sites (to enrich the pitch)
-  if (!/href=["']tel:/i.test(homeHtml)) {
-    score += 6;
+  // Detailed conversion, SEO, speed & platform breakdown
+  if (includeFullBreakdown) {
+    if (builderType === 'Wix' || builderType === 'Squarespace' || builderType === 'GoDaddy Builder' || builderType === 'Weebly') {
+      score += 14;
+      issues.push('TEMPLATE BUILDER (' + builderType + '): Slower bloated scripts and weaker local SEO control');
+    } else if (builderType === 'WordPress') {
+      score += 8;
+      issues.push('WORDPRESS SITE: Plugin overhead and heavier maintenance footprint');
+    }
+    if (responseMs !== null && responseMs > 2500) {
+      score += 10;
+      issues.push('SLOW SERVER RESPONSE: ' + responseMs + 'ms load delay');
+    } else if (responseMs !== null && responseMs > 1200) {
+      score += 6;
+      issues.push('MODERATE SERVER RESPONSE: ' + responseMs + 'ms latency');
+    }
+    if (!siteMetrics.hasMetaDesc) {
+      score += 7;
+      issues.push('MISSING META DESCRIPTION: Reduced Google click-through snippet optimization');
+    }
+    if (!siteMetrics.hasSchema) {
+      score += 8;
+      issues.push('NO LOCAL SCHEMA: Missing LocalBusiness structured JSON-LD markup');
+    }
+    if (typeof info.reviewsCount === 'number' && info.reviewsCount >= 0 && info.reviewsCount < 10) {
+      score += 8;
+      issues.push('LOW GOOGLE REVIEWS: Only ' + info.reviewsCount + ' Google reviews');
+    }
+  }
+
+  if (!siteMetrics.clickToCall) {
+    score += includeFullBreakdown ? 10 : 6;
     issues.push('NO CLICK-TO-CALL: Phone number is not tappable on mobile');
   }
-  if (!/<h1[\s>]/i.test(homeHtml)) {
-    score += 5;
+  if (!siteMetrics.hasH1) {
+    score += includeFullBreakdown ? 8 : 5;
     issues.push('MISSING H1 HEADING: Weak search engine structure');
   }
 
-  // Crawl /contact or /about to find email for qualified prospects only
+  if (includeFullBreakdown && !hasMajorDefect && issues.length === 0) {
+    issues.push('STRONG WEBSITE: Working HTTPS, custom domain, mobile viewport, schema, and tap-to-call detected');
+  } else if (includeFullBreakdown && !hasMajorDefect) {
+    issues.unshift('USABLE WEBSITE (HTTPS + Mobile Ready)');
+  }
+
+  // Crawl /contact or /about to find email when missing
   if (!foundEmail) {
     const subpaths = ['/contact', '/contact-us', '/about'];
     for (let i = 0; i < subpaths.length; i++) {
@@ -889,14 +997,24 @@ function auditWebsiteAndSeoPresence_(info) {
     }
   }
 
-  return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, true);
+  return finalizeAuditReport_(score, issues, foundEmail, foundFacebook, baseUrl, hasMajorDefect, siteMetrics, includeFullBreakdown);
 }
 
-function finalizeAuditReport_(rawScore, issues, email, facebook, verifiedUrl, isQualifiedProspect) {
-  const cappedScore = isQualifiedProspect ? Math.max(70, Math.min(100, rawScore)) : Math.min(30, rawScore);
+function finalizeAuditReport_(rawScore, issues, email, facebook, verifiedUrl, isQualifiedProspect, metrics, includeFullBreakdown) {
+  let cappedScore;
   let tierLabel = 'USABLE SITE - SKIP';
-  if (isQualifiedProspect) {
-    tierLabel = cappedScore >= 85 ? 'HOT PROSPECT' : 'QUALIFIED BAD SITE';
+
+  if (includeFullBreakdown) {
+    cappedScore = Math.max(5, Math.min(100, rawScore));
+    if (cappedScore >= 75) tierLabel = 'HOT PROSPECT';
+    else if (cappedScore >= 45) tierLabel = 'STRONG OPPORTUNITY';
+    else if (cappedScore >= 25) tierLabel = 'MODERATE OPPORTUNITY';
+    else tierLabel = 'SOLID WEBSITE';
+  } else {
+    cappedScore = isQualifiedProspect ? Math.max(70, Math.min(100, rawScore)) : Math.min(30, rawScore);
+    if (isQualifiedProspect) {
+      tierLabel = cappedScore >= 85 ? 'HOT PROSPECT' : 'QUALIFIED BAD SITE';
+    }
   }
 
   const summary = issues.length
@@ -906,10 +1024,12 @@ function finalizeAuditReport_(rawScore, issues, email, facebook, verifiedUrl, is
   return {
     isQualifiedProspect: Boolean(isQualifiedProspect),
     badnessScore: cappedScore,
+    tierLabel: tierLabel,
     reportText: '[' + tierLabel + ' - ' + cappedScore + '/100] ' + summary,
     email: email,
     facebook: facebook,
-    verifiedUrl: verifiedUrl || ''
+    verifiedUrl: verifiedUrl || '',
+    metrics: metrics || null
   };
 }
 
@@ -935,6 +1055,8 @@ function purgeUsableWebsitesCore() {
   for (let i = values.length - 1; i >= 0; i--) {
     const rowNum = i + 2;
     const row = values[i];
+    const rowNotes = String(row[COL.NOTES - 1] || '');
+    if (/custom research/i.test(rowNotes)) continue;
     const bizName = String(row[COL.BUSINESS_NAME - 1] || '').trim();
     const domainStatus = String(row[COL.DOMAIN_STATUS - 1] || '').trim();
     const siteIssues = String(row[COL.SITE_ISSUES - 1] || '').trim();
@@ -1860,4 +1982,574 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
   }
 
   return result;
+}
+
+/* ============================================================================
+ * CUSTOM PROSPECT RESEARCH (Any combination of Name / Location / URL)
+ * ============================================================================ */
+
+function normalizeHost_(urlStr) {
+  if (!urlStr) return '';
+  const clean = String(urlStr).trim().toLowerCase();
+  if (!clean || clean.includes('no website')) return '';
+  return clean.replace(/^https?:\/\/(www\.)?/i, '').split('/')[0].split('?')[0];
+}
+
+function extractCityFromAddress_(addr, fallbackCity) {
+  const s = String(addr || '').trim();
+  const m = s.match(/([A-Za-z][A-Za-z .'-]+),\s*([A-Z]{2})\b/);
+  if (m && m[1]) {
+    const cityPart = m[1].split(',').pop().trim().replace(/^\d+\s+/, '');
+    if (cityPart) return cityPart + ', ' + m[2];
+  }
+  if (s && !/^\d+$/.test(s)) return s;
+  return fallbackCity || 'Fox Valley, WI';
+}
+
+function inferTradeLabel_(bizName, titleText, metaDesc, mapsType) {
+  if (mapsType && !/^contractor$/i.test(mapsType.trim())) return mapsType.trim();
+  const combined = (bizName + ' ' + titleText + ' ' + metaDesc).toLowerCase();
+  const rules = [
+    [/electrician|electrical/i, 'Electrical Contractor'],
+    [/plumb|drain|sewer/i, 'Plumbing Contractor'],
+    [/hvac|heating|cooling|furnace|air cond|refrigeration/i, 'HVAC Contractor'],
+    [/roof/i, 'Roofing Contractor'],
+    [/tree\s*service|arborist|stump|tree care/i, 'Tree Service'],
+    [/concrete|flatwork|stamped/i, 'Concrete Contractor'],
+    [/fence|fencing|deck/i, 'Fencing Contractor'],
+    [/landscap|lawn|hardscape|paver/i, 'Landscaping Contractor'],
+    [/asphalt|paving|sealcoat/i, 'Paving Contractor'],
+    [/remodel|builder|construction/i, 'General Contractor']
+  ];
+  for (let i = 0; i < rules.length; i++) {
+    if (rules[i][0].test(combined)) return rules[i][1];
+  }
+  return 'Home Service Contractor';
+}
+
+function findBestMapsPlace_(places, targetName, targetHost) {
+  if (!Array.isArray(places) || !places.length) return null;
+  const cleanName = String(targetName || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+  const nameTokens = cleanName.split(/\s+/).filter(t => t.length >= 2);
+  let best = null;
+  let bestScore = -1;
+
+  for (let i = 0; i < places.length; i++) {
+    const p = places[i];
+    const pHost = normalizeHost_(p.website || '');
+    if (targetHost && pHost && pHost === targetHost) {
+      return { place: p, index: i };
+    }
+    const pName = String(p.title || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+    let matchScore = 0;
+    if (cleanName && pName === cleanName) matchScore += 100;
+    else if (cleanName && (pName.includes(cleanName) || cleanName.includes(pName))) matchScore += 70;
+    else if (nameTokens.length) {
+      let hits = 0;
+      for (let t = 0; t < nameTokens.length; t++) {
+        if (pName.includes(nameTokens[t])) hits++;
+      }
+      matchScore += Math.round((hits / nameTokens.length) * 60);
+    } else if (i === 0) {
+      matchScore = 10;
+    }
+    if (matchScore > bestScore) {
+      bestScore = matchScore;
+      best = { place: p, index: i };
+    }
+  }
+  return (bestScore >= 30 || !cleanName) ? best : { place: places[0], index: 0 };
+}
+
+function fetchSerperMapsSinglePage_(apiKey, query, pageNum) {
+  try {
+    const resp = UrlFetchApp.fetch('https://google.serper.dev/maps', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'X-API-KEY': apiKey },
+      payload: JSON.stringify({ q: query, gl: 'us', hl: 'en', page: pageNum || 1 }),
+      muteHttpExceptions: true
+    });
+    if (resp.getResponseCode() >= 200 && resp.getResponseCode() < 300) {
+      const data = JSON.parse(resp.getContentText());
+      return Array.isArray(data.places) ? data.places : [];
+    }
+  } catch (e) {}
+  return [];
+}
+
+function checkLocalCompetitionRank_(serperKey, bizName, host, tradeLabel, cityStr) {
+  const rankOut = {
+    query: (tradeLabel + ' ' + cityStr).trim(),
+    mapsRank: null,
+    mapsTotal: 0,
+    organicRank: null,
+    organicTotal: 0,
+    avgRating: null,
+    avgReviews: null,
+    topCompetitor: null
+  };
+  if (!serperKey || !cityStr) return rankOut;
+
+  const cleanName = String(bizName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const places = fetchSerperMapsSinglePage_(serperKey, rankOut.query, 1);
+  if (places.length) {
+    rankOut.mapsTotal = places.length;
+    let ratingSum = 0;
+    let ratingCountSum = 0;
+    let ratedItems = 0;
+    for (let i = 0; i < places.length; i++) {
+      const p = places[i];
+      if (p.rating) {
+        ratingSum += Number(p.rating) || 0;
+        ratedItems++;
+      }
+      ratingCountSum += Number(p.ratingCount) || 0;
+      const pHost = normalizeHost_(p.website || '');
+      const pClean = String(p.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const nameMatch = cleanName && pClean && (pClean.includes(cleanName) || cleanName.includes(pClean));
+      const hostMatch = host && pHost && host === pHost;
+      if (!rankOut.mapsRank && (hostMatch || nameMatch)) {
+        rankOut.mapsRank = i + 1;
+      }
+    }
+    if (ratedItems > 0) rankOut.avgRating = Number((ratingSum / ratedItems).toFixed(1));
+    rankOut.avgReviews = Math.round(ratingCountSum / places.length);
+    rankOut.topCompetitor = {
+      name: places[0].title || '',
+      rating: places[0].rating || null,
+      reviews: Number(places[0].ratingCount) || 0
+    };
+  }
+
+  try {
+    const sResp = UrlFetchApp.fetch('https://google.serper.dev/search', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'X-API-KEY': serperKey },
+      payload: JSON.stringify({ q: rankOut.query, gl: 'us', hl: 'en', num: 20 }),
+      muteHttpExceptions: true
+    });
+    if (sResp.getResponseCode() >= 200 && sResp.getResponseCode() < 300) {
+      const sData = JSON.parse(sResp.getContentText());
+      const organic = Array.isArray(sData.organic) ? sData.organic : [];
+      rankOut.organicTotal = organic.length;
+      for (let j = 0; j < organic.length; j++) {
+        const oHost = normalizeHost_(organic[j].link || '');
+        const oTitle = String(organic[j].title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if ((host && oHost && oHost === host) || (cleanName && oTitle.includes(cleanName))) {
+          rankOut.organicRank = j + 1;
+          break;
+        }
+      }
+    }
+  } catch (e) {}
+
+  return rankOut;
+}
+
+function findMatchingSheetRow_(sheet, bizName, customHost) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const rows = sheet.getRange(2, 1, lastRow - 1, COL.PREVIEW_URL).getValues();
+  const targetName = String(bizName || '').trim().toLowerCase();
+  const normTargetHost = normalizeHost_(customHost);
+
+  for (let i = 0; i < rows.length; i++) {
+    const rName = String(rows[i][COL.BUSINESS_NAME - 1] || '').trim().toLowerCase();
+    const rHost = normalizeHost_(rows[i][COL.DOMAIN_STATUS - 1] || '');
+    if ((targetName && rName === targetName) || (normTargetHost && rHost && rHost === normTargetHost && !/facebook\.com|fb\.com|yelp\.com/i.test(rHost))) {
+      return i + 2;
+    }
+  }
+  return null;
+}
+
+function upsertCustomLeadRow_(sheet, fields) {
+  const existingRowNum = findMatchingSheetRow_(sheet, fields.businessName, fields.domainStatus);
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  const noteTag = 'Custom research ' + stamp;
+
+  if (existingRowNum) {
+    const curValues = sheet.getRange(existingRowNum, 1, 1, TOTAL_COLS).getValues()[0];
+    sheet.getRange(existingRowNum, COL.TIMESTAMP).setValue(new Date());
+    if (fields.serviceArea) sheet.getRange(existingRowNum, COL.SERVICE_AREA).setValue(fields.serviceArea);
+    if (fields.phone && !curValues[COL.PHONE - 1]) sheet.getRange(existingRowNum, COL.PHONE).setValue(fields.phone);
+    if (fields.logoUrl && !curValues[COL.LOGO_URL - 1]) sheet.getRange(existingRowNum, COL.LOGO_URL).setValue(fields.logoUrl);
+    if (fields.domainStatus) sheet.getRange(existingRowNum, COL.DOMAIN_STATUS).setValue(fields.domainStatus);
+    if (fields.email && (!curValues[COL.EMAIL - 1] || String(curValues[COL.EMAIL - 1]).trim() === 'No email found')) {
+      sheet.getRange(existingRowNum, COL.EMAIL).setValue(fields.email);
+    }
+    if (fields.hours && !curValues[COL.HOURS - 1]) sheet.getRange(existingRowNum, COL.HOURS).setValue(fields.hours);
+    if (fields.ratingReviews) sheet.getRange(existingRowNum, COL.RATING_REVIEWS).setValue(fields.ratingReviews);
+    sheet.getRange(existingRowNum, COL.SITE_ISSUES).setValue(fields.siteIssues);
+
+    const prevNote = String(curValues[COL.NOTES - 1] || '').trim();
+    const nextNote = prevNote ? (noteTag + ' | ' + prevNote) : noteTag;
+    sheet.getRange(existingRowNum, COL.NOTES).setValue(nextNote);
+
+    const bgColor = fields.badnessScore >= 75 ? '#fee2e2' : (fields.badnessScore >= 45 ? '#fef3c7' : '#dcfce7');
+    sheet.getRange(existingRowNum, COL.SITE_ISSUES).setBackground(bgColor);
+    SpreadsheetApp.flush();
+
+    return {
+      rowNumber: existingRowNum,
+      existingUpdated: true,
+      leadStatus: String(curValues[COL.LEAD_STATUS - 1] || STATUS.SCRAPED),
+      previewUrl: String(curValues[COL.PREVIEW_URL - 1] || '')
+    };
+  }
+
+  const colBValues = sheet.getRange(1, COL.BUSINESS_NAME, Math.max(sheet.getLastRow(), 1), 1).getValues();
+  let lastPopulatedRow = 1;
+  for (let r = 1; r < colBValues.length; r++) {
+    if (String(colBValues[r][0] || '').trim()) lastPopulatedRow = r + 1;
+  }
+  const newRowNum = lastPopulatedRow + 1;
+
+  const row = new Array(TOTAL_COLS).fill('');
+  row[COL.TIMESTAMP - 1] = new Date();
+  row[COL.BUSINESS_NAME - 1] = fields.businessName;
+  row[COL.SERVICE_AREA - 1] = fields.serviceArea || CONFIG.DEFAULT_SERVICE_AREA;
+  row[COL.PHONE - 1] = fields.phone || '';
+  row[COL.LOGO_URL - 1] = fields.logoUrl || '';
+  row[COL.DOMAIN_STATUS - 1] = fields.domainStatus || 'No Website Listed';
+  row[COL.EMAIL - 1] = fields.email || 'No email found';
+  row[COL.HOURS - 1] = fields.hours || '';
+  row[COL.LEAD_STATUS - 1] = STATUS.SCRAPED;
+  row[COL.RATING_REVIEWS - 1] = fields.ratingReviews || '';
+  row[COL.NOTES - 1] = noteTag;
+  row[COL.SITE_ISSUES - 1] = fields.siteIssues || '';
+
+  sheet.getRange(newRowNum, 1, 1, 16).setValues([row.slice(0, 16)]);
+  sheet.getRange(newRowNum, 18, 1, 5).setValues([row.slice(17, 22)]);
+
+  if (sheet.getMaxRows() >= 2) {
+    sheet.getRange(2, COL.AI_PROMPT, sheet.getMaxRows() - 1, 1).clearContent();
+  }
+
+  const bgColor = fields.badnessScore >= 75 ? '#fee2e2' : (fields.badnessScore >= 45 ? '#fef3c7' : '#dcfce7');
+  sheet.getRange(newRowNum, COL.SITE_ISSUES).setBackground(bgColor);
+  SpreadsheetApp.flush();
+
+  return {
+    rowNumber: newRowNum,
+    existingUpdated: false,
+    leadStatus: STATUS.SCRAPED,
+    previewUrl: ''
+  };
+}
+
+function buildCustomResearchIssueReport_(audit, rankInfo, metrics) {
+  const rankNote = rankInfo && rankInfo.mapsRank
+    ? ('Maps Rank: #' + rankInfo.mapsRank + ' of ' + rankInfo.mapsTotal + ' for "' + rankInfo.query + '"')
+    : (rankInfo && rankInfo.mapsTotal ? ('Not in Top ' + rankInfo.mapsTotal + ' on Google Maps for "' + rankInfo.query + '"') : '');
+  const organicNote = rankInfo && rankInfo.organicRank
+    ? ('Organic Rank: #' + rankInfo.organicRank)
+    : '';
+  const speedNote = (metrics && metrics.responseMs !== null)
+    ? ('Load: ' + metrics.responseMs + 'ms')
+    : '';
+
+  const baseBody = String(audit.reportText || '').replace(/^\[.*?\]\s*/, '').trim();
+  const statPrefix = [rankNote, organicNote, speedNote].filter(Boolean).join(' · ');
+  const combinedBody = [statPrefix, baseBody].filter(Boolean).join(' | ');
+  return '[' + (audit.tierLabel || 'CUSTOM RESEARCH') + ' - ' + audit.badnessScore + '/100] ' + combinedBody;
+}
+
+function researchCustomProspectCore(params) {
+  const rawName = String(params.businessName || '').trim();
+  const rawLocation = String(params.location || '').trim();
+  const rawUrl = String(params.url || '').trim();
+
+  const props = PropertiesService.getScriptProperties();
+  const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '';
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME) || initializeProspectPipelineSheet();
+  if (String(sheet.getRange(1, COL.SITE_ISSUES).getValue()).trim() === '') {
+    initializeProspectPipelineSheet();
+  }
+
+  // BRANCH B: No businessName and no url (Location-only or completely blank -> discover & rank top local prospects)
+  if (!rawName && !rawUrl) {
+    if (!serperKey) {
+      throw new Error('Missing SERPER_API_KEY in ScriptProperties to run discovery without a URL.');
+    }
+    const locQuery = rawLocation || 'Fox Valley, WI';
+    const hasTradeKeyword = /(plumb|electr|hvac|heat|cool|roof|concrete|fenc|tree|landscap|paving|asphalt|contract|remodel|build|paint|siding|window|auto|repair)/i.test(locQuery);
+    const discoveryQuery = hasTradeKeyword ? locQuery : ('home service contractors ' + locQuery);
+    const places = fetchSerperMapsSinglePage_(serperKey, discoveryQuery, 1);
+
+    if (!places.length) {
+      return {
+        success: true,
+        mode: 'discovery',
+        query: discoveryQuery,
+        insertedCount: 0,
+        updatedCount: 0,
+        results: [],
+        message: 'No businesses found on Google Maps for "' + discoveryQuery + '".'
+      };
+    }
+
+    const auditedItems = [];
+    let insertedCount = 0;
+    let updatedCount = 0;
+    const limit = Math.min(places.length, 8);
+
+    for (let i = 0; i < limit; i++) {
+      const p = places[i];
+      const bizName = String(p.title || '').trim();
+      if (!bizName) continue;
+
+      const siteUrl = String(p.website || '').trim();
+      const fbUrl = /facebook\.com|fb\.com/i.test(siteUrl) ? siteUrl : '';
+      const reviewsCount = Number(p.ratingCount || 0);
+      const audit = auditWebsiteAndSeoPresence_({
+        bizName: bizName,
+        siteUrl: siteUrl,
+        fbUrl: fbUrl,
+        reviewsCount: reviewsCount,
+        rating: p.rating,
+        includeFullBreakdown: true
+      });
+
+      const email = audit.email || 'No email found';
+      const domainStatus = audit.verifiedUrl || siteUrl || fbUrl || 'No Website Listed';
+      const ratingVal = p.rating ? Number(p.rating).toFixed(1) : null;
+      const tradeType = p.type || (hasTradeKeyword ? discoveryQuery.split(',')[0].trim() : 'Home Service Contractor');
+      const ratingBadge = (ratingVal ? (ratingVal + ' \u2605 (' + reviewsCount + ' reviews)') : ('No reviews listed')) + ' - ' + tradeType;
+      const serviceArea = extractCityFromAddress_(p.address || rawLocation, rawLocation || 'Fox Valley, WI');
+      const rankInfo = { query: discoveryQuery, mapsRank: i + 1, mapsTotal: places.length, organicRank: null };
+      const reportText = buildCustomResearchIssueReport_(audit, rankInfo, audit.metrics);
+
+      const upsertRes = upsertCustomLeadRow_(sheet, {
+        businessName: bizName,
+        serviceArea: serviceArea,
+        phone: p.phoneNumber || (audit.metrics && audit.metrics.extractedPhone) || '',
+        logoUrl: p.thumbnailUrl || '',
+        domainStatus: domainStatus,
+        email: email,
+        hours: formatWorkingHours_(p.openingHours),
+        ratingReviews: ratingBadge,
+        siteIssues: reportText,
+        badnessScore: audit.badnessScore
+      });
+
+      if (upsertRes.existingUpdated) updatedCount++;
+      else insertedCount++;
+
+      auditedItems.push({
+        rowNumber: upsertRes.rowNumber,
+        existingUpdated: upsertRes.existingUpdated,
+        businessName: bizName,
+        serviceArea: serviceArea,
+        phone: p.phoneNumber || (audit.metrics && audit.metrics.extractedPhone) || '',
+        email: email,
+        domainStatus: domainStatus,
+        facebookUrl: fbUrl || audit.facebook || '',
+        ratingReviews: ratingBadge,
+        previewUrl: upsertRes.previewUrl,
+        leadStatus: upsertRes.leadStatus,
+        badnessScore: audit.badnessScore,
+        tierLabel: audit.tierLabel,
+        siteIssues: reportText,
+        metrics: Object.assign({}, audit.metrics || {}, {
+          mapsRank: i + 1,
+          mapsTotal: places.length,
+          rating: ratingVal ? Number(ratingVal) : null,
+          reviews: reviewsCount
+        })
+      });
+    }
+
+    auditedItems.sort((a, b) => (b.badnessScore || 0) - (a.badnessScore || 0));
+
+    return {
+      success: true,
+      mode: 'discovery',
+      query: discoveryQuery,
+      insertedCount: insertedCount,
+      updatedCount: updatedCount,
+      results: auditedItems,
+      message: 'Researched ' + auditedItems.length + ' businesses for "' + discoveryQuery + '" (' + insertedCount + ' added, ' + updatedCount + ' updated).'
+    };
+  }
+
+  // BRANCH A: Specific Business Research (Business Name and/or Website URL provided)
+  let preAudit = null;
+  let initialHost = normalizeHost_(rawUrl);
+  const inputIsSocial = /facebook\.com|fb\.com|instagram\.com|yelp\.com/i.test(rawUrl);
+
+  if (rawUrl) {
+    preAudit = auditWebsiteAndSeoPresence_({
+      bizName: rawName,
+      siteUrl: rawUrl,
+      fbUrl: inputIsSocial ? rawUrl : '',
+      includeFullBreakdown: true
+    });
+    if (preAudit.verifiedUrl && !initialHost) {
+      initialHost = normalizeHost_(preAudit.verifiedUrl);
+    }
+  }
+
+  let resolvedBizName = rawName;
+  if (!resolvedBizName && preAudit && preAudit.metrics && preAudit.metrics.extractedBizName) {
+    resolvedBizName = preAudit.metrics.extractedBizName;
+  }
+  if (!resolvedBizName && initialHost) {
+    resolvedBizName = initialHost.split('.')[0].replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+  if (!resolvedBizName) resolvedBizName = 'Custom Prospect';
+
+  let resolvedLocation = rawLocation || (preAudit && preAudit.metrics && preAudit.metrics.extractedLocation) || '';
+
+  // Lookup business on Google Maps for rating, reviews, phone, address, hours, and official site
+  let matchedPlace = null;
+  if (serperKey && resolvedBizName) {
+    const mapsQueries = [];
+    if (resolvedLocation) mapsQueries.push(resolvedBizName + ' ' + resolvedLocation);
+    else mapsQueries.push(resolvedBizName + ' Wisconsin', resolvedBizName);
+
+    for (let q = 0; q < mapsQueries.length; q++) {
+      const candidates = fetchSerperMapsSinglePage_(serperKey, mapsQueries[q], 1);
+      const hit = findBestMapsPlace_(candidates, resolvedBizName, initialHost);
+      if (hit && hit.place) {
+        matchedPlace = hit.place;
+        break;
+      }
+    }
+  }
+
+  if (matchedPlace && !rawName && matchedPlace.title) {
+    resolvedBizName = matchedPlace.title.trim();
+  }
+  if (!resolvedLocation && matchedPlace && matchedPlace.address) {
+    resolvedLocation = extractCityFromAddress_(matchedPlace.address, 'Fox Valley, WI');
+  }
+  if (!resolvedLocation) {
+    resolvedLocation = 'Fox Valley, WI';
+  }
+
+  const mapsSiteUrl = matchedPlace ? String(matchedPlace.website || '').trim() : '';
+  let effectiveUrl = rawUrl || mapsSiteUrl;
+
+  // Web & Social Discovery (finds website + FB/IG/BBB/Yelp if still missing)
+  const researchCityForWeb = extractCityFromAddress_(resolvedLocation, resolvedLocation);
+  const researchData = researchBusinessSocialsAndWeb_(resolvedBizName, researchCityForWeb, effectiveUrl || '');
+  if (!effectiveUrl && researchData.discoveredWebsite) {
+    effectiveUrl = researchData.discoveredWebsite;
+  }
+
+  const effectiveHost = normalizeHost_(effectiveUrl);
+  const effectiveFbUrl = (matchedPlace && /facebook\.com|fb\.com/i.test(mapsSiteUrl))
+    ? mapsSiteUrl
+    : (researchData.socials && researchData.socials.facebook) || (inputIsSocial ? rawUrl : '');
+
+  const reviewsCount = matchedPlace ? Number(matchedPlace.ratingCount || 0) : null;
+  const ratingNum = (matchedPlace && matchedPlace.rating) ? Number(matchedPlace.rating) : null;
+
+  // Perform full audit on final effectiveUrl (reusing preAudit if URL didn't change and no reviewsCount adjustment needed)
+  let audit;
+  if (preAudit && (!effectiveUrl || normalizeHost_(effectiveUrl) === initialHost) && reviewsCount === null) {
+    audit = preAudit;
+  } else {
+    audit = auditWebsiteAndSeoPresence_({
+      bizName: resolvedBizName,
+      siteUrl: effectiveUrl || '',
+      fbUrl: effectiveFbUrl || '',
+      reviewsCount: reviewsCount,
+      rating: ratingNum,
+      includeFullBreakdown: true
+    });
+  }
+
+  const siteMetrics = audit.metrics || {};
+  const tradeType = inferTradeLabel_(
+    resolvedBizName,
+    siteMetrics.titleText || '',
+    siteMetrics.metaDescText || '',
+    matchedPlace ? matchedPlace.type : ''
+  );
+
+  // Check local competitive Google Maps + Organic ranking for this trade in their city
+  const rankCity = extractCityFromAddress_(matchedPlace && matchedPlace.address ? matchedPlace.address : resolvedLocation, resolvedLocation);
+  const rankInfo = checkLocalCompetitionRank_(serperKey, resolvedBizName, effectiveHost, tradeType, rankCity);
+
+  // Factor local rank prominence gently if score is still moderate
+  if (rankInfo.mapsTotal > 0 && !rankInfo.mapsRank && audit.badnessScore < 90) {
+    audit.badnessScore = Math.min(100, audit.badnessScore + 6);
+    if (audit.badnessScore >= 75) audit.tierLabel = 'HOT PROSPECT';
+    else if (audit.badnessScore >= 45) audit.tierLabel = 'STRONG OPPORTUNITY';
+  }
+
+  const phone = (matchedPlace && matchedPlace.phoneNumber) || siteMetrics.extractedPhone || '';
+  const email = audit.email || 'No email found';
+  const domainStatus = audit.verifiedUrl || effectiveUrl || effectiveFbUrl || 'No Website Listed';
+  const ratingBadge = (ratingNum !== null
+    ? (ratingNum.toFixed(1) + ' \u2605 (' + (reviewsCount || 0) + ' reviews)')
+    : 'Custom Research Lead') + ' - ' + tradeType;
+  const hoursStr = formatWorkingHours_(matchedPlace ? matchedPlace.openingHours : '');
+  const logoUrl = (matchedPlace && matchedPlace.thumbnailUrl) || '';
+  const reportText = buildCustomResearchIssueReport_(audit, rankInfo, siteMetrics);
+
+  const upsertRes = upsertCustomLeadRow_(sheet, {
+    businessName: resolvedBizName,
+    serviceArea: rankCity || resolvedLocation,
+    phone: phone,
+    logoUrl: logoUrl,
+    domainStatus: domainStatus,
+    email: email,
+    hours: hoursStr,
+    ratingReviews: ratingBadge,
+    siteIssues: reportText,
+    badnessScore: audit.badnessScore
+  });
+
+  const resultLead = {
+    rowNumber: upsertRes.rowNumber,
+    existingUpdated: upsertRes.existingUpdated,
+    timestamp: new Date().toISOString(),
+    businessName: resolvedBizName,
+    serviceArea: rankCity || resolvedLocation,
+    phone: phone,
+    email: email,
+    domainStatus: domainStatus,
+    facebookUrl: effectiveFbUrl || audit.facebook || '',
+    logoUrl: logoUrl,
+    hours: hoursStr,
+    ratingReviews: ratingBadge,
+    previewUrl: upsertRes.previewUrl,
+    leadStatus: upsertRes.leadStatus,
+    badnessScore: audit.badnessScore,
+    tierLabel: audit.tierLabel,
+    siteIssues: reportText
+  };
+
+  const fullMetrics = Object.assign({}, siteMetrics, {
+    badnessScore: audit.badnessScore,
+    tierLabel: audit.tierLabel,
+    tradeType: tradeType,
+    rating: ratingNum,
+    reviews: reviewsCount,
+    mapsRank: rankInfo.mapsRank,
+    mapsTotal: rankInfo.mapsTotal,
+    organicRank: rankInfo.organicRank,
+    organicTotal: rankInfo.organicTotal,
+    rankQuery: rankInfo.query,
+    localAvgRating: rankInfo.avgRating,
+    localAvgReviews: rankInfo.avgReviews,
+    topCompetitor: rankInfo.topCompetitor
+  });
+
+  return {
+    success: true,
+    mode: 'single',
+    existingUpdated: upsertRes.existingUpdated,
+    lead: resultLead,
+    metrics: fullMetrics,
+    researchData: researchData,
+    results: [Object.assign({}, resultLead, { metrics: fullMetrics })],
+    message: (upsertRes.existingUpdated ? 'Updated row #' : 'Added row #') + upsertRes.rowNumber + ' for "' + resolvedBizName + '" (' + audit.badnessScore + '/100).'
+  };
 }
