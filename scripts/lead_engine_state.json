@@ -1,7 +1,7 @@
 {
-  "lastRunIndex": 4,
-  "lastRunDate": "2026-11-12T14:01:55.917Z",
-  "totalSitesBuilt": 10,
+  "lastRunIndex": 7,
+  "lastRunDate": "2026-11-17T12:04:32.302Z",
+  "totalSitesBuilt": 25,
   "runs": [
     {
       "date": "2026-11-06T21:11:01.552Z",
@@ -100,6 +100,111 @@
           "name": "Dennee Plumbing",
           "url": "https://dennee-plumbing.pages.dev",
           "score": 92
+        }
+      ]
+    },
+    {
+      "date": "2026-11-13T12:07:27.555Z",
+      "niche": {
+        "trade": "Tree Service",
+        "city": "Green Bay, WI",
+        "query": "Tree service and removal, Green Bay, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "A To Z Tree Service",
+          "url": "https://a-to-z-tree-service.pages.dev",
+          "score": 100
+        },
+        {
+          "name": "A Four Season Tree Care",
+          "url": "https://a-four-season-tree-care.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "A-1 tree service",
+          "url": "https://a-1-tree-service.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Brown County Tree Service",
+          "url": "https://brown-county-tree-service.pages.dev",
+          "score": 94
+        },
+        {
+          "name": "Big Country Tree Services",
+          "url": "https://big-country-tree-services.pages.dev",
+          "score": 90
+        }
+      ]
+    },
+    {
+      "date": "2026-11-16T12:05:19.676Z",
+      "niche": {
+        "trade": "Landscaping",
+        "city": "Kimberly, WI",
+        "query": "Landscaping contractor, Kimberly, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Rusk Refrigeration",
+          "url": "https://rusk-refrigeration.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Quality Mechanical Inc",
+          "url": "https://quality-mechanical-inc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Born Heating & Cooling",
+          "url": "https://born-heating-cooling.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Maple Leaf Landscaping & Design LLC",
+          "url": "https://maple-leaf-landscaping-design-llc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Peskie Contracting",
+          "url": "https://peskie-contracting.pages.dev",
+          "score": 96
+        }
+      ]
+    },
+    {
+      "date": "2026-11-17T12:04:32.302Z",
+      "niche": {
+        "trade": "Electricians",
+        "city": "Little Chute, WI",
+        "query": "Electrician contractor, Little Chute, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Vantage Landscaping and Snow Services LLC",
+          "url": "https://vantage-landscaping-and-snow-services-llc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "American Electric Service Inc",
+          "url": "https://american-electric-service-inc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Wick Electric LLC",
+          "url": "https://wick-electric-llc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Complete Plumbing Inc.",
+          "url": "https://complete-plumbing-inc.pages.dev",
+          "score": 90
+        },
+        {
+          "name": "M K Electrical Services",
+          "url": "https://m-k-electrical-services.pages.dev",
+          "score": 89
         }
       ]
     }

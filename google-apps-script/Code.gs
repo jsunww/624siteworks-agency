@@ -1230,13 +1230,13 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
       '- Current Domain / Web Presence: ' + context.domainStatus + '\n\n' +
       'Return ONLY a JSON object with these exact keys:\n' +
       '{\n' +
-      '  "vibe": "Specific brand color palette (hex codes + color names) and aesthetic vibe tailored to their trade",\n' +
-      '  "service1Name": "Core Service 1 Title",\n' +
-      '  "service1Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy mentioning Fox Valley / Appleton area.",\n' +
-      '  "service2Name": "Core Service 2 Title",\n' +
-      '  "service2Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy mentioning Northeast Wisconsin.",\n' +
-      '  "service3Name": "Core Service 3 Title",\n' +
-      '  "service3Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy emphasizing craftsmanship and reliability.",\n' +
+      '  "vibe": "Specific brand color palette (hex codes with # + color names) and aesthetic vibe tailored strictly to their trade",\n' +
+      '  "service1Name": "Core Service 1 Title tailored to their exact trade",\n' +
+      '  "service1Desc": "Exactly 2 sentences of persuasive, local-SEO rich copy mentioning their city / Northeast Wisconsin.",\n' +
+      '  "service2Name": "Core Service 2 Title tailored to their exact trade",\n' +
+      '  "service2Desc": "Exactly 2 sentences tailored naturally to this specific trade (e.g. tree pruning/stump grinding for tree services, never installations/fabrication unless it fits the trade).",\n' +
+      '  "service3Name": "Core Service 3 Title tailored to their exact trade",\n' +
+      '  "service3Desc": "Exactly 2 sentences highlighting reliability, safety/cleanup, or free estimates.",\n' +
       '  "trustFactor": "Punchy trust subheadline highlighting their exact Google star rating, review count, and local reputation"\n' +
       '}';
 
@@ -1278,15 +1278,20 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
 
   const tradePart = (context.ratingBadge.split('-')[1] || 'Local Service Contractor').trim();
   const ratingPart = (context.ratingBadge.split('-')[0] || 'Top-Rated').trim();
+  const isTree = /tree|arbor|stump|forestry/i.test(tradePart);
   return {
-    vibe: 'Bold, high-contrast modern contractor palette tailored for ' + tradePart + ' (Gemini 4 Argon in Antigravity IDE will research ' + context.bizName + ' and select exact brand colors)',
-    service1Name: 'Primary ' + tradePart + ' Services',
-    service1Desc: 'Residential and commercial ' + tradePart.toLowerCase() + ' solutions across Appleton and the Fox Valley. (Gemini 4 Argon will tailor to ' + context.bizName + '\'s exact specialties.)',
-    service2Name: 'Custom Installations & Upgrades',
-    service2Desc: 'Built to withstand Northeast Wisconsin weather with premium materials and expert local craftsmanship.',
-    service3Name: 'Repairs, Maintenance & Free Estimates',
-    service3Desc: 'Fast, responsive scheduling and transparent upfront pricing throughout Appleton, Neenah, Menasha, Kaukauna, and Greenville.',
-    trustFactor: 'Rated ' + ratingPart + ' on Google by Fox Valley Homeowners & Businesses'
+    vibe: (isTree ? 'Evergreen & Warm Earth Arborist' : 'Bold High-Contrast Modern Service') + ' palette tailored for ' + tradePart,
+    service1Name: isTree ? 'Safe Tree Removal & Hazard Clearing' : ('Primary ' + tradePart + ' Services'),
+    service1Desc: isTree
+      ? 'Controlled rigging and safe tree removals near homes, garages, and power lines across ' + (context.serviceArea || 'Northeast Wisconsin') + ' with full debris cleanup.'
+      : 'Residential and commercial ' + tradePart.toLowerCase() + ' solutions tailored to property owners across ' + (context.serviceArea || 'Northeast Wisconsin') + '.',
+    service2Name: isTree ? 'Canopy Trimming, Pruning & Storm Care' : (tradePart + ' Projects & Upgrades'),
+    service2Desc: isTree
+      ? 'Seasonal deadwood removal, limb clearance, and rapid post-storm cleanup handled with commercial-grade equipment and full liability coverage.'
+      : 'Dependable residential and commercial ' + tradePart.toLowerCase() + ' work delivered with quality materials, clean work sites, and upfront scheduling.',
+    service3Name: isTree ? 'Stump Grinding & Free Estimates' : 'Repairs, Maintenance & Free Estimates',
+    service3Desc: 'Fast, responsive scheduling and transparent upfront pricing throughout Appleton, Green Bay, Neenah, Menasha, Kaukauna, and Oshkosh.',
+    trustFactor: 'Rated ' + ratingPart + ' on Google by Northeast Wisconsin Homeowners & Businesses'
   };
 }
 
@@ -1370,7 +1375,7 @@ function createDraftsCore() {
       const plainBody =
         'Hi ' + bizName + ' team,\n\n' +
         'I\'m Jason Woodrow, and I run a small local studio right here in Appleton (624 Siteworks)—not an out-of-state marketing agency.\n\n' +
-        'While looking at Fox Valley businesses, I noticed ' + bizName + ' has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:\n' +
+        'While looking at local Fox Valley businesses, I noticed ' + bizName + ' has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:\n' +
         previewUrl + '\n\n' +
         plainImprovements +
         'Zero obligation—I already built the draft. If you want to put it on your domain, my flat options are at ' + claimUrl + ', or just call/text my cell at ' + CONFIG.AGENCY_PHONE + '.\n\n' +
@@ -1516,7 +1521,7 @@ function buildHtmlPitchEmail_(data) {
     '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 620px; line-height: 1.55; font-size: 15px;">' +
       '<p style="margin-top: 0;">Hi <strong>' + data.bizName + '</strong> team,</p>' +
       '<p>I\'m Jason Woodrow, and I run a small local studio right here in Appleton (<strong>624 Siteworks</strong>)—not an out-of-state marketing agency.</p>' +
-      '<p>While looking at Fox Valley businesses, I noticed <strong>' + data.bizName + '</strong> has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:</p>' +
+      '<p>While looking at local Fox Valley businesses, I noticed <strong>' + data.bizName + '</strong> has a strong reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:</p>' +
       screenshotMarkup +
       qrCardMarkup +
       improvementsMarkup +
@@ -1656,6 +1661,7 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
   const result = {
     success: true,
     bizName: bizName,
+    discoveredWebsite: '',
     socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
     websiteImages: [],
     imageDetails: [],
@@ -1665,7 +1671,26 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
 
   if (!bizName) return result;
 
-  // 1. Google Serper Search for Social Profiles & Reviews
+  const excludedDirectoryDomains = [
+    'facebook.com', 'instagram.com', 'linkedin.com', 'bbb.org', 'yelp.com', 'yellowpages.com',
+    'mapquest.com', 'angi.com', 'angieslist.com', 'homeadvisor.com', 'thumbtack.com', 'porch.com',
+    'houzz.com', 'nextdoor.com', 'manta.com', 'chamberofcommerce.com', 'birdeye.com', 'superpages.com',
+    'buildzoom.com', 'bizapedia.com', 'zoominfo.com', 'dnb.com', 'opencorporates.com', 'expertise.com',
+    'threebestrated.com', 'bestprosintown.com', 'experience.com', 'constructiondirectory.us',
+    'mapq.st', 'google.com', 'youtube.com', 'wikipedia.org', 'whitepages.com', 'spokeo.com', 'apple.com'
+  ];
+  const genericBizWords = {
+    tree: 1, trees: 1, service: 1, services: 1, care: 1, company: 1, inc: 1, llc: 1, co: 1, corp: 1,
+    wisconsin: 1, wi: 1, fox: 1, valley: 1, appleton: 1, neenah: 1, menasha: 1, kaukauna: 1,
+    kimberly: 1, little: 1, chute: 1, oshkosh: 1, green: 1, bay: 1, the: 1, and: 1, of: 1,
+    electric: 1, electrical: 1, plumbing: 1, heating: 1, cooling: 1, hvac: 1, concrete: 1,
+    roofing: 1, fencing: 1, fence: 1, landscaping: 1, lawn: 1, paving: 1, contractor: 1
+  };
+  const bizTokens = bizName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(function(t) {
+    return t.length >= 2 && !genericBizWords[t];
+  });
+
+  // 1. Google Serper Search for Social Profiles, Company Website & Reviews
   if (serperKey) {
     try {
       const cleanCity = city || 'Fox Valley, WI';
@@ -1684,6 +1709,7 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
         for (let i = 0; i < organic.length; i++) {
           const item = organic[i];
           const link = item.link || '';
+          const title = (item.title || '').toLowerCase();
           const snippet = item.snippet || '';
           if (snippet) result.snippets.push(snippet);
 
@@ -1697,6 +1723,16 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
             result.socials.bbb = link;
           } else if (/yelp\.com\/biz\//i.test(link) && !result.socials.yelp) {
             result.socials.yelp = link;
+          } else if (!result.discoveredWebsite && /^https?:\/\//i.test(link)) {
+            const host = link.toLowerCase().replace(/^https?:\/\/(www\.)?/i, '').split('/')[0];
+            const isDir = excludedDirectoryDomains.some(function(ex) { return host === ex || host.endsWith('.' + ex); });
+            const hostClean = host.replace(/[^a-z0-9]/g, '');
+            const matchesName = bizTokens.length === 0
+              ? title.indexOf(bizName.toLowerCase().split(/\s+/)[0]) !== -1
+              : bizTokens.some(function(t) { return hostClean.indexOf(t) !== -1; });
+            if (!isDir && matchesName) {
+              result.discoveredWebsite = link.split('#')[0];
+            }
           }
         }
 
@@ -1710,16 +1746,22 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
           if (data.knowledgeGraph.imageUrl) {
             result.websiteImages.unshift(data.knowledgeGraph.imageUrl);
           }
+          if (!result.discoveredWebsite && data.knowledgeGraph.website) {
+            result.discoveredWebsite = data.knowledgeGraph.website;
+          }
         }
       }
     } catch (err) {}
 
     // 1b. Real Business Google Images Search (Serper Images API)
+    const siteTarget = (domain && !domain.toLowerCase().includes('facebook.com') && !domain.toLowerCase().includes('no website'))
+      ? domain
+      : result.discoveredWebsite;
     try {
       const cleanCity = city || 'Fox Valley, WI';
       const queriesToTry = ['"' + bizName + '" ' + cleanCity];
-      if (domain && !domain.includes('facebook.com') && !domain.includes('no website')) {
-        const cleanDomain = domain.replace(/^https?:\/\//i, '').split('/')[0];
+      if (siteTarget) {
+        const cleanDomain = siteTarget.replace(/^https?:\/\//i, '').split('/')[0];
         if (cleanDomain) {
           queriesToTry.unshift('site:' + cleanDomain);
         }
@@ -1750,10 +1792,15 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
     } catch (err) {}
   }
 
-  // 2. If domain provided, fetch homepage to extract real images and colors
-  if (domain && !domain.toLowerCase().includes('no website') && !domain.toLowerCase().includes('facebook.com')) {
+  // 2. If domain (or Serper-discovered website) provided, fetch homepage to extract real images and colors
+  const scrapeTarget = (domain && !domain.toLowerCase().includes('no website') && !domain.toLowerCase().includes('facebook.com'))
+    ? domain
+    : result.discoveredWebsite;
+  if (scrapeTarget) {
     try {
-      const cleanUrl = domain.startsWith('http') ? domain : 'https://' + domain;
+      const cleanUrl = scrapeTarget.startsWith('http') ? scrapeTarget : 'https://' + scrapeTarget;
+      const originMatch = cleanUrl.match(/^(https?:\/\/[^\/]+)/i);
+      const originBase = originMatch ? originMatch[1] : cleanUrl.replace(/\/+$/, '');
       const resp = UrlFetchApp.fetch(cleanUrl, {
         method: 'get',
         muteHttpExceptions: true,
@@ -1763,7 +1810,7 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
 
       if (resp.getResponseCode() >= 200 && resp.getResponseCode() < 400) {
         const html = resp.getContentText() || '';
-        
+
         // Extract images
         const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
         let match;
@@ -1773,10 +1820,11 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
           if (!src || src.startsWith('data:') || src.includes('.svg') || src.includes('icon') || src.includes('pixel')) continue;
           if (src.startsWith('//')) src = 'https:' + src;
           else if (src.startsWith('/')) {
-            const domainBase = cleanUrl.replace(/\/+$/, '');
-            src = domainBase + src;
+            src = originBase + src;
           } else if (!src.startsWith('http')) {
-            src = cleanUrl.replace(/\/[^\/]*$/, '/') + src;
+            const urlPath = cleanUrl.slice(originBase.length);
+            const dirPath = urlPath.indexOf('/') === -1 ? '/' : urlPath.replace(/[^\/]*$/, '');
+            src = originBase + (dirPath.startsWith('/') ? dirPath : '/' + dirPath) + src.replace(/^\.\//, '');
           }
           if (!seenImgs.has(src)) {
             seenImgs.add(src);

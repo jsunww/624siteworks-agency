@@ -1,0 +1,68 @@
+{
+  "trade": "Concrete",
+  "city": "Kimberly, WI",
+  "layoutStyle": "shield-banner-estimator",
+  "themeMode": "light",
+  "palette": {
+    "primary": "#334155",
+    "primaryHover": "#1E293B",
+    "secondary": "#0B0F17",
+    "accent": "#D97706",
+    "background": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "textPrimary": "#111827",
+    "textSecondary": "#475569"
+  },
+  "logoFile": "logo.jpg",
+  "logoIsDark": true,
+  "tagline": "Concrete Flatwork: Patios, Driveways & Garage Floors in Kimberly",
+  "ownerStory": "Specializing exclusively in residential concrete flatwork across Kimberly, Little Chute, Appleton, and the Fox Valley. Peskie Contracting pours custom concrete patios, walkways, driveways, decorative stamped slabs, and durable garage floors built to stay flat through Wisconsin freeze-thaw winters.",
+  "calculatorOptions": [
+    "Concrete Patios",
+    "Walkways & Sidewalks",
+    "Concrete Driveways",
+    "Decorative / Stamped Concrete",
+    "Garage Floors & Slabs"
+  ],
+  "services": [
+    {
+      "name": "Poured Concrete Driveways & Aprons",
+      "desc": "Full tear-out and new concrete driveway pours on a 6-inch compacted gravel base with tied rebar reinforcement and air-entrained 4,000+ PSI concrete. Precision broom finishes and clean control joints keep driveways in Kimberly and the Fox Valley crack-resistant year-round.",
+      "badge": "Most Popular",
+      "imageFile": "../../stock/concrete/driveways.jpg"
+    },
+    {
+      "name": "Concrete Patios & Outdoor Living Slabs",
+      "desc": "Custom-formed backyard concrete patios engineered with proper water-shedding slope, smooth or broom textures, and crisp picture-frame borders. Built as an everyday gathering space that stands up cleanly to Fox Valley seasons.",
+      "badge": "Custom Patios",
+      "imageFile": "../../stock/concrete/patios-walkways.jpg"
+    },
+    {
+      "name": "Walkways, Sidewalks & Entry Stoops",
+      "desc": "Straight or curved front walkways, city sidewalk replacements, and poured entry steps finished with clean edges and safe slip-resistant broom texture for lasting curb appeal.",
+      "badge": "Walkways & Steps",
+      "imageFile": "real-patio-slab.jpg"
+    },
+    {
+      "name": "Decorative & Stamped Concrete",
+      "desc": "Architectural ashlar slate, stone patterns, textured borders, and integral color blends sealed with high-solids UV and road-salt protection for one-of-a-kind patios and entryways.",
+      "badge": "Decorative Flatwork",
+      "imageFile": "../../stock/concrete/decorative-stamped.jpg"
+    },
+    {
+      "name": "Garage Floors & Monolithic Shop Slabs",
+      "desc": "Laser-leveled concrete garage floor replacements and pole-barn or shop slabs with compacted granular fill, vapor-barrier prep, power-troweled smooth finish, and early-entry saw cuts.",
+      "badge": "Garage Floors",
+      "imageFile": "../../stock/concrete/garage-floors.jpg"
+    }
+  ],
+  "heroFile": "../../stock/concrete/concrete-crew-hero.jpg",
+  "aboutFile": "real-patio-slab.jpg",
+  "galleryFiles": [
+    "real-patio-slab.jpg",
+    "../../stock/concrete/decorative-stamped.jpg",
+    "../../stock/concrete/driveways.jpg"
+  ]
+}
+

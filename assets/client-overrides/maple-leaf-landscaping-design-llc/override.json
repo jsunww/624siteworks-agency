@@ -1,0 +1,50 @@
+{
+  "trade": "Landscaping",
+  "city": "Appleton, WI",
+  "displayBrandName": "Maple Leaf Landscaping & Design",
+  "layoutStyle": "split-hero-timber",
+  "themeMode": "light",
+  "palette": {
+    "primary": "#166534",
+    "primaryHover": "#14532D",
+    "secondary": "#111827",
+    "accent": "#D97706",
+    "background": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "textPrimary": "#111827",
+    "textSecondary": "#475569"
+  },
+  "logoFile": "logo.jpg",
+  "logoIsDark": false,
+  "tagline": "Custom Landscape Design, Patios & Yard Grading in Appleton, WI",
+  "ownerStory": "Based in Appleton and serving homeowners throughout the Fox Valley, Maple Leaf Landscaping & Design LLC crafts welcoming outdoor spaces built for Wisconsin seasons—from interlocking paver patios, pergolas, and stone retaining walls to crisp mulch beds, hardy plantings, and clean lawn grading.",
+  "services": [
+    {
+      "name": "Paver Patios, Pergolas & Retaining Walls",
+      "desc": "Custom-designed interlocking paver patios, curved stone seating walls, fire pit zones, and timber pergolas built on deeply compacted aggregate bases for lasting Appleton outdoor living.",
+      "badge": "Hardscaping",
+      "imageFile": "../../stock/landscaping/paver-patio-hardscape.jpg"
+    },
+    {
+      "name": "Landscape Design, Beds & Planting",
+      "desc": "Freshly edged foundation beds, dark hardwood mulch, ornamental shrubs, hostas, and Zone 4-5 perennials arranged for multi-season color and clean curb appeal across the Fox Valley.",
+      "badge": "Design & Planting",
+      "imageFile": "../../stock/landscaping/mulch-beds-planting.jpg"
+    },
+    {
+      "name": "Finish Grading, Sod & Property Cleanups",
+      "desc": "Precision slope grading to direct water away from foundations, fresh sod installation, decorative stonework, and thorough spring and fall cleanups across Appleton neighborhoods.",
+      "badge": "Grading & Turf",
+      "imageFile": "../../stock/landscaping/grading-sod.jpg"
+    }
+  ],
+  "heroFile": "real-pergola-patio.jpg",
+  "aboutFile": "../../stock/landscaping/mulch-beds-planting.jpg",
+  "galleryFiles": [
+    "real-pergola-patio.jpg",
+    "../../stock/landscaping/paver-patio-hardscape.jpg",
+    "../../stock/landscaping/grading-sod.jpg"
+  ]
+}
+

@@ -74,6 +74,84 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
   }
 }
 
+function buildUrlCandidates(urlStr) {
+  const candidates = [];
+  const add = (u) => {
+    if (u && !candidates.includes(u)) candidates.push(u);
+  };
+  add(urlStr);
+  try {
+    const parsed = new URL(urlStr);
+    const otherProto = parsed.protocol === 'https:' ? 'http:' : 'https:';
+    const host = parsed.hostname;
+    const altHost = host.startsWith('www.') ? host.slice(4) : `www.${host}`;
+
+    const mkUrl = (proto, h) => `${proto}//${h}${parsed.port ? ':' + parsed.port : ''}${parsed.pathname}${parsed.search}`;
+    // Prefer HTTPS first when original was HTTP, then alternate host variants
+    if (parsed.protocol === 'http:') {
+      add(mkUrl('https:', host));
+      add(mkUrl('https:', altHost));
+      add(mkUrl('http:', altHost));
+    } else {
+      add(mkUrl('https:', altHost));
+      add(mkUrl('http:', host));
+      add(mkUrl('http:', altHost));
+    }
+  } catch (e) {}
+  return candidates;
+}
+
+function extractImgSrcFromAttrs(attrs) {
+  const matchers = [
+    /\bdata-lazy-src=["']([^"']+)["']/i,
+    /\bdata-src=["']([^"']+)["']/i,
+    /\bdata-original=["']([^"']+)["']/i,
+    /\bsrc=["']([^"']+)["']/i
+  ];
+  for (const re of matchers) {
+    const m = attrs.match(re);
+    if (m && m[1] && !m[1].trim().startsWith('data:image/svg') && !m[1].trim().startsWith('data:image/gif')) {
+      return m[1].trim();
+    }
+  }
+  const srcsetMatch = attrs.match(/\b(?:data-)?srcset=["']([^"']+)["']/i);
+  if (srcsetMatch && srcsetMatch[1]) {
+    const first = srcsetMatch[1].split(',')[0]?.trim().split(/\s+/)[0];
+    if (first && !first.startsWith('data:')) return first;
+  }
+  return null;
+}
+
+function isBadWorkImage(fullSrc, alt, attrs) {
+  const lower = (fullSrc || '').toLowerCase();
+  const altLower = (alt || '').toLowerCase();
+  const combined = `${lower} ${altLower}`;
+
+  if (
+    lower.startsWith('data:') ||
+    lower.endsWith('.gif') ||
+    lower.endsWith('.ico') ||
+    /pixel|spacer|divider|1x1|tracking|contenttop|contentbottom|navbottom|topstrip|bkgrnd/i.test(lower) ||
+    /security_?photo|captcha|recaptcha|securimage/i.test(combined) ||
+    /coupon|rebate|flyer|spring_?20|double_your_power|\boffer\b|promo(?:tion)?|financing_?banner/i.test(combined) ||
+    /\bbbb[-_]?logo|\bdealer\b|authorized[-_ ]?dealer|homeadvisor|angies?list|\bangi\b|bbb\.org|accredited|warranty[-_ ]?(?:badge|seal)|award[-_ ]?badge|google[-_ ]?review/i.test(combined) ||
+    /facebook\.com|twitter\.com|instagram\.com|linkedin\.com|yelp\.com/i.test(lower)
+  ) {
+    return true;
+  }
+
+  // Skip explicitly small icon/badge thumbnails in HTML attributes
+  const wMatch = attrs.match(/\bwidth=["']?(\d+)/i);
+  const hMatch = attrs.match(/\bheight=["']?(\d+)/i);
+  const w = wMatch ? parseInt(wMatch[1], 10) : 0;
+  const h = hMatch ? parseInt(hMatch[1], 10) : 0;
+  if ((w > 0 && w < 180) || (h > 0 && h < 110)) {
+    return true;
+  }
+
+  return false;
+}
+
 async function scrapeProspectWebsite(targetUrl, options = {}) {
   let urlStr = (targetUrl || '').trim();
   if (!urlStr) return null;
@@ -84,26 +162,31 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
   console.log(`[Scraper Agent] Initiating scrape for: ${urlStr}`);
   let html = '';
   let finalUrl = urlStr;
+  let lastErr = null;
 
-  try {
-    const resp = await fetchWithTimeout(urlStr);
-    finalUrl = resp.url || urlStr;
-    html = await resp.text();
-  } catch (err) {
-    console.warn(`[Scraper Agent] Initial fetch failed (${err.message}). Trying HTTP fallback...`);
+  for (const candidateUrl of buildUrlCandidates(urlStr)) {
     try {
-      const httpUrl = urlStr.replace('https://', 'http://');
-      const resp = await fetchWithTimeout(httpUrl);
-      finalUrl = resp.url || httpUrl;
-      html = await resp.text();
-    } catch (err2) {
-      console.error(`[Scraper Agent] Failed to fetch prospect website: ${err2.message}`);
-      return null;
+      const resp = await fetchWithTimeout(candidateUrl);
+      if (resp.ok) {
+        const text = await resp.text();
+        if (text && text.length >= 150) {
+          finalUrl = resp.url || candidateUrl;
+          html = text;
+          break;
+        }
+      }
+    } catch (err) {
+      lastErr = err;
     }
   }
 
   if (!html || html.length < 150) {
-    console.warn(`[Scraper Agent] Retrieved HTML is too short.`);
+    console.warn(`[Scraper Agent] Failed to fetch prospect website (${lastErr ? lastErr.message : 'empty response'}).`);
+    return null;
+  }
+
+  if (/cgi-sys\/defaultwebpage\.cgi|<title>\s*Default Web Site Page\s*<\/title>|Account Suspended|Domain (?:Expired|For Sale)/i.test(html)) {
+    console.warn(`[Scraper Agent] Detected default/parked hosting redirect at ${finalUrl}; ignoring.`);
     return null;
   }
 
@@ -219,7 +302,7 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
   }
 
   // 3c. Address & City
-  const addressMatch = allHtmlSources.match(/(\d+\s+[\w\s.,#]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Highway|Hwy|Way|Court|Ct|County Road KK)[\w\s.,#]*,\s*[A-Z]{2}\s+\d{5})/i);
+  const addressMatch = allHtmlSources.match(/(\d+\s+[\w\s.,#]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Highway|Hwy|Way|Court|Ct|County Road KK)[\w\s.,#]*,\s*[A-Za-z\s.]+,?\s*[A-Z]{2}\s+\d{5})/i);
   if (addressMatch) {
     result.address = addressMatch[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   }
@@ -301,11 +384,11 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
   let rim;
   while ((rim = rawImgRegex.exec(html)) !== null) {
     const attrs = rim[1];
-    const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
+    const srcRaw = extractImgSrcFromAttrs(attrs);
     const altMatch = attrs.match(/alt=["']([^"']*)["']/i);
-    if (!srcMatch) continue;
+    if (!srcRaw) continue;
 
-    const fullSrc = resolveUrl(srcMatch[1], finalUrl);
+    const fullSrc = resolveUrl(srcRaw, finalUrl);
     if (!fullSrc) continue;
     const alt = altMatch ? altMatch[1] : '';
 
@@ -313,18 +396,31 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
       result.headerBanner = fullSrc;
     }
 
-    if (/logo|brand|header-logo|site-logo|pipingservice\.com\/images\/Header/i.test(attrs) || /logo|brand/i.test(alt)) {
-      logoCandidates.push({ url: fullSrc, score: 10 });
+    const isThirdPartyBadge = /\bbbb[-_]?logo|\bdealer\b|generac|kohler|angi|homeadvisor/i.test(fullSrc + ' ' + alt);
+    if (!isThirdPartyBadge && (/logo|brand|header-logo|site-logo|pipingservice\.com\/images\/Header/i.test(attrs + ' ' + fullSrc) || /logo|brand/i.test(alt))) {
+      const score = /logo/i.test(fullSrc) ? 12 : 10;
+      logoCandidates.push({ url: fullSrc, score });
     }
   }
 
-  // If favicon/apple-touch-icon
-  const iconRegex = /<link[^>]+rel=["'](?:shortcut icon|icon|apple-touch-icon)["'][^>]+href=["']([^"']+)["']/gi;
+  // Check CSS background-image logo selectors if no explicit <img> logo was found
+  const bgLogoRegex = /\.(?:logo|brand|site-logo|navbar-brand)[^{]*\{[^}]*background(?:-image)?\s*:[^;]*url\(['"]?([^'")]+)['"]?\)/gi;
+  let bgm;
+  while ((bgm = bgLogoRegex.exec(combinedCss + ' ' + html)) !== null) {
+    const fullBg = resolveUrl(bgm[1], finalUrl);
+    if (fullBg && !fullBg.startsWith('data:')) {
+      logoCandidates.push({ url: fullBg, score: 8 });
+    }
+  }
+
+  // If apple-touch-icon / large icon fallback
+  const iconRegex = /<link[^>]+rel=["'](?:apple-touch-icon|shortcut icon|icon)["'][^>]+href=["']([^"']+)["']/gi;
   let icm;
   while ((icm = iconRegex.exec(html)) !== null) {
     const fullHref = resolveUrl(icm[1], finalUrl);
     if (fullHref && !fullHref.endsWith('.ico') && !fullHref.endsWith('.gif')) {
-      logoCandidates.push({ url: fullHref, score: 5 });
+      const isAppleTouch = /apple-touch-icon/i.test(icm[0]);
+      logoCandidates.push({ url: fullHref, score: isAppleTouch ? 6 : 3 });
     }
   }
 
@@ -337,38 +433,21 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
 
   // 6. Authentic Image Extraction & Classification
   const seenImgs = new Set();
+  const scoredImages = [];
   const allImgsRegex = /<img([^>]+)>/gi;
   let aim;
   while ((aim = allImgsRegex.exec(allHtmlSources)) !== null) {
     const attrs = aim[1];
-    const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
+    const srcRaw = extractImgSrcFromAttrs(attrs);
     const altMatch = attrs.match(/alt=["']([^"']*)["']/i);
-    if (!srcMatch) continue;
+    if (!srcRaw) continue;
 
-    const fullSrc = resolveUrl(srcMatch[1], finalUrl);
+    const fullSrc = resolveUrl(srcRaw, finalUrl);
     if (!fullSrc) continue;
     const alt = altMatch ? altMatch[1].trim() : '';
 
     const lower = fullSrc.toLowerCase();
-    if (
-      lower.startsWith('data:') ||
-      lower.endsWith('.gif') ||
-      lower.includes('pixel') ||
-      lower.includes('facebook') ||
-      lower.includes('twitter') ||
-      lower.includes('instagram') ||
-      lower.includes('linkedin') ||
-      lower.includes('yelp') ||
-      lower.includes('contenttop') ||
-      lower.includes('contentbottom') ||
-      lower.includes('navbottom') ||
-      lower.includes('topstrip') ||
-      lower.includes('bkgrnd') ||
-      seenImgs.has(fullSrc)
-    ) {
-      continue;
-    }
-
+    if (seenImgs.has(fullSrc)) continue;
     seenImgs.add(fullSrc);
 
     // Certifications
@@ -377,19 +456,65 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
       continue;
     }
 
-    let context = 'Work Photo';
-    if (lower.includes('fabricat')) context = 'Fabrication';
-    else if (lower.includes('install')) context = 'Installation';
-    else if (lower.includes('waterjet')) context = 'Waterjet Cutting';
-    else if (lower.includes('about')) context = 'About PSI';
-    else if (lower.includes('photo')) context = 'Shop & Jobsite';
+    if (isBadWorkImage(fullSrc, alt, attrs)) {
+      continue;
+    }
 
-    result.images.push({
+    // Skip the extracted logo from general work gallery candidates
+    if (result.logo && fullSrc === result.logo) {
+      continue;
+    }
+
+    const combinedText = `${lower} ${alt.toLowerCase()}`;
+    let context = 'Work Photo';
+    let priority = 40;
+    if (/vans?\b|truck|fleet|vehicle/i.test(combinedText)) {
+      context = 'Fleet & Service Vehicles';
+      priority = 100;
+    } else if (/crew|team|staff|owner/i.test(combinedText)) {
+      context = 'Team & Crew';
+      priority = 90;
+    } else if (/fabricat|weld/i.test(combinedText)) {
+      context = 'Fabrication';
+      priority = 70;
+    } else if (/waterjet/i.test(combinedText)) {
+      context = 'Waterjet Cutting';
+      priority = 70;
+    } else if (/commercial/i.test(combinedText)) {
+      context = 'Commercial Work';
+      priority = 65;
+    } else if (/outdoor|patio|lighting|panel|wiring|generator|furnace|hvac|roof|fence|concrete|paver/i.test(combinedText)) {
+      context = 'Field & Project Work';
+      priority = 65;
+    } else if (/residential/i.test(combinedText)) {
+      context = 'Residential Work';
+      priority = 55;
+    } else if (/about|shop/i.test(combinedText)) {
+      context = 'Shop & Jobsite';
+      priority = 50;
+    }
+
+    scoredImages.push({
       url: fullSrc,
       alt: alt || context,
-      context: context
+      context: context,
+      priority
     });
   }
+
+  // Also capture og:image / twitter:image if valid & not already captured
+  const metaImgRegex = /<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/gi;
+  let mim;
+  while ((mim = metaImgRegex.exec(html)) !== null) {
+    const fullMetaImg = resolveUrl(mim[1].trim(), finalUrl);
+    if (fullMetaImg && !seenImgs.has(fullMetaImg) && !isBadWorkImage(fullMetaImg, '', '') && (!result.logo || fullMetaImg !== result.logo)) {
+      seenImgs.add(fullMetaImg);
+      scoredImages.push({ url: fullMetaImg, alt: 'Featured Business Work', context: 'Featured Work', priority: 75 });
+    }
+  }
+
+  scoredImages.sort((a, b) => b.priority - a.priority);
+  result.images = scoredImages.map(({ url, alt, context }) => ({ url, alt, context }));
 
   // 7. Extract Real Services from Headings, Strong, and Links
   const realServices = [];

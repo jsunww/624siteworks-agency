@@ -1,0 +1,50 @@
+{
+  "trade": "HVAC",
+  "city": "Brillion, WI",
+  "displayBrandName": "Born Heating & Cooling",
+  "layoutStyle": "shield-banner-estimator",
+  "themeMode": "light",
+  "palette": {
+    "primary": "#1D4ED8",
+    "primaryHover": "#1E40AF",
+    "secondary": "#0F172A",
+    "accent": "#DC2626",
+    "background": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "textPrimary": "#111827",
+    "textSecondary": "#475569"
+  },
+  "logoFile": "logo.jpg",
+  "logoIsDark": false,
+  "tagline": "Trusted Heating, Cooling & Furnace Service in Brillion, WI",
+  "ownerStory": "Backed by over 23 years serving Brillion, Kaukauna, Kimberly, and the Fox Valley, Born Heating & Cooling delivers dependable furnace repairs, high-efficiency HVAC replacements, air conditioning service, and custom sheet-metal ductwork built for harsh Wisconsin winters and humid summers.",
+  "services": [
+    {
+      "name": "Furnace & Boiler Repair & Replacements",
+      "desc": "Fast diagnostics, heat-exchanger safety inspections, and high-AFUE gas furnace installations across Brillion, Kaukauna, and Northeast Wisconsin—including flooded utility-room replacements.",
+      "badge": "Winter Ready",
+      "imageFile": "../../stock/hvac/furnace-heating.jpg"
+    },
+    {
+      "name": "Central A/C & Heat Pump Installation",
+      "desc": "Quiet, properly sized high-SEER2 central air conditioners and cold-climate heat pumps installed on level concrete pads with precision refrigerant charging and clean line-set insulation.",
+      "badge": "High Efficiency",
+      "imageFile": "../../stock/hvac/ac-condenser.jpg"
+    },
+    {
+      "name": "Custom Ductwork, Air Quality & Tune-Ups",
+      "desc": "Sealed galvanized sheet-metal trunk lines, balanced airflow modifications, humidifiers, and seasonal tune-ups to keep utility bills low and prevent mid-season breakdowns.",
+      "badge": "Preventative Care",
+      "imageFile": "../../stock/hvac/ductwork-air.jpg"
+    }
+  ],
+  "heroFile": "../../stock/hvac/hvac-tech.jpg",
+  "aboutFile": "../../stock/hvac/furnace-heating.jpg",
+  "galleryFiles": [
+    "../../stock/hvac/furnace-heating.jpg",
+    "../../stock/hvac/ac-condenser.jpg",
+    "../../stock/hvac/ductwork-air.jpg"
+  ]
+}
+
