@@ -1480,8 +1480,10 @@ function createDraftsCore() {
     const improvements = formatFriendlyWebsiteImprovements_(siteIssues, domainStatus);
 
     try {
+      const qrTargetUrl = previewUrl + (previewUrl.indexOf('?') === -1 ? '?src=qr' : '&src=qr');
+      const emailTrackedUrl = previewUrl + (previewUrl.indexOf('?') === -1 ? '?utm_source=pitch&utm_medium=email' : '&utm_source=pitch&utm_medium=email');
       const screenshotBlob = captureSiteScreenshotBlob_(previewUrl, bizName);
-      const qrBlob = captureQrCodeBlob_(previewUrl, bizName);
+      const qrBlob = captureQrCodeBlob_(qrTargetUrl, bizName);
       const claimUrl = CONFIG.CLAIM_BASE_URL + '?business=' + encodeURIComponent(bizName) + '&preview=' + encodeURIComponent(previewUrl);
 
       const subject = 'Appleton-based web designer here – I built a better-ranking site concept for you.';
@@ -1506,6 +1508,8 @@ function createDraftsCore() {
       const htmlBody = buildHtmlPitchEmail_({
         bizName: bizName,
         previewUrl: previewUrl,
+        trackedUrl: emailTrackedUrl,
+        qrTargetUrl: qrTargetUrl,
         claimUrl: claimUrl,
         improvements: improvements,
         hasInlineScreenshot: Boolean(screenshotBlob),
@@ -1594,22 +1598,24 @@ function captureQrCodeBlob_(previewUrl, bizName) {
 }
 
 function buildHtmlPitchEmail_(data) {
+  const clickUrl = data.trackedUrl || data.previewUrl;
+  const qrUrlTarget = data.qrTargetUrl || data.previewUrl;
   const screenshotMarkup = data.hasInlineScreenshot
     ? '<div style="margin: 22px 0 16px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);">' +
-        '<a href="' + data.previewUrl + '" target="_blank" style="display: block; text-decoration: none;">' +
+        '<a href="' + clickUrl + '" target="_blank" style="display: block; text-decoration: none;">' +
           '<img src="cid:sitePreview" alt="' + data.bizName + ' Website Preview" style="display: block; width: 100%; max-width: 640px; height: auto; border: 0;" />' +
         '</a>' +
       '</div>'
     : '';
 
-  const fallbackQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=' + encodeURIComponent(data.previewUrl);
+  const fallbackQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=' + encodeURIComponent(qrUrlTarget);
   const qrImgSrc = data.hasInlineQr ? 'cid:qrPreview' : fallbackQrUrl;
 
   const qrCardMarkup =
     '<table cellpadding="0" cellspacing="0" border="0" style="margin: 18px 0 24px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; width: 100%; max-width: 520px;">' +
       '<tr>' +
         '<td style="padding-right: 16px; vertical-align: middle; width: 136px;">' +
-          '<a href="' + data.previewUrl + '" target="_blank" style="display: inline-block; background: #ffffff; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0;">' +
+          '<a href="' + clickUrl + '" target="_blank" style="display: inline-block; background: #ffffff; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0;">' +
             '<img src="' + qrImgSrc + '" width="124" height="124" alt="Scan QR Code to preview on phone" style="display: block; width: 124px; height: 124px; border: 0;" />' +
           '</a>' +
         '</td>' +
@@ -1617,7 +1623,7 @@ function buildHtmlPitchEmail_(data) {
           '<div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #059669; margin-bottom: 4px;">Scan With Your Phone Camera</div>' +
           '<div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Test the Mobile View in Your Hand</div>' +
           '<div style="font-size: 13px; color: #475569; line-height: 1.45; margin-bottom: 10px;">Reading this on a computer? Point your phone camera right at this QR code to open <strong>' + data.bizName + '</strong>\'s mobile preview immediately.</div>' +
-          '<a href="' + data.previewUrl + '" target="_blank" style="display: inline-block; padding: 8px 14px; background-color: #0f172a; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">Or Click to Open Preview &rarr;</a>' +
+          '<a href="' + clickUrl + '" target="_blank" style="display: inline-block; padding: 8px 14px; background-color: #0f172a; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">Or Click to Open Preview &rarr;</a>' +
         '</td>' +
       '</tr>' +
     '</table>';

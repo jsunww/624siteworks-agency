@@ -1322,6 +1322,7 @@ function createSiteBuilder(options = {}) {
     geminiFallbackModel = 'gemini-3.5-flash-lite',
     agencyPhone = '(920) 234-5633',
     claimBaseUrl = 'https://624siteworks.com/claim.html',
+    gaMeasurementId = process.env.DEMO_GA_MEASUREMENT_ID || 'G-07ZVHY3BBN',
     scrapeProspectWebsite,
     logger = {}
   } = options;
@@ -2579,8 +2580,33 @@ Return ONLY valid JSON matching this schema:
           </div>
         </div>
       </footer>
-      <script src="assets/preview-banner.js" data-business="${escapeHtml(bizName)}" defer></script>
+      <script src="assets/preview-banner.js" data-business="${escapeHtml(bizName)}" data-slug="${escapeHtml(slug)}" data-ga-id="${escapeHtml(gaMeasurementId)}" defer></script>
     `;
+
+    const headAnalyticsTagHtml = gaMeasurementId ? `
+  <!-- Google tag (gtag.js) -->
+  <script>
+    (function () {
+      var q = window.location.search || '';
+      var isBot = navigator.webdriver || /lighthouse|pagespeed|headless|puppeteer|playwright|thum\.io|bot|crawl|spider/i.test(navigator.userAgent || '');
+      if (/[?&](?:admin_preview|nolog)=1/i.test(q)) { try { sessionStorage.setItem('sw624_admin_preview', '1'); } catch (e) {} }
+      var isAdmin = /[?&](?:admin_preview|nolog)=1/i.test(q) || (function () { try { return sessionStorage.getItem('sw624_admin_preview') === '1'; } catch (e) { return false; } })();
+      if (isBot || isAdmin) { window['ga-disable-${escapeHtml(gaMeasurementId)}'] = true; window.__sw624SkipTracking = true; return; }
+      window.__sw624GaLoaded = true;
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', '${escapeHtml(gaMeasurementId)}', {
+        demo_slug: '${escapeHtml(slug)}',
+        business_name: '${escapeHtml(bizName).replace(/'/g, "\\'")}',
+        site_type: 'demo_preview'
+      });
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaMeasurementId)}';
+      document.head.appendChild(s);
+    })();
+  </script>` : '';
 
     const schemaJson = JSON.stringify({
       "@context": "https://schema.org",
@@ -2615,6 +2641,7 @@ Return ONLY valid JSON matching this schema:
   <meta name="geo.region" content="US-WI">
   <meta name="geo.placename" content="${escapeHtml(city)}">
   <link rel="preload" as="image" href="${assetPaths.heroUrl}" fetchpriority="high">
+  ${headAnalyticsTagHtml}
     ${customCss}
   <script type="application/ld+json">${schemaJson}</script>
 </head>
@@ -3045,6 +3072,7 @@ Return ONLY valid JSON matching this schema:
   <meta name="description" content="Explore ${escapeHtml(cp.displayTrade.toLowerCase())} services by ${escapeHtml(bizName)} in ${escapeHtml(city)}. Upfront pricing and dependable local service.">
   <link rel="ard" href="/.well-known/ard.json">
   <link rel="canonical" href="https://${slug}.pages.dev/services.html">
+  ${headAnalyticsTagHtml}
     ${customCss}
 </head>
 <body class="font-sans antialiased">
@@ -3092,6 +3120,7 @@ Return ONLY valid JSON matching this schema:
   <meta name="description" content="Learn about ${escapeHtml(bizName)}, our local roots in ${escapeHtml(city)}, service standards, and customer reviews.">
   <link rel="ard" href="/.well-known/ard.json">
   <link rel="canonical" href="https://${slug}.pages.dev/about.html">
+  ${headAnalyticsTagHtml}
     ${customCss}
 </head>
 <body class="font-sans antialiased">
@@ -3134,6 +3163,7 @@ Return ONLY valid JSON matching this schema:
   <meta name="description" content="Contact ${escapeHtml(bizName)} in ${escapeHtml(city)}. Call ${phone} or request a free quote online.">
   <link rel="ard" href="/.well-known/ard.json">
   <link rel="canonical" href="https://${slug}.pages.dev/contact.html">
+  ${headAnalyticsTagHtml}
     ${customCss}
 </head>
 <body class="font-sans antialiased">
@@ -3329,13 +3359,16 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
     const cityLabel = (rawCitySource || 'Fox Valley').replace(/\bfox\s+valley\b/gi, 'Fox Valley');
     const contactGreeting = lead.contactName ? `Hi ${escapeHtml(lead.contactName.split(' ')[0])},` : `Hi ${escapeHtml(bizName)} team,`;
     const claimUrl = `${claimBaseUrl}?business=${encodeURIComponent(bizName)}&preview=${encodeURIComponent(previewUrl)}`;
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(previewUrl)}`;
+    const slugForPitch = sanitizeSlug(bizName);
+    const trackedEmailUrl = `${previewUrl}${previewUrl.includes('?') ? '&' : '?'}utm_source=pitch&utm_medium=email&utm_campaign=${encodeURIComponent(slugForPitch)}`;
+    const trackedQrUrl = `${previewUrl}${previewUrl.includes('?') ? '&' : '?'}src=qr`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(trackedQrUrl)}`;
 
     const qrBlockHtml = `
       <table cellpadding="0" cellspacing="0" border="0" style="margin: 18px 0 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; max-width: 480px; width: 100%;">
         <tr>
           <td style="padding-right: 16px; vertical-align: middle; width: 130px;">
-            <a href="${escapeHtml(previewUrl)}" target="_blank" style="display: inline-block; background: #ffffff; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0; text-decoration: none;">
+            <a href="${escapeHtml(trackedEmailUrl)}" target="_blank" style="display: inline-block; background: #ffffff; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0; text-decoration: none;">
               <img src="${escapeHtml(qrImageUrl)}" width="130" height="130" alt="Scan QR Code to preview ${escapeHtml(bizName)} on your phone" style="display: block; width: 130px; height: 130px; border: 0;" />
             </a>
           </td>
@@ -3343,7 +3376,7 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
             <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #059669; margin-bottom: 4px;">Scan With Your Phone</div>
             <div style="font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">See how ${escapeHtml(bizName)} looks on mobile</div>
             <div style="font-size: 12.5px; color: #475569; line-height: 1.45; margin-bottom: 10px;">Point your phone's camera at this QR code to open the live mobile preview right in your hand.</div>
-            <a href="${escapeHtml(previewUrl)}" target="_blank" style="display: inline-block; padding: 8px 14px; background-color: #0f172a; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">Open Live Preview &rarr;</a>
+            <a href="${escapeHtml(trackedEmailUrl)}" target="_blank" style="display: inline-block; padding: 8px 14px; background-color: #0f172a; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">Open Live Preview &rarr;</a>
           </td>
         </tr>
       </table>
@@ -3359,7 +3392,7 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
 
         <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">
           While looking at local Fox Valley businesses, I noticed ${escapeHtml(bizName)} has a great reputation, but your current web setup is leaving local leads on the table. So I went ahead and built a live working preview of a new site for you:<br/>
-          <a href="${escapeHtml(previewUrl)}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">${escapeHtml(previewUrl)}</a>
+          <a href="${escapeHtml(trackedEmailUrl)}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">${escapeHtml(previewUrl)}</a>
         </p>
 
         ${qrBlockHtml}

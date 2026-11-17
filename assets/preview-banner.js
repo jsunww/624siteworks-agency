@@ -14,6 +14,155 @@
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   if (document.getElementById('sw624-preview-banner')) return;
 
+  function getDemoSlug(scriptEl, businessName) {
+    var attrSlug =
+      (scriptEl && scriptEl.getAttribute('data-slug')) ||
+      window.SITEWORKS_DEMO_SLUG ||
+      '';
+    if (attrSlug) return String(attrSlug).trim().toLowerCase();
+
+    var host = (window.location.hostname || '').toLowerCase();
+    if (host.endsWith('.pages.dev')) {
+      var parts = host.split('.');
+      if (parts.length >= 3) {
+        return parts[parts.length - 3].replace(/[^a-z0-9-]/g, '');
+      }
+    }
+    return String(businessName || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function initDemoTelemetry(scriptEl, businessName) {
+    if (window.__sw624TelemetryStarted) return;
+    window.__sw624TelemetryStarted = true;
+
+    var search = window.location.search || '';
+    var ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : '';
+    var isBot = Boolean(
+      (typeof navigator !== 'undefined' && navigator.webdriver) ||
+      /lighthouse|pagespeed|headless|puppeteer|playwright|thum\.io|bot|crawl|spider|slurp/i.test(ua)
+    );
+
+    if (/[?&](?:admin_preview|nolog)=1/i.test(search)) {
+      try { sessionStorage.setItem('sw624_admin_preview', '1'); } catch (_) {}
+    }
+
+    var isAdmin = false;
+    try { isAdmin = sessionStorage.getItem('sw624_admin_preview') === '1'; } catch (_) {}
+
+    if (isBot || isAdmin || window.__sw624SkipTracking) {
+      return null;
+    }
+
+    var slug = getDemoSlug(scriptEl, businessName);
+    if (!slug) return null;
+
+    var gaId =
+      (scriptEl && scriptEl.getAttribute('data-ga-id')) ||
+      window.SITEWORKS_DEMO_GA_ID ||
+      'G-07ZVHY3BBN';
+    var trackUrl =
+      (scriptEl && scriptEl.getAttribute('data-track-url')) ||
+      window.SITEWORKS_TRACK_URL ||
+      'https://us-central1-admin-hub-cc0a2.cloudfunctions.net/trackDemoView';
+
+    if (gaId && !window.__sw624GaLoaded && typeof window.gtag !== 'function') {
+      window.__sw624GaLoaded = true;
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', gaId, {
+        demo_slug: slug,
+        business_name: businessName,
+        site_type: 'demo_preview'
+      });
+      var gaScript = document.createElement('script');
+      gaScript.async = true;
+      gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(gaId);
+      if (document.head) document.head.appendChild(gaScript);
+    }
+
+    var visitorId = '';
+    try {
+      visitorId = localStorage.getItem('sw624_vid') || '';
+      if (!visitorId) {
+        visitorId = 'v_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+        localStorage.setItem('sw624_vid', visitorId);
+      }
+    } catch (_) {}
+
+    var sessionKey = 'sw624_session_' + slug;
+    var seenKey = 'sw624_seen_' + slug;
+    var isSessionStart = true;
+    var isNewVisitor = true;
+    try {
+      isSessionStart = !sessionStorage.getItem(sessionKey);
+      isNewVisitor = !localStorage.getItem(seenKey);
+      sessionStorage.setItem(sessionKey, '1');
+      localStorage.setItem(seenKey, '1');
+    } catch (_) {}
+
+    var isQr = /[?&](?:src=qr|utm_medium=qr)\b/i.test(search);
+    var isPitchRef = isQr || /[?&](?:utm_source=pitch|src=pitch)\b/i.test(search);
+    var sourceLabel = isQr ? 'QR Scan' : (isPitchRef ? 'Pitch Email' : (document.referrer ? 'Referral / Search' : 'Direct Link'));
+    var deviceType = /Mobi|Android|iPhone|iPad/i.test(ua) ? 'Mobile' : 'Desktop';
+
+    function sendBeaconEvent(eventType, extra) {
+      if (!trackUrl) return;
+      var payload = Object.assign({
+        slug: slug,
+        businessName: businessName,
+        hostname: window.location.hostname || '',
+        path: window.location.pathname || '/',
+        referrer: (document.referrer || '').slice(0, 300),
+        visitorId: visitorId,
+        isNewVisitor: isNewVisitor,
+        isPitchRef: isPitchRef,
+        isQr: isQr,
+        sourceLabel: sourceLabel,
+        deviceType: deviceType,
+        eventType: eventType || 'pageview'
+      }, extra || {});
+
+      try {
+        var jsonStr = JSON.stringify(payload);
+        if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+          var blob = new Blob([jsonStr], { type: 'text/plain;charset=UTF-8' });
+          navigator.sendBeacon(trackUrl, blob);
+          return;
+        }
+        if (typeof fetch === 'function') {
+          fetch(trackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            body: jsonStr,
+            keepalive: true
+          }).catch(function () {});
+        }
+      } catch (_) {}
+    }
+
+    sendBeaconEvent(isSessionStart ? 'session_start' : 'pageview');
+
+    return {
+      slug: slug,
+      trackAction: function (actionType, label) {
+        sendBeaconEvent(actionType);
+        if (typeof window.gtag === 'function') {
+          try {
+            window.gtag('event', actionType, {
+              demo_slug: slug,
+              business_name: businessName,
+              event_label: label || slug
+            });
+          } catch (_) {}
+        }
+      }
+    };
+  }
+
   function initBanner() {
     if (document.getElementById('sw624-preview-banner')) return;
 
@@ -33,6 +182,8 @@
     if (!businessName) {
       businessName = 'Your Business';
     }
+
+    var tracker = initDemoTelemetry(scriptEl, businessName);
 
     var baseClaimUrl =
       (scriptEl && scriptEl.getAttribute('data-claim-url')) ||
@@ -239,6 +390,11 @@
     callBtn.href = 'tel:9202345633';
     callBtn.title = 'Call or text Jason Woodrow to discuss this website';
     callBtn.textContent = '📞 (920) 234-5633';
+    if (tracker) {
+      callBtn.addEventListener('click', function () {
+        tracker.trackAction('cta_call', 'preview_banner_call');
+      });
+    }
 
     var cta = document.createElement('a');
     cta.className = 'sw624-cta';
@@ -246,6 +402,17 @@
     cta.target = '_blank';
     cta.rel = 'noopener noreferrer';
     cta.textContent = 'Claim & customize site →';
+    if (tracker) {
+      cta.addEventListener('click', function () {
+        tracker.trackAction('cta_claim', 'preview_banner_claim');
+      });
+      var forms = document.querySelectorAll('form');
+      for (var fi = 0; fi < forms.length; fi++) {
+        forms[fi].addEventListener('submit', function () {
+          tracker.trackAction('form_submit', 'demo_estimate_form');
+        });
+      }
+    }
 
     var closeBtn = document.createElement('button');
     closeBtn.className = 'sw624-close';
