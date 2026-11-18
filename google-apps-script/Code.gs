@@ -2068,7 +2068,7 @@ function extractFacebookSlugInfo_(rawUrl) {
   if (/^\/profile\.php/i.test(rawUrl) || /^\/\d{6,}$/.test(pathPart)) {
     return { hasNamedSlug: false, slugClean: '', slugWords: [], isPostOrSubpath: isPostOrSubpath };
   }
-  const pagesM = pathPart.match(/^\/(?:pages|p|people|pg)\/([^\/]+)/i);
+  const pagesM = pathPart.match(/^\/(?:pages\/category\/[^\/]+|pages|p|people|pg)\/([^\/]+)/i);
   if (pagesM) {
     slugPart = pagesM[1];
   } else {

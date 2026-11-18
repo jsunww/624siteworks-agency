@@ -97,7 +97,7 @@ function buildUrlCandidates(urlStr) {
       add(mkUrl('http:', host));
       add(mkUrl('http:', altHost));
     }
-  } catch (e) { }
+  } catch (e) {}
   return candidates;
 }
 
@@ -207,7 +207,7 @@ function normalizeFacebookUrl(rawUrl) {
   }
   const lMatch = u.match(/[?&]u=([^&]+)/i);
   if (/l\.facebook\.com\/l\.php/i.test(u) && lMatch) {
-    try { u = decodeURIComponent(lMatch[1]); } catch (_) { }
+    try { u = decodeURIComponent(lMatch[1]); } catch (_) {}
   }
   u = u.replace(/^https?:\/\/(?:m|mbasic|mobile|touch|web)\.(facebook\.com)/i, 'https://www.$1');
   u = u.replace(/^http:\/\/(www\.)?facebook\.com/i, 'https://www.facebook.com');
@@ -312,7 +312,7 @@ function extractFacebookSlugInfo(rawUrl) {
   if (/^\/profile\.php/i.test(String(rawUrl || '').trim().replace(/^https?:\/\/(?:[a-z0-9-]+\.)?(?:facebook\.com|fb\.com)/i, '')) || /^\/\d{6,}$/.test(pathPart)) {
     return { hasNamedSlug: false, slugClean: '' };
   }
-  const pagesM = pathPart.match(/^\/(?:pages|p|people|pg)\/([^/]+)/i);
+  const pagesM = pathPart.match(/^\/(?:pages\/category\/[^/]+|pages|p|people|pg)\/([^/]+)/i);
   let slugPart = pagesM ? pagesM[1] : (pathPart.replace(/^\//, '').split('/')[0] || '');
   slugPart = slugPart.replace(/-\d{6,}$/, '');
   const slugClean = slugPart.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -472,7 +472,7 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
   }
 
   const metaDescMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
-    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+                        html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
   if (metaDescMatch) {
     result.metaDescription = metaDescMatch[1].trim();
   }
@@ -502,7 +502,7 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
           internalLinks.set(resolved, linkCategory);
         }
       }
-    } catch (e) { }
+    } catch (e) {}
   }
 
   // Crawl up to 4 key internal subpages
@@ -542,7 +542,7 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
 
   // 3b. Email (decodes Cloudflare email protection, HTML entities & obfuscation, blocks placeholders)
   let siteHost = '';
-  try { siteHost = new URL(finalUrl).hostname; } catch (_) { }
+  try { siteHost = new URL(finalUrl).hostname; } catch (_) {}
   const bestEmail = extractBestSiteEmail(allHtmlSources, siteHost);
   if (bestEmail) {
     result.email = bestEmail;
@@ -599,7 +599,7 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
         const text = await cResp.text();
         combinedCss += ' ' + text;
       }
-    } catch (e) { }
+    } catch (e) {}
   }
 
   // Extract inline <style>
