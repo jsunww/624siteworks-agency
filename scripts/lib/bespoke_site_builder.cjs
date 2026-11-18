@@ -254,69 +254,95 @@ function buildTradePhotographyTaxonomy(stockRootDir) {
     },
     'Foundation Repair': {
       piering_stabilization: [
-        'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80'
+        stock('concrete', 'concrete-crew-hero.jpg'),
+        stock('foundation', 'waterproofing-drain-tile.jpg')
       ],
       wall_crack_repair: [
-        'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=800&q=80'
+        stock('foundation', 'foundation-crack-repair.jpg'),
+        stock('concrete', 'garage-floors.jpg')
       ],
       waterproofing_drainage: [
-        'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80'
+        stock('foundation', 'sump-pump-basin.jpg'),
+        stock('foundation', 'waterproofing-drain-tile.jpg')
       ],
       concrete_footing: [
-        'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80'
+        stock('concrete', 'concrete-crew-hero.jpg'),
+        stock('concrete', 'garage-floors.jpg')
       ],
       hero: [
-        'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80'
+        stock('foundation', 'waterproofing-drain-tile.jpg')
       ],
       about: [
-        'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80'
+        stock('foundation', 'sump-pump-basin.jpg'),
+        stock('concrete', 'concrete-crew-hero.jpg')
+      ]
+    },
+    'Excavating': {
+      site_prep: [
+        stock('excavating', 'excavator-site-prep.jpg'),
+        stock('excavating', 'skidsteer-grading.jpg')
+      ],
+      grading_gravel: [
+        stock('excavating', 'skidsteer-grading.jpg'),
+        stock('excavating', 'excavator-site-prep.jpg')
+      ],
+      trenching_demolition: [
+        stock('excavating', 'trenching-demolition.jpg'),
+        stock('excavating', 'excavator-site-prep.jpg')
+      ],
+      hero: [
+        stock('excavating', 'excavator-site-prep.jpg'),
+        stock('excavating', 'skidsteer-grading.jpg')
+      ],
+      about: [
+        stock('excavating', 'trenching-demolition.jpg'),
+        stock('excavating', 'skidsteer-grading.jpg')
       ]
     },
     'Mechanical Contractor': {
       process_piping: [
-        'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=1200&q=80'
+        'https://images.unsplash.com/photo-1516937941344-00b4e0337589?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1200&q=80'
       ],
       welding_fabrication: [
         'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1574689049868-e94ed5301745?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=1200&q=80'
+        'https://images.unsplash.com/photo-1574689049868-e94ed5301745?auto=format&fit=crop&w=1200&q=80'
       ],
       waterjet_machining: [
-        'https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80'
+        'https://images.unsplash.com/photo-1574689049868-e94ed5301745?auto=format&fit=crop&w=1200&q=80',
+        stock('concrete', 'garage-floors.jpg')
       ],
       boilers_power_piping: [
-        'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1200&q=80'
+        'https://images.unsplash.com/photo-1516937941344-00b4e0337589?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1200&q=80'
       ],
       hero: [
-        'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80'
+        'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1516937941344-00b4e0337589?auto=format&fit=crop&w=1200&q=80'
       ],
       about: [
-        'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1574689049868-e94ed5301745?auto=format&fit=crop&w=1200&q=80',
         'https://images.unsplash.com/photo-1516937941344-00b4e0337589?auto=format&fit=crop&w=1200&q=80'
       ]
     }
   };
 }
 
-function normalizeTradeCategory(tradeStr) {
-  const t = (tradeStr || '').toLowerCase();
+function normalizeTradeCategory(tradeStr, bizName = '') {
+  const t = `${tradeStr || ''} ${bizName || ''}`.toLowerCase();
   if (t.includes('mechanical') || t.includes('piping') || t.includes('welding') || t.includes('welder') || t.includes('fabricat') || t.includes('boiler') || t.includes('waterjet') || t.includes('chiller') || t.includes('process pipe') || t.includes('industrial pipe')) return 'Mechanical Contractor';
+  if (t.includes('foundation') || t.includes('waterproof') || t.includes('basement') || t.includes('crawlspace')) return 'Foundation Repair';
+  if (t.includes('excavat') || t.includes('demolit') || t.includes('earthmov') || t.includes('grading') || t.includes('trench')) return 'Excavating';
   if (t.includes('fence')) return 'Fencing';
   if (t.includes('roof')) return 'Roofing';
-  if (t.includes('concrete') || t.includes('masonry')) return 'Concrete';
+  if (t.includes('concrete') || t.includes('flatwork') || t.includes('masonry')) return 'Concrete';
+  if (t.includes('asphalt') || t.includes('paving') || t.includes('blacktop')) return 'Asphalt Paving';
   if (t.includes('plumb')) return 'Plumbing';
   if (t.includes('hvac') || t.includes('heat') || t.includes('cooling') || t.includes('air cond')) return 'HVAC';
   if (t.includes('tree') || t.includes('arborist')) return 'Tree Service';
   if (t.includes('landscap') || t.includes('lawn')) return 'Landscaping';
   if (t.includes('electr')) return 'Electricians';
-  if (t.includes('asphalt') || t.includes('paving')) return 'Asphalt Paving';
-  if (t.includes('foundation') || t.includes('waterproof') || t.includes('basement')) return 'Foundation Repair';
-  return 'Mechanical Contractor';
+  return 'Concrete';
 }
 
 function getSlugSeed(str) {
@@ -354,17 +380,54 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-function getHexYiq(hexColor) {
+function parseHexRgb(hexColor) {
   const raw = (hexColor || '#2563eb').replace('#', '').trim();
   const hex = raw.length === 3 ? raw.split('').map(c => c + c).join('') : raw;
-  const r = parseInt(hex.substring(0, 2), 16) || 0;
-  const g = parseInt(hex.substring(2, 4), 16) || 0;
-  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  return {
+    r: parseInt(hex.substring(0, 2), 16) || 0,
+    g: parseInt(hex.substring(2, 4), 16) || 0,
+    b: parseInt(hex.substring(4, 6), 16) || 0
+  };
+}
+
+function getRelativeLuminance(hexColor) {
+  const { r, g, b } = parseHexRgb(hexColor);
+  const toLin = (c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+}
+
+function getContrastRatio(hex1, hex2) {
+  const l1 = getRelativeLuminance(hex1);
+  const l2 = getRelativeLuminance(hex2);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+function ensureContrastHex(fgHex, bgHex, minRatio = 4.5) {
+  if (getContrastRatio(fgHex, bgHex) >= minRatio) return fgHex;
+  const fg = parseHexRgb(fgHex);
+  const bgLum = getRelativeLuminance(bgHex);
+  const target = bgLum < 0.18 ? { r: 255, g: 255, b: 255 } : { r: 15, g: 23, b: 42 };
+  for (let step = 1; step <= 20; step++) {
+    const t = step / 20;
+    const r = Math.round(fg.r + (target.r - fg.r) * t);
+    const g = Math.round(fg.g + (target.g - fg.g) * t);
+    const b = Math.round(fg.b + (target.b - fg.b) * t);
+    const candidate = `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+    if (getContrastRatio(candidate, bgHex) >= minRatio) return candidate;
+  }
+  return bgLum < 0.18 ? '#ffffff' : '#0f172a';
+}
+
+function getHexYiq(hexColor) {
+  const { r, g, b } = parseHexRgb(hexColor);
   return ((r * 299) + (g * 587) + (b * 114)) / 1000;
 }
 
 function getContrastColor(hexColor) {
-  return (getHexYiq(hexColor) >= 140) ? '#0f172a' : '#ffffff';
+  return getContrastRatio('#ffffff', hexColor) >= getContrastRatio('#0f172a', hexColor) ? '#ffffff' : '#0f172a';
 }
 
 function normalizeHexColor(val, fallback) {
@@ -381,6 +444,8 @@ function normalizePalette(palette, tradeKey, researchData) {
     fencing: { primary: '#9a3412', accent: '#f59e0b' },
     mechanical: { primary: '#dc2626', accent: '#f59e0b' },
     concrete: { primary: '#334155', accent: '#ea580c' },
+    excavating: { primary: '#b45309', accent: '#0f172a' },
+    foundation: { primary: '#1e3a8a', accent: '#d97706' },
     roofing: { primary: '#1e3a8a', accent: '#d97706' }
   }[tradeKey] || { primary: '#1e3a8a', accent: '#ea580c' };
 
@@ -437,17 +502,18 @@ function hasGenericPlaceholderVibe(vibe) {
   return /gemini 4 argon in antigravity ide/i.test(vibe);
 }
 
-function getTradeKey(trade) {
-  const t = (trade || '').toLowerCase();
+function getTradeKey(trade, bizName = '') {
+  const t = `${trade || ''} ${bizName || ''}`.toLowerCase();
   if (/tree|arbor|stump|forestry|logging|canopy/.test(t)) return 'tree';
   if (/landscap|lawn|turf|hardscap|mulch/.test(t)) return 'landscaping';
   if (/mechanical|piping|welding|welder|fabricat|boiler|waterjet|chiller/.test(t)) return 'mechanical';
   if (/hvac|heat|cool|air cond|furnace|geothermal/.test(t)) return 'hvac';
   if (/fenc|post hole|deck/.test(t)) return 'fencing';
-  if (/roof/.test(t)) return 'roofing';
+  if (/foundation|waterproof|basement|crawlspace/.test(t)) return 'foundation';
+  if (/\broof/.test(t)) return 'roofing';
+  if (/excavat|demolit|earthmov|grading|trench|land clear/.test(t)) return 'excavating';
   if (/concrete|flatwork|masonry|stamped/.test(t)) return 'concrete';
   if (/asphalt|paving|blacktop|sealcoat/.test(t)) return 'asphalt';
-  if (/foundation|waterproof|basement|crawlspace/.test(t)) return 'foundation';
   if (/plumb|drain|sewer|water heater/.test(t)) return 'plumbing';
   if (/electric|wiring|panel|generator/.test(t)) return 'electrical';
   return 'generic';
@@ -496,6 +562,12 @@ const COMPARISON_FACTORS_BY_TRADE = {
     { factor: 'Turnaround Time', us: '24 - 48 Hours Written Proposal', them: '1 - 3 Weeks waiting' },
     { factor: 'Workmanship Warranty', us: 'Multi-Year Structural & Freeze-Thaw Warranty', them: '90-Day limited' }
   ],
+  excavating: [
+    { factor: 'Site Grading & Laser Elevations', us: 'Laser-Leveled Sub-Grades & Engineered Runoff Slopes', them: 'Eyeballed grades causing standing water & settling' },
+    { factor: 'Demolition & Utility Safety', us: 'Full Diggers Hotline Clearance & Clean Haul-Away', them: 'Uncoordinated digs & debris left buried on lot' },
+    { factor: 'Base Compaction', us: 'Layered Vibratory Compaction for Foundations & Drives', them: 'Loose backfill that settles under slabs' },
+    { factor: 'Fleet & Scheduling', us: 'Owned Heavy Excavators, Skid Steers & Written Quotes', them: 'Broken-down rental rigs & missed schedules' }
+  ],
   asphalt: [
     { factor: 'Sub-Base Compaction', us: 'Dense Compacted Crushed Limestone Base & Proper Crown', them: 'Thin hot-mix laid over soft dirt' },
     { factor: 'Mat Thickness & Seams', us: 'Uniform Compacted Lift Depth & Tamped Edges', them: 'Thin edges that crumble after one winter' },
@@ -528,12 +600,12 @@ const COMPARISON_FACTORS_BY_TRADE = {
   ]
 };
 
-function getComparisonFactors(trade) {
-  return COMPARISON_FACTORS_BY_TRADE[getTradeKey(trade)] || COMPARISON_FACTORS_BY_TRADE.generic;
+function getComparisonFactors(trade, bizName = '') {
+  return COMPARISON_FACTORS_BY_TRADE[getTradeKey(trade, bizName)] || COMPARISON_FACTORS_BY_TRADE.generic;
 }
 
 function getTradeCopyProfile(trade, bizName, rawCity, serviceArea) {
-  const key = getTradeKey(trade);
+  const key = getTradeKey(trade, bizName);
   const cityInfo = formatCityState(rawCity);
   const cityOnly = cityInfo.cityOnly;
   const city = cityInfo.cityState;
@@ -945,6 +1017,64 @@ function getTradeCopyProfile(trade, bizName, rawCity, serviceArea) {
         { name: 'Steel Wall Stabilization & Bracing', desc: `Heavy-duty structural bracing and straightening for bowing or inward-leaning basement walls across ${cityOnly}.`, badge: 'Structural' },
         { name: 'Interior Drain Tile & Sumps', desc: `Full perimeter weeping tile, clean gravel trenching, and backup sump pumps to keep basements bone-dry year-round.`, badge: 'Waterproofing' },
         { name: 'Crack Injection & Sill Repair', desc: `Structural epoxy and expanding polyurethane injections sealing leaking poured-concrete cracks cleanly from inside.`, badge: 'Free Inspection' }
+      ]
+    },
+    excavating: {
+      displayTrade: 'Excavating & Site Prep',
+      headerSub: `Excavating & Demolition • ${city}`,
+      heroEyebrow: `Site Prep, Grading & Demolition • ${city}`,
+      heroRootChip: cityInfo.regionLabel,
+      heroTrustBadge: 'Laser-Graded Pads & Clean Demolition',
+      heroCardLabel: 'Featured Earthmoving Project',
+      heroCardFallbackTitle: `Precision Excavating & Land Clearing in ${cityOnly}`,
+      heroCardSubtitle: 'Foundation digs, driveway gravel pads, trenching & structure tear-downs.',
+      fortressEyebrow: `${cityOnly}'s Trusted Earthmoving & Demolition Crew`,
+      fortressFallbackOwnerStory: `Precision site preparation, foundation excavation, grading, utility trenching, and clean structure demolition across ${cityInfo.regionLabel}.`,
+      estimatorHeading: 'Instant Excavation & Site Work Estimator',
+      estimatorSubtitle: 'Share your site scope for a prompt written earthmoving proposal.',
+      estimatorScopeLabel: 'Site Scope',
+      estimatorDefaultTypes: ['Foundation Excavation', 'Structural Demolition & Haul-Off', 'Driveway / Pad Grading & Gravel', 'Utility / Drainage Trenching'],
+      estimatorScopeOptions: [
+        { value: 'Trenching / Drain', label: 'Utility Trenching or Yard Drainage' },
+        { value: 'Garage / Home Dig', label: 'Foundation Excavation or Pad Prep' },
+        { value: 'Building Demolition', label: 'Structure Demolition & Debris Removal' },
+        { value: 'Full Lot Clearing', label: 'Full Lot Clearing & Rough Grading' }
+      ],
+      servicesEyebrow: `${cityInfo.regionShort} Earthmoving`,
+      servicesHeading: 'Precision Excavation, Grading & Demolition',
+      servicesSubtitle: 'Laser-verified elevations, safe utility clearance, and complete jobsite debris removal.',
+      serviceCardCta: 'Explore Earthmoving Specs',
+      defaultBadge: 'Site Work',
+      aboutEyebrow: 'Iron, Precision & Safe Digging',
+      aboutHeading: 'Built on Solid Sub-Grades & Clean Lots',
+      aboutQuote: `Every long-lasting driveway, shop pad, or foundation starts with compacted sub-grade preparation and proper surface drainage.`,
+      galleryEyebrow: `${cityOnly} Field Projects`,
+      galleryHeading: 'Completed Excavation & Grading Jobs',
+      gallerySubtitle: `Recent foundation digs, site pads, and lot clearing across ${serviceArea || city}.`,
+      galleryAltPrefix: 'Excavation Project',
+      galleryCardPrefix: 'Site Job #',
+      comparisonEyebrow: 'The Site Prep Standard',
+      comparisonHeading: `${bizName} vs Shortcut Operators`,
+      comparisonFactorCol: 'Earthmoving & Safety Factor',
+      comparisonThemCol: 'Low-Bid Operators',
+      ctaBadge: 'Full Diggers Clearance • Written Site Quotes',
+      ctaHeadline: 'Planning a Foundation Dig, Lot Clearing, or Demolition Project?',
+      ctaBullet1: 'Laser-Checked Elevations & Compaction',
+      summaryRole: 'excavating & demolition contractor',
+      servicesPageEyebrow: 'Earthmoving Capabilities',
+      servicesPageHeading: 'Complete Excavation, Grading & Demolition',
+      servicesPageSubtitle: 'Full residential and light commercial earthmoving, trenching, and clean debris haul-away.',
+      aboutPageTitleSuffix: `${cityOnly} Excavating Contractor`,
+      aboutSecondaryParagraph: `From careful Diggers Hotline utility clearance to spotless final finish grading, ${bizName} delivers reliable earthmoving across ${cityInfo.regionLabel}.`,
+      contactMsgPlaceholder: 'Describe excavation type, demolition structure size, access width, and property address...',
+      llmsPortfolioLabel: 'Excavation & Demolition Capabilities',
+      fallbackAestheticVibe: 'Rugged Earthmoving Steel & Clean Site Grading',
+      fallbackTagline: `Precision Excavating & Demolition in ${cityOnly}`,
+      fallbackOwnerStory: `${bizName} delivers dependable site preparation, structural demolition, trenching, and precision lot grading across ${cityInfo.regionLabel}.`,
+      fallbackServices: [
+        { name: 'Foundation & Basement Digging', desc: `Clean, accurate footing and basement excavations with proper setback and drainage grading across ${cityOnly}.`, badge: 'Most Popular' },
+        { name: 'Site Grading & Crushed Stone Pads', desc: `Tracked skid steer leveling, driveway gravel bases, and lot drainage reshaping ready for concrete or asphalt.`, badge: 'Site Prep' },
+        { name: 'Structural Demolition & Trenching', desc: `Safe garage, barn, and shed tear-downs plus sewer/water utility trenching with full debris haul-off.`, badge: 'Clean Haul-Off' }
       ]
     },
     hvac: {
@@ -1373,18 +1503,15 @@ function isTrustworthyResearchImage(url, detail, bizName, cleanDomain, expectedP
 }
 
 function resolveDesignProfile(layoutStyle, bizName, tradeKey, seed = 0) {
-  const validLayouts = ['industrial-contractor', 'modern-architectural', 'shield-banner-estimator', 'split-hero-timber'];
+  const validLayouts = ['industrial-contractor', 'modern-architectural', 'shield-banner-estimator', 'bold-editorial-grid', 'split-hero-timber'];
   let resolvedLayout = validLayouts.includes(layoutStyle) ? layoutStyle : '';
   const isWarmCraft = tradeKey === 'fencing' || tradeKey === 'tree' || tradeKey === 'landscaping' || /deck|timber|wood|tree|lawn|make/i.test(bizName || '');
   if (!resolvedLayout) {
     if (isWarmCraft) {
-      resolvedLayout = 'split-hero-timber';
-    } else if (tradeKey === 'concrete' || tradeKey === 'paving' || tradeKey === 'foundation' || tradeKey === 'excavating' || tradeKey === 'roofing') {
-      const nonCraftOptions = ['industrial-contractor', 'modern-architectural', 'shield-banner-estimator'];
-      resolvedLayout = nonCraftOptions[Math.abs(Number(seed) || 0) % nonCraftOptions.length];
+      resolvedLayout = (Math.abs(Number(seed) || 0) % 3 === 1) ? 'modern-architectural' : 'split-hero-timber';
     } else {
-      const altOptions = ['modern-architectural', 'shield-banner-estimator', 'industrial-contractor'];
-      resolvedLayout = altOptions[Math.abs(Number(seed) || 0) % altOptions.length];
+      const nonCraftOptions = ['modern-architectural', 'bold-editorial-grid', 'shield-banner-estimator', 'industrial-contractor'];
+      resolvedLayout = nonCraftOptions[Math.abs(Number(seed) || 0) % nonCraftOptions.length];
     }
   }
 
@@ -1395,9 +1522,13 @@ function resolveDesignProfile(layoutStyle, bizName, tradeKey, seed = 0) {
       headingFont: "'Barlow Condensed', 'Plus Jakarta Sans', sans-serif",
       bodyFont: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
       headingTrack: '-0.01em',
-      cardRadius: '0.75rem',
-      btnRadius: '0.375rem',
-      heroFirst: false
+      cardRadius: '0.25rem',
+      btnRadius: '0.25rem',
+      heroFirst: false,
+      lightHeader: false,
+      headerBg: '#111827',
+      footerBg: '#111827',
+      lightFooter: false
     },
     'modern-architectural': {
       layoutStyle: 'modern-architectural',
@@ -1405,9 +1536,27 @@ function resolveDesignProfile(layoutStyle, bizName, tradeKey, seed = 0) {
       headingFont: "'Outfit', 'Inter', sans-serif",
       bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       headingTrack: '-0.02em',
-      cardRadius: '0.875rem',
-      btnRadius: '0.5rem',
-      heroFirst: true
+      cardRadius: '0.75rem',
+      btnRadius: '0.375rem',
+      heroFirst: true,
+      lightHeader: true,
+      headerBg: '#FFFFFF',
+      footerBg: '#F8FAFC',
+      lightFooter: true
+    },
+    'bold-editorial-grid': {
+      layoutStyle: 'bold-editorial-grid',
+      fontUrl: 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap',
+      headingFont: "'DM Sans', 'Inter', sans-serif",
+      bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      headingTrack: '-0.025em',
+      cardRadius: '0.375rem',
+      btnRadius: '0.25rem',
+      heroFirst: true,
+      lightHeader: true,
+      headerBg: '#FAFAF9',
+      footerBg: '#18181B',
+      lightFooter: false
     },
     'shield-banner-estimator': {
       layoutStyle: 'shield-banner-estimator',
@@ -1417,7 +1566,11 @@ function resolveDesignProfile(layoutStyle, bizName, tradeKey, seed = 0) {
       headingTrack: '-0.02em',
       cardRadius: '1rem',
       btnRadius: '0.625rem',
-      heroFirst: false
+      heroFirst: false,
+      lightHeader: false,
+      headerBg: '#0F172A',
+      footerBg: '#0F172A',
+      lightFooter: false
     },
     'split-hero-timber': {
       layoutStyle: 'split-hero-timber',
@@ -1426,8 +1579,12 @@ function resolveDesignProfile(layoutStyle, bizName, tradeKey, seed = 0) {
       bodyFont: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
       headingTrack: '-0.02em',
       cardRadius: '1.25rem',
-      btnRadius: '0.75rem',
-      heroFirst: true
+      btnRadius: '9999px',
+      heroFirst: true,
+      lightHeader: true,
+      headerBg: '#FFFDF9',
+      footerBg: '#1C1917',
+      lightFooter: false
     }
   };
 
@@ -1461,7 +1618,7 @@ function createSiteBuilder(options = {}) {
 
   function resolveContextualPhoto(tradeKey, contextText, role, offset = 0) {
     const normTrade = normalizeTradeCategory(tradeKey);
-    const tradePool = TRADE_PHOTOGRAPHY_TAXONOMY[normTrade] || TRADE_PHOTOGRAPHY_TAXONOMY['Fencing'];
+    const tradePool = TRADE_PHOTOGRAPHY_TAXONOMY[normTrade] || TRADE_PHOTOGRAPHY_TAXONOMY['Concrete'];
 
     if (role === 'hero' && tradePool.hero?.length) {
       return tradePool.hero[offset % tradePool.hero.length];
@@ -1493,7 +1650,25 @@ function createSiteBuilder(options = {}) {
       if (/garage|shop\s*slab|interior\s*slab|floor/i.test(text)) return tradePool.garage_floors[offset % tradePool.garage_floors.length];
       if (/patio|walkway|sidewalk|stoop|step/i.test(text)) return tradePool.patio_walkway[offset % tradePool.patio_walkway.length];
       if (/foundation|footing|rebar/i.test(text)) return tradePool.foundation_footing[offset % tradePool.foundation_footing.length];
-      return tradePool.driveway_patio[offset % tradePool.driveway_patio.length];
+      const order = [
+        tradePool.driveway_patio[0],
+        tradePool.garage_floors[0],
+        tradePool.patio_walkway[0],
+        tradePool.stamped_decorative[0]
+      ];
+      return order[offset % order.length];
+    }
+    if (normTrade === 'Excavating') {
+      if (/grad|pad|gravel|driveway|stone/i.test(text)) return tradePool.grading_gravel[offset % tradePool.grading_gravel.length];
+      if (/trench|utility|sewer|drain|demo|tear/i.test(text)) return tradePool.trenching_demolition[offset % tradePool.trenching_demolition.length];
+      const order = [tradePool.site_prep[0], tradePool.grading_gravel[0], tradePool.trenching_demolition[0]];
+      return order[offset % order.length];
+    }
+    if (normTrade === 'Foundation Repair') {
+      if (/wall|crack|injection/i.test(text)) return tradePool.wall_crack_repair[offset % tradePool.wall_crack_repair.length];
+      if (/waterproof|drain|sump/i.test(text)) return tradePool.waterproofing_drainage[offset % tradePool.waterproofing_drainage.length];
+      const order = [tradePool.piering_stabilization[0], tradePool.waterproofing_drainage[0], tradePool.wall_crack_repair[0]];
+      return order[offset % order.length];
     }
     if (normTrade === 'Plumbing') {
       if (/drain|sewer|clog|jet/i.test(text)) return tradePool.drain_sewer[offset % tradePool.drain_sewer.length];
@@ -2017,7 +2192,7 @@ function createSiteBuilder(options = {}) {
     const trade = tradeInfo.trade;
     const cityInfo = formatCityState(tradeInfo.city);
     const city = cityInfo.cityState;
-    const tradeKey = getTradeKey(trade);
+    const tradeKey = getTradeKey(trade, bizName);
     const copyProfile = getTradeCopyProfile(trade, bizName, city, lead.serviceArea);
     const validLeadServices = hasRealCustomServices(lead.services) ? lead.services : [];
     const seedLayout = resolveDesignProfile('', bizName, tradeKey, getSlugSeed(bizName)).layoutStyle;
@@ -2046,14 +2221,17 @@ RULES FOR AESTHETICS & DIFFERENTIATION:
    - For timber, wood, deck builders (e.g. M.A.K.E.): Use rich cedar timber (#8B4513, #9A3412, #78350F) with warm charcoal slate (#18181B) and copper/amber CTA (#F59E0B).
    - For royal / castle / shield names (e.g. Crown Fence): Use royal midnight navy (#1E3A8A) with burnished gold (#D97706, #EAB308) and crisp white/slate surfaces.
    - For heavy industrial / masonry / concrete (e.g. Delrar): Use deep granite graphite (#334155, #1E293B) with safety orange / warm yellow (#EA580C, #F59E0B).
+   - For foundation repair & basement waterproofing: Use deep structural royal navy (#1E3A8A) or deep slate teal (#0F766E) with amber/cyan highlights (#D97706, #0284C7).
+   - For excavating & site prep: Use earth amber/ochre (#B45309, #D97706) paired with dark iron charcoal (#18181B, #334155).
    - For landscaping / tree services: Use rich evergreen / moss (#166534, #15803D) with warm bronze/amber earth accents (#D97706).
 2. If real extracted colors from their website exist, incorporate their exact primary hue (always format hex codes WITH a leading '#').
 3. Base the 3 services and 4 calculatorOptions strictly on REAL capabilities of this exact ${copyProfile.displayTrade} business!
 4. Assigned Layout Archetype for visual diversity (so nearby contractors NEVER look like the same template): prefer "${seedLayout}" for this business unless another archetype clearly elevates their brand:
-   - 'industrial-contractor': Bold dark field hero with condensed Barlow Condensed display typography, sharp rectangular geometry, and side-by-side quote panel.
-   - 'modern-architectural': Clean bright white editorial canvas with widescreen Outfit architectural banner and alternating horizontal feature rows.
+   - 'industrial-contractor': Bold dark utility bar + dark field hero with condensed Barlow Condensed typography, sharp rectangular geometry, and comparison table.
+   - 'modern-architectural': Clean white header + bright editorial showcase canvas with Outfit typography, alternating horizontal feature rows, and light footer.
+   - 'bold-editorial-grid': Off-white minimalist nav + 50/50 split charcoal/unwashed-photo hero with DM Sans typography and flat stone bento cards.
    - 'shield-banner-estimator': High-contrast split hero with Space Grotesk geometric display type and floating inline estimate form card right in the hero fold.
-   - 'split-hero-timber': Warm residential craft split-hero with Plus Jakarta Sans typography and showcase photo frame (ideal for fencing, decking, landscaping, tree care).
+   - 'split-hero-timber': Warm residential craft split-hero with Plus Jakarta Sans typography and rounded showcase frame (fencing, decking, landscaping, tree care).
 5. STRICT NICHE-ACCURATE COPY: Every headline, tagline, ownerStory, service name, service description, and calculatorOption MUST sound natural and authentic to "${copyProfile.displayTrade}" in ${cityInfo.cityOnly}. NEVER use out-of-place boilerplate words like "installations", "fabrication", "freeze-thaw cycles", "cold-climate structural tolerances", or "thin materials" for service trades like Tree Service, Landscaping, Plumbing, or Electrical where those terms do not fit.
 6. Modern Design System Rules (STRICT — NO SERIF FONTS):
    - Pure white (#FFFFFF) main body with alternating ultra-light tint (#F8FAFC or #F1F5F9) sections.
@@ -2066,7 +2244,7 @@ Return ONLY valid JSON matching this schema:
 {
   "displayBrandName": "Concise core brand name for header & logo (e.g. 'Synergy Midwest' rather than an 80-character tagline)",
   "aestheticVibe": "Authentic aesthetic vibe tailored specifically to ${copyProfile.displayTrade}",
-  "layoutStyle": "industrial-contractor" or "modern-architectural" or "shield-banner-estimator" or "split-hero-timber",
+  "layoutStyle": "industrial-contractor" or "modern-architectural" or "bold-editorial-grid" or "shield-banner-estimator" or "split-hero-timber",
   "themeMode": "light",
   "palette": {
     "primary": "#hex",
@@ -2190,7 +2368,8 @@ Return ONLY valid JSON matching this schema:
       fs.copyFileSync(styleCssPath, path.join(assetsDir, 'style.min.css'));
     }
 
-    const tradeKey = tradeInfo.trade;
+    const tradeKey = `${tradeInfo.trade || ''} ${lead.businessName || ''}`.trim();
+    const resolvedTradeKey = getTradeKey(tradeInfo.trade, lead.businessName);
     const seed = getSlugSeed(lead.businessName);
     const imageMeta = researchData.imageMeta || {};
 
@@ -2327,7 +2506,7 @@ Return ONLY valid JSON matching this schema:
       return null;
     }
 
-    const assetDesign = resolveDesignProfile(branding.layoutStyle, lead.businessName, tradeKey, seed);
+    const assetDesign = resolveDesignProfile(branding.layoutStyle, lead.businessName, resolvedTradeKey, seed);
     const isCraftLayout = assetDesign.heroFirst;
     const servicesList = (Array.isArray(branding.services) && branding.services.length >= 3)
       ? branding.services
@@ -2479,17 +2658,17 @@ Return ONLY valid JSON matching this schema:
         const buf = fs.readFileSync(full);
 
         await sharp(buf)
-          .resize({ width: 1200, withoutEnlargement: true })
+          .resize({ width: 1000, withoutEnlargement: true })
           .flatten({ background: '#ffffff' })
-          .jpeg({ quality: 82, mozjpeg: true })
+          .jpeg({ quality: 78, mozjpeg: true })
           .toFile(full + '.tmp');
         fs.renameSync(full + '.tmp', full);
 
         const webpPath = path.join(imgDir, `${name}.webp`);
         await sharp(buf)
-          .resize({ width: 1200, withoutEnlargement: true })
+          .resize({ width: 1000, withoutEnlargement: true })
           .flatten({ background: '#ffffff' })
-          .webp({ quality: 82 })
+          .webp({ quality: 78 })
           .toFile(webpPath);
         if (name === 'hero') heroWebpCreated = true;
       }
@@ -2572,7 +2751,7 @@ Return ONLY valid JSON matching this schema:
     const cityInfo = formatCityState(tradeInfo.city);
     const city = cityInfo.cityState;
     const trade = tradeInfo.trade;
-    const tradeKey = getTradeKey(trade);
+    const tradeKey = getTradeKey(trade, bizName);
     const rawServiceArea = lead.serviceArea || '';
     const serviceArea = (!rawServiceArea || (!cityInfo.isFoxValley && /^fox valley & northeast wisconsin \(appleton/i.test(rawServiceArea)))
       ? `${cityInfo.regionShort} (${cityInfo.schemaCities.join(', ')})`
@@ -2596,24 +2775,42 @@ Return ONLY valid JSON matching this schema:
       ? branding.calculatorOptions
       : cp.estimatorDefaultTypes;
     const p = normalizePalette(branding.palette, tradeKey, researchData);
-    const isSecondaryDark = getHexYiq(p.secondary) < 150;
-    const chromeBg = p.secondary;
-    const chromeBorder = isSecondaryDark ? 'rgba(255, 255, 255, 0.14)' : p.border;
-    const chromeTextPrimary = isSecondaryDark ? '#FFFFFF' : '#0F172A';
-    const chromeTextSecondary = isSecondaryDark ? '#E2E8F0' : '#475569';
-    const chromeTextMuted = isSecondaryDark ? '#CBD5E1' : '#64748B';
-    const accentYiq = getHexYiq(p.accent);
-    const primaryYiq = getHexYiq(p.primary);
-    const darkSurfaceAccent = accentYiq >= 135 ? p.accent : '#FBBF24';
-    const lightSurfaceAccent = accentYiq <= 140 ? p.accent : (primaryYiq <= 145 ? p.primary : '#B45309');
-    const chromeAccent = isSecondaryDark ? darkSurfaceAccent : lightSurfaceAccent;
+    const designProfile = resolveDesignProfile(branding.layoutStyle, bizName, tradeKey, getSlugSeed(bizName));
+    const layoutMode = designProfile.layoutStyle;
+    const isCraft = layoutMode === 'split-hero-timber';
+
+    const headerBg = designProfile.headerBg || '#0F172A';
+    const isHeaderDark = !designProfile.lightHeader;
+    const headerBorder = isHeaderDark ? 'rgba(255, 255, 255, 0.14)' : '#e2e8f0';
+    const headerTextPrimary = isHeaderDark ? '#FFFFFF' : '#0F172A';
+    const headerTextSecondary = isHeaderDark ? '#E2E8F0' : '#334155';
+
+    const footerBg = designProfile.footerBg || '#0F172A';
+    const isFooterDark = !designProfile.lightFooter;
+    const footerBorder = isFooterDark ? 'rgba(255, 255, 255, 0.14)' : '#cbd5e1';
+    const footerTextPrimary = isFooterDark ? '#FFFFFF' : '#0F172A';
+    const footerTextSecondary = isFooterDark ? '#E2E8F0' : '#334155';
+    const footerTextMuted = isFooterDark ? '#CBD5E1' : '#475569';
+
+    const darkSurfaceAccent = ensureContrastHex(p.accent, '#0F172A', 4.6);
+    const rawLightAccent = getContrastRatio(p.accent, '#FFFFFF') >= 2.8 ? p.accent : p.primary;
+    const lightSurfaceAccent = ensureContrastHex(rawLightAccent, '#F1F5F9', 5.0);
+    const headerAccent = isHeaderDark ? darkSurfaceAccent : lightSurfaceAccent;
+    const footerAccent = isFooterDark ? darkSurfaceAccent : lightSurfaceAccent;
+
+    const btnBgPrimary = p.primary;
+    const btnTextPrimary = getContrastColor(btnBgPrimary);
+    const headerCtaBg = (isHeaderDark && getContrastRatio(btnBgPrimary, headerBg) < 2.6)
+      ? ensureContrastHex(p.accent, headerBg, 3.8)
+      : btnBgPrimary;
+    const headerCtaText = getContrastColor(headerCtaBg);
 
     const socials = researchData.socials || {};
     function buildSocialIcons(onDarkSurface) {
       const items = [];
-      const fbClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-600/10 text-blue-600';
-      const igClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-pink-600/10 text-pink-600';
-      const liClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-700/10 text-blue-700';
+      const fbClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-slate-100 text-slate-800 border border-slate-300';
+      const igClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-slate-100 text-slate-800 border border-slate-300';
+      const liClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-slate-100 text-slate-800 border border-slate-300';
 
       if (socials.facebook) {
         items.push(`
@@ -2640,7 +2837,8 @@ Return ONLY valid JSON matching this schema:
     }
 
     const socialIconsHtml = buildSocialIcons(false);
-    const chromeSocialIconsHtml = buildSocialIcons(isSecondaryDark);
+    const chromeSocialIconsHtml = buildSocialIcons(isHeaderDark);
+    const footerSocialIconsHtml = buildSocialIcons(isFooterDark);
 
     const socialRowHtml = socialIconsHtml.length > 0
       ? `<div class="flex items-center gap-2">${socialIconsHtml.join('')}</div>`
@@ -2648,17 +2846,19 @@ Return ONLY valid JSON matching this schema:
     const chromeSocialRowHtml = chromeSocialIconsHtml.length > 0
       ? `<div class="flex items-center gap-2">${chromeSocialIconsHtml.join('')}</div>`
       : '';
+    const footerSocialRowHtml = footerSocialIconsHtml.length > 0
+      ? `<div class="flex items-center gap-2">${footerSocialIconsHtml.join('')}</div>`
+      : '';
 
     const logoFrameClass = assetPaths.logoIsDark
       ? 'brand-logo-img rounded-xl object-contain bg-black p-1.5 sm:p-2 border border-white/15 shadow-md shrink-0'
-      : 'brand-logo-img rounded-xl object-contain bg-white p-1.5 sm:p-2 shadow-sm shrink-0';
+      : 'brand-logo-img rounded-xl object-contain bg-white p-1.5 sm:p-2 shadow-sm shrink-0 border border-slate-200';
+    const monogramBg = isHeaderDark ? '#FFFFFF' : btnBgPrimary;
+    const monogramColor = isHeaderDark ? btnBgPrimary : btnTextPrimary;
     const logoMarkup = assetPaths.hasRealLogo
       ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" width="160" height="60" class="${logoFrameClass}">`
-      : `<div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-md shrink-0 bg-white" style="color: ${p.primary}; border: 2px solid ${p.primary};">${bizName.charAt(0)}</div>`;
+      : `<div class="w-10 h-10 sm:w-12 sm:h-12 sw-btn-radius flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-sm shrink-0" style="background-color: ${monogramBg}; color: ${monogramColor}; border: 2px solid ${btnBgPrimary};">${bizName.charAt(0)}</div>`;
 
-    const designProfile = resolveDesignProfile(branding.layoutStyle, bizName, tradeKey, getSlugSeed(bizName));
-    const layoutMode = designProfile.layoutStyle;
-    const isCraft = layoutMode === 'split-hero-timber';
     const fontUrl = designProfile.fontUrl;
     const fontLink = `
       <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2675,9 +2875,9 @@ Return ONLY valid JSON matching this schema:
       ${tailwindInlineCss ? `<style id="tailwind-styles">${tailwindInlineCss}</style>` : '<link rel="stylesheet" href="assets/style.min.css">'}
       <style>
         :root {
-          --c-primary: ${p.primary};
+          --c-primary: ${btnBgPrimary};
           --c-primary-hover: ${p.primaryHover};
-          --c-secondary: ${chromeBg};
+          --c-secondary: ${headerBg};
           --c-accent: ${lightSurfaceAccent};
           --c-bg: #ffffff;
           --c-bg-tint: #f8fafc;
@@ -2694,12 +2894,12 @@ Return ONLY valid JSON matching this schema:
           background-color: #ffffff;
           color: #111827;
         }
-        h1, h2, h3, h4, .brand-heading {
+        :where(h1, h2, h3, h4) {
           color: #111827;
         }
         .brand-btn-primary {
           background-color: var(--c-primary);
-          color: ${getContrastColor(p.primary)};
+          color: ${btnTextPrimary};
           border-radius: var(--r-btn);
         }
         .brand-btn-primary:hover {
@@ -2725,13 +2925,16 @@ Return ONLY valid JSON matching this schema:
         .sw-btn-radius { border-radius: var(--r-btn); }
         .sw-grid-2 { display: grid; grid-template-columns: 1fr; gap: 2rem; }
         .sw-grid-3 { display: grid; grid-template-columns: 1fr; gap: 1.75rem; }
-        .sw-grid-split, .sw-grid-split-rev { display: grid; grid-template-columns: 1fr; gap: 2.5rem; align-items: center; }
+        .sw-grid-4 { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+        .sw-grid-split, .sw-grid-split-rev, .sw-split-50, .sw-bento-grid, .sw-mosaic-3 { display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: center; }
+        .sw-split-50 { gap: 0; align-items: stretch; }
         .sw-service-row { display: flex; flex-direction: column; gap: 2rem; align-items: center; }
         .sw-service-media { width: 100%; height: 16rem; flex-shrink: 0; }
         .sw-estimator-bar { display: grid; grid-template-columns: 1fr; gap: 1rem; align-items: end; }
         @media (min-width: 640px) {
           .sw-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .sw-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .sw-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .sw-estimator-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (min-width: 768px) {
@@ -2740,8 +2943,12 @@ Return ONLY valid JSON matching this schema:
         }
         @media (min-width: 1024px) {
           .sw-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+          .sw-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .sw-grid-split { grid-template-columns: 1.15fr 0.85fr; gap: 3rem; }
           .sw-grid-split-rev { grid-template-columns: 0.9fr 1.1fr; gap: 3rem; }
+          .sw-split-50 { grid-template-columns: 1fr 1fr; }
+          .sw-bento-grid { grid-template-columns: 1.15fr 0.85fr; gap: 1.75rem; align-items: stretch; }
+          .sw-mosaic-3 { grid-template-columns: 1.6fr 1fr 1fr; gap: 1.5rem; align-items: stretch; }
           .sw-estimator-bar { grid-template-columns: 1.2fr 1.1fr 1fr 1fr 0.9fr; }
         }
         .site-header-inner {
@@ -2780,7 +2987,7 @@ Return ONLY valid JSON matching this schema:
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          color: ${chromeTextPrimary} !important;
+          color: ${headerTextPrimary};
         }
         .brand-title-sub {
           display: block;
@@ -2819,30 +3026,36 @@ Return ONLY valid JSON matching this schema:
       <div class="text-xs font-semibold py-1.5 px-3 sm:px-6 border-b" style="background-color: #090d16; border-color: rgba(255,255,255,0.08); color: #cbd5e1;">
         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <span>Serving ${escapeHtml(city)} &amp; ${escapeHtml(cityInfo.regionShort)}</span>
-          <span class="hidden sm:inline">${escapeHtml(cp.heroTrustBadge)} • Direct Estimates: <strong style="color: #ffffff;">${escapeHtml(phone)}</strong></span>
+          <span class="hidden sm:inline">${escapeHtml(cp.heroTrustBadge)} &bull; Direct Estimates: <strong style="color: #ffffff;">${escapeHtml(phone)}</strong></span>
         </div>
-      </div>` : '';
+      </div>` : (layoutMode === 'bold-editorial-grid' ? `
+      <div class="text-xs font-semibold py-1.5 px-3 sm:px-6 border-b" style="background-color: #18181B; border-color: #27272A; color: #E4E4E7;">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+          <span>${escapeHtml(cp.displayTrade)} &bull; ${escapeHtml(cityInfo.regionLabel)}</span>
+          <span class="hidden sm:inline">Free Written Quotes: <strong style="color: #ffffff;">${escapeHtml(phone)}</strong></span>
+        </div>
+      </div>` : '');
 
     const architecturalHeaderAccent = layoutMode === 'modern-architectural'
-      ? `border-top: 3px solid var(--c-primary);`
+      ? `border-top: 4px solid var(--c-primary);`
       : '';
 
     const headerHtml = `
-      <header class="sticky top-0 z-50 backdrop-blur-md border-b" style="${architecturalHeaderAccent} background-color: ${chromeBg}f0; border-color: ${chromeBorder}; color: ${chromeTextSecondary};">
+      <header class="sticky top-0 z-50 border-b" style="${architecturalHeaderAccent} background-color: ${headerBg}; border-color: ${headerBorder}; color: ${headerTextSecondary};">
         ${industrialUtilityBar}
         <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 site-header-inner">
           <a href="index.html" class="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1 mr-1 sm:mr-4">
             ${logoMarkup}
             <div class="min-w-0 flex-1 overflow-hidden">
-              <span class="brand-title-main" style="color: ${chromeTextPrimary} !important;">${escapeHtml(cleanDisplayBizName)}</span>
-              <span class="brand-title-sub" style="color: ${chromeAccent};">${escapeHtml(cp.headerSub)}</span>
+              <span class="brand-title-main" style="color: ${headerTextPrimary};">${escapeHtml(cleanDisplayBizName)}</span>
+              <span class="brand-title-sub" style="color: ${headerAccent};">${escapeHtml(cp.headerSub)}</span>
             </div>
           </a>
-          <nav class="hidden md:flex items-center gap-6 lg:gap-8 font-bold text-sm" style="color: ${chromeTextSecondary};">
-            <a href="index.html" class="hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">Home</a>
-            <a href="services.html" class="hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">Services</a>
-            <a href="about.html" class="hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">About Us</a>
-            <a href="contact.html" class="hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">Free Estimate</a>
+          <nav class="hidden md:flex items-center gap-6 lg:gap-8 font-bold text-sm" style="color: ${headerTextSecondary};">
+            <a href="index.html" class="hover:opacity-75 transition-opacity" style="color: ${headerTextPrimary};">Home</a>
+            <a href="services.html" class="hover:opacity-75 transition-opacity" style="color: ${headerTextPrimary};">Services</a>
+            <a href="about.html" class="hover:opacity-75 transition-opacity" style="color: ${headerTextPrimary};">About Us</a>
+            <a href="contact.html" class="hover:opacity-75 transition-opacity" style="color: ${headerTextPrimary};">Free Estimate</a>
           </nav>
           <div class="flex items-center gap-2 sm:gap-3 shrink-0">
             ${chromeSocialIconsHtml.length > 0 ? `
@@ -2850,27 +3063,27 @@ Return ONLY valid JSON matching this schema:
                 ${chromeSocialIconsHtml.join('')}
               </div>
             ` : ''}
-            <a href="tel:${cleanPhone}" class="inline-flex items-center gap-1.5 brand-btn-primary px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all whitespace-nowrap shrink-0">
+            <a href="tel:${cleanPhone}" class="inline-flex items-center gap-1.5 sw-btn-radius px-3 py-2 sm:px-4 sm:py-2.5 font-bold text-xs sm:text-sm shadow-sm transition-all whitespace-nowrap shrink-0" style="background-color: ${headerCtaBg}; color: ${headerCtaText};">
               <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
               <span class="hidden sm:inline">${escapeHtml(phone)}</span>
               <span class="sm:hidden font-extrabold">Call</span>
             </a>
-            <button type="button" onclick="toggleMobileNav()" aria-label="Toggle Navigation" class="md:hidden inline-flex items-center justify-center p-2.5 rounded-xl border transition-all shrink-0" style="border-color: ${chromeBorder}; color: ${chromeTextPrimary}; background-color: ${isSecondaryDark ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.06)'};">
+            <button type="button" onclick="toggleMobileNav()" aria-label="Toggle Navigation" class="md:hidden inline-flex items-center justify-center p-2.5 sw-btn-radius border transition-all shrink-0" style="border-color: ${headerBorder}; color: ${headerTextPrimary}; background-color: ${isHeaderDark ? 'rgba(255,255,255,0.1)' : '#f8fafc'};">
               <svg id="mobileMenuOpenIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
               <svg id="mobileMenuCloseIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
 
-        <div id="mobileNavDrawer" class="hidden md:hidden border-t px-4 py-4 space-y-3 shadow-2xl backdrop-blur-md" style="background-color: ${chromeBg}; border-color: ${chromeBorder};">
+        <div id="mobileNavDrawer" class="hidden md:hidden border-t px-4 py-4 space-y-3 shadow-2xl" style="background-color: ${headerBg}; border-color: ${headerBorder};">
           <div class="space-y-1">
-            <a href="index.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">Home</a>
-            <a href="services.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">Services</a>
-            <a href="about.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">About Us</a>
-            <a href="contact.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${chromeTextPrimary};">Free Estimate</a>
+            <a href="index.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${headerTextPrimary};">Home</a>
+            <a href="services.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${headerTextPrimary};">Services</a>
+            <a href="about.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${headerTextPrimary};">About Us</a>
+            <a href="contact.html" class="block px-3 py-2.5 rounded-lg font-bold text-sm hover:opacity-80 transition-opacity" style="color: ${headerTextPrimary};">Free Estimate</a>
           </div>
-          <div class="pt-3 border-t flex items-center justify-between" style="border-color: ${chromeBorder};">
-            <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 brand-btn-primary px-4 py-2 rounded-lg font-bold text-xs shadow-md">
+          <div class="pt-3 border-t flex items-center justify-between" style="border-color: ${headerBorder};">
+            <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 sw-btn-radius px-4 py-2 font-bold text-xs shadow-md" style="background-color: ${headerCtaBg}; color: ${headerCtaText};">
               <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
               <span>${escapeHtml(phone)}</span>
             </a>
@@ -2900,40 +3113,40 @@ Return ONLY valid JSON matching this schema:
     `;
 
     const footerHtml = `
-      <footer class="border-t py-14" style="background-color: ${chromeBg}; border-color: ${chromeBorder}; color: ${chromeTextSecondary};">
+      <footer class="border-t py-14" style="background-color: ${footerBg}; border-color: ${footerBorder}; color: ${footerTextSecondary};">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10">
           <div class="md:col-span-2 space-y-4">
             <div class="flex items-center gap-3">
               ${logoMarkup}
-              <span class="font-extrabold text-xl" style="color: ${chromeTextPrimary};">${escapeHtml(bizName)}</span>
+              <span class="font-extrabold text-xl brand-heading" style="color: ${footerTextPrimary};">${escapeHtml(bizName)}</span>
             </div>
-            <p class="text-sm leading-relaxed max-w-md" style="color: ${chromeTextSecondary};">
+            <p class="text-sm leading-relaxed max-w-md" style="color: ${footerTextSecondary};">
               ${escapeHtml(activeOwnerStory)}
             </p>
-            ${chromeSocialIconsHtml.length > 0 ? `
+            ${footerSocialIconsHtml.length > 0 ? `
               <div class="pt-2">
-                <span class="text-xs uppercase tracking-wider font-semibold block mb-2" style="color: ${chromeAccent};">Connect on Social Media</span>
-                ${chromeSocialRowHtml}
+                <span class="text-xs uppercase tracking-wider font-semibold block mb-2" style="color: ${footerAccent};">Connect on Social Media</span>
+                ${footerSocialRowHtml}
               </div>
             ` : ''}
-            <p class="text-xs pt-4" style="color: ${chromeTextMuted};">
+            <p class="text-xs pt-4" style="color: ${footerTextMuted};">
               &copy; ${new Date().getFullYear()} ${escapeHtml(bizName)}. Proudly serving ${escapeHtml(cityInfo.cityOnly)} and Northeast Wisconsin.
             </p>
           </div>
           <div>
-            <h3 class="font-bold text-sm mb-4 uppercase tracking-wider" style="color: ${chromeTextPrimary};">Navigation</h3>
+            <h3 class="font-bold text-sm mb-4 uppercase tracking-wider brand-heading" style="color: ${footerTextPrimary};">Navigation</h3>
             <ul class="space-y-2 text-sm">
-              <li><a href="index.html" class="hover:underline" style="color: ${chromeTextSecondary};">Home</a></li>
-              <li><a href="services.html" class="hover:underline" style="color: ${chromeTextSecondary};">Services</a></li>
-              <li><a href="about.html" class="hover:underline" style="color: ${chromeTextSecondary};">About Our Company</a></li>
-              <li><a href="contact.html" class="hover:underline" style="color: ${chromeTextSecondary};">Schedule Free Estimate</a></li>
+              <li><a href="index.html" class="hover:underline" style="color: ${footerTextSecondary};">Home</a></li>
+              <li><a href="services.html" class="hover:underline" style="color: ${footerTextSecondary};">Services</a></li>
+              <li><a href="about.html" class="hover:underline" style="color: ${footerTextSecondary};">About Our Company</a></li>
+              <li><a href="contact.html" class="hover:underline" style="color: ${footerTextSecondary};">Schedule Free Estimate</a></li>
             </ul>
           </div>
           <div>
-            <h3 class="font-bold text-sm mb-4 uppercase tracking-wider" style="color: ${chromeTextPrimary};">Hours &amp; Location</h3>
-            <p class="text-base font-bold mb-1" style="color: ${chromeTextPrimary};">${escapeHtml(phone)}</p>
-            <p class="text-sm font-medium mb-3" style="color: ${chromeAccent};">${escapeHtml(email)}</p>
-            <p class="text-xs leading-relaxed" style="color: ${chromeTextSecondary};">${escapeHtml(lead.hours || 'Monday – Friday: 7:00 AM – 5:00 PM | Weekend: By Appointment')}</p>
+            <h3 class="font-bold text-sm mb-4 uppercase tracking-wider brand-heading" style="color: ${footerTextPrimary};">Hours &amp; Location</h3>
+            <p class="text-base font-bold mb-1" style="color: ${footerTextPrimary};">${escapeHtml(phone)}</p>
+            ${email ? `<p class="text-sm font-medium mb-3" style="color: ${footerAccent};">${escapeHtml(email)}</p>` : ''}
+            <p class="text-xs leading-relaxed" style="color: ${footerTextSecondary};">${escapeHtml(lead.hours || 'Monday – Friday: 7:00 AM – 5:00 PM | Weekend: By Appointment')}</p>
           </div>
         </div>
       </footer>
@@ -3100,7 +3313,7 @@ Return ONLY valid JSON matching this schema:
                 </tr>
               </thead>
               <tbody class="divide-y" style="border-color: #E2E8F0;">
-                ${getComparisonFactors(trade).map(row => `
+                ${getComparisonFactors(trade, bizName).map(row => `
                   <tr>
                     <td class="p-4 font-semibold" style="color: #111827;">${escapeHtml(row.factor)}</td>
                     <td class="p-4 font-bold text-emerald-700">&#10004; ${escapeHtml(row.us)}</td>
@@ -3115,29 +3328,29 @@ Return ONLY valid JSON matching this schema:
     `;
 
     const ctaBannerHtml = `
-      <section class="py-16 lg:py-20 text-white relative overflow-hidden" style="background-color: #0F172A;">
+      <section class="py-16 lg:py-20 text-white relative overflow-hidden" style="background-color: #0F172A; color: #FFFFFF;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5" style="background-color: rgba(255, 255, 255, 0.1); color: ${darkSurfaceAccent};">
+          <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5" style="background-color: rgba(255, 255, 255, 0.12); color: ${darkSurfaceAccent};">
             <span>${escapeHtml(cp.ctaBadge)}</span>
           </div>
-          <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight max-w-3xl mx-auto text-white leading-tight brand-heading">
+          <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight max-w-3xl mx-auto leading-tight brand-heading" style="color: #FFFFFF;">
             ${escapeHtml(cp.ctaHeadline)}
           </h2>
-          <p class="mt-4 text-base sm:text-lg max-w-2xl mx-auto text-slate-300 leading-relaxed">
+          <p class="mt-4 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed" style="color: #E2E8F0;">
             Speak directly with ${escapeHtml(bizName)} for rapid scheduling, transparent written estimates, and reliable service across ${escapeHtml(cityInfo.regionLabel)}.
           </p>
           <div class="flex flex-wrap items-center justify-center gap-4 pt-8">
-            <a href="contact.html" class="brand-btn-primary px-8 py-4 font-extrabold text-sm sm:text-base shadow-xl transition-all hover:scale-105">
+            <a href="contact.html" class="brand-btn-primary px-8 py-4 font-extrabold text-sm sm:text-base shadow-xl transition-all hover:scale-105" style="border: 1px solid rgba(255,255,255,0.2);">
               Request Free Written Estimate &rarr;
             </a>
-            <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-8 py-4 sw-btn-radius font-bold text-sm sm:text-base border border-slate-700 bg-slate-800 hover:bg-slate-700 text-white transition-all">
+            <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-8 py-4 sw-btn-radius font-bold text-sm sm:text-base border transition-all" style="border-color: rgba(255,255,255,0.28); background-color: #1E293B; color: #FFFFFF;">
               <span>Call ${escapeHtml(phone)}</span>
             </a>
           </div>
-          <div class="flex flex-wrap items-center justify-center gap-8 pt-8 text-xs font-semibold text-slate-300">
-            <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">&#10004;</span> ${escapeHtml(cp.ctaBullet1)}</span>
-            <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">&#10004;</span> Fully Licensed &amp; Insured</span>
-            <span class="flex items-center gap-2"><span class="text-emerald-400 font-bold">&#10004;</span> Rapid Quote Turnaround</span>
+          <div class="flex flex-wrap items-center justify-center gap-8 pt-8 text-xs font-semibold" style="color: #E2E8F0;">
+            <span class="flex items-center gap-2"><span class="font-bold" style="color: #4ADE80;">&#10004;</span> ${escapeHtml(cp.ctaBullet1)}</span>
+            <span class="flex items-center gap-2"><span class="font-bold" style="color: #4ADE80;">&#10004;</span> Fully Licensed &amp; Insured</span>
+            <span class="flex items-center gap-2"><span class="font-bold" style="color: #4ADE80;">&#10004;</span> Rapid Quote Turnaround</span>
           </div>
         </div>
       </section>
@@ -3173,39 +3386,39 @@ Return ONLY valid JSON matching this schema:
     let mainBodyLayoutHtml = '';
     if (layoutMode === 'industrial-contractor') {
       mainBodyLayoutHtml = `
-        <section class="relative py-20 lg:py-28 overflow-hidden text-white" style="background-image: linear-gradient(95deg, rgba(15,23,42,0.94) 0%, rgba(15,23,42,0.84) 55%, rgba(15,23,42,0.52) 100%), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
+        <section class="relative py-20 lg:py-28 overflow-hidden text-white" style="background-color: #0B1120; color: #FFFFFF; background-image: linear-gradient(95deg, rgba(11,17,32,0.95) 0%, rgba(11,17,32,0.88) 55%, rgba(11,17,32,0.62) 100%), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div class="max-w-3xl pl-5 sm:pl-7 border-l-4 space-y-6" style="border-color: ${darkSurfaceAccent};">
-              <div class="inline-block text-xs font-extrabold uppercase tracking-widest px-3 py-1 sw-btn-radius" style="background-color: rgba(255,255,255,0.12); color: ${darkSurfaceAccent};">
-                ${escapeHtml(city)} &bull; ${escapeHtml(cp.heroEyebrow)}
+              <div class="inline-block text-xs font-extrabold uppercase tracking-widest px-3 py-1 sw-btn-radius" style="background-color: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.22); color: ${darkSurfaceAccent};">
+                ${escapeHtml(cp.heroEyebrow)}
               </div>
-              <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold uppercase tracking-tight leading-none text-white brand-heading">
+              <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold uppercase tracking-tight leading-none brand-heading" style="color: #FFFFFF; text-shadow: 0 2px 12px rgba(0,0,0,0.45);">
                 ${escapeHtml(activeTagline)}
               </h1>
-              <p class="text-base sm:text-lg leading-relaxed text-slate-200 max-w-2xl">
+              <p class="text-base sm:text-lg leading-relaxed max-w-2xl" style="color: #F1F5F9;">
                 ${escapeHtml(activeOwnerStory)}
               </p>
               <div class="flex flex-wrap items-center gap-4 pt-2">
-                <a href="#estimator" class="brand-btn-primary px-7 py-3.5 font-extrabold text-sm uppercase tracking-wider shadow-xl">
+                <a href="#estimator" class="brand-btn-primary px-7 py-3.5 font-extrabold text-sm uppercase tracking-wider shadow-xl" style="border: 1px solid rgba(255,255,255,0.22);">
                   Request Free Written Quote &rarr;
                 </a>
-                <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-6 py-3.5 sw-btn-radius font-bold text-sm border border-white/25 bg-slate-900/70 hover:bg-slate-900 text-white">
+                <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-6 py-3.5 sw-btn-radius font-bold text-sm border transition-all" style="border-color: rgba(255,255,255,0.35); background-color: #0F172A; color: #FFFFFF;">
                   Call ${escapeHtml(phone)}
                 </a>
               </div>
             </div>
-            <div class="sw-grid-3 mt-12 pt-8 border-t border-white/15">
-              <div class="p-4 sw-btn-radius" style="background-color: rgba(15,23,42,0.72); border: 1px solid rgba(255,255,255,0.14);">
+            <div class="sw-grid-3 mt-12 pt-8 border-t" style="border-color: rgba(255,255,255,0.16);">
+              <div class="p-4 sw-btn-radius" style="background-color: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.16);">
                 <div class="text-sm font-extrabold" style="color: ${darkSurfaceAccent};">${ratingChipLeft}</div>
-                <div class="text-xs text-slate-200 mt-0.5">${ratingChipRight}</div>
+                <div class="text-xs mt-0.5" style="color: #E2E8F0;">${ratingChipRight}</div>
               </div>
-              <div class="p-4 sw-btn-radius" style="background-color: rgba(15,23,42,0.72); border: 1px solid rgba(255,255,255,0.14);">
-                <div class="text-sm font-extrabold text-white">${escapeHtml(cp.heroRootChip)}</div>
-                <div class="text-xs text-slate-200 mt-0.5">${escapeHtml(cityInfo.regionLabel)}</div>
+              <div class="p-4 sw-btn-radius" style="background-color: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.16);">
+                <div class="text-sm font-extrabold" style="color: #FFFFFF;">${escapeHtml(cp.heroRootChip)}</div>
+                <div class="text-xs mt-0.5" style="color: #E2E8F0;">${escapeHtml(cityInfo.regionLabel)}</div>
               </div>
-              <div class="p-4 sw-btn-radius" style="background-color: rgba(15,23,42,0.72); border: 1px solid rgba(255,255,255,0.14);">
-                <div class="text-sm font-extrabold text-white">${escapeHtml(cp.heroTrustBadge)}</div>
-                <div class="text-xs text-slate-200 mt-0.5">Clear Written Scope &amp; Timeline</div>
+              <div class="p-4 sw-btn-radius" style="background-color: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.16);">
+                <div class="text-sm font-extrabold" style="color: #FFFFFF;">${escapeHtml(cp.heroTrustBadge)}</div>
+                <div class="text-xs mt-0.5" style="color: #E2E8F0;">Clear Written Scope &amp; Timeline</div>
               </div>
             </div>
           </div>
@@ -3228,7 +3441,7 @@ Return ONLY valid JSON matching this schema:
                     <div>
                       <div class="h-52 overflow-hidden relative">
                         <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover">
-                        <span class="absolute bottom-3 left-3 text-xs font-extrabold px-2.5 py-1 bg-slate-900 text-white sw-btn-radius">0${idx + 1}</span>
+                        <span class="absolute bottom-3 left-3 text-xs font-extrabold px-2.5 py-1 sw-btn-radius" style="background-color: #0F172A; color: #FFFFFF;">0${idx + 1}</span>
                       </div>
                       <div class="p-6">
                         <span class="text-xs font-bold uppercase tracking-wider block mb-1.5" style="color: ${lightSurfaceAccent};">${escapeHtml(s.badge || cp.defaultBadge)}</span>
@@ -3247,7 +3460,7 @@ Return ONLY valid JSON matching this schema:
           </div>
         </section>
 
-        <section id="estimator" class="py-20 border-t" style="background-color: #F8FAFC; border-color: #E2E8F0;">
+        <section id="estimator" class="py-20 border-t" style="background-color: #F1F5F9; border-color: #CBD5E1;">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 sw-grid-split">
             <div class="space-y-6">
               <span class="text-xs font-extrabold uppercase tracking-widest block" style="color: ${lightSurfaceAccent};">${escapeHtml(cp.aboutEyebrow)}</span>
@@ -3263,20 +3476,20 @@ Return ONLY valid JSON matching this schema:
           </div>
         </section>
 
-        ${buildGallerySectionHtml('#FFFFFF', true)}
         ${comparisonSectionHtml}
+        ${buildGallerySectionHtml('#FFFFFF', true)}
         ${ctaBannerHtml}
       `;
     } else if (layoutMode === 'modern-architectural') {
       mainBodyLayoutHtml = `
         <section class="pt-14 pb-12" style="background-color: #FFFFFF;">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="sw-grid-split pb-10">
+            <div class="sw-grid-split" style="margin-bottom: 2.75rem;">
               <div class="space-y-5">
                 <div class="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest" style="color: ${lightSurfaceAccent};">
                   <span>&#9632;</span> <span>${escapeHtml(city)} &bull; ${escapeHtml(cp.displayTrade)}</span>
                 </div>
-                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight brand-heading" style="color: #111827;">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight brand-heading" style="color: #111827; line-height: 1.12;">
                   ${escapeHtml(activeTagline)}
                 </h1>
               </div>
@@ -3288,7 +3501,7 @@ Return ONLY valid JSON matching this schema:
                   <a href="#estimator" class="brand-btn-primary px-6 py-3.5 font-bold text-sm shadow-lg">
                     Schedule Free Walkthrough &rarr;
                   </a>
-                  <a href="tel:${cleanPhone}" class="px-6 py-3.5 brand-surface-card font-bold text-sm" style="color: #111827;">
+                  <a href="tel:${cleanPhone}" class="px-6 py-3.5 brand-surface-card font-bold text-sm" style="color: #111827; border-color: #cbd5e1;">
                     Call ${escapeHtml(phone)}
                   </a>
                 </div>
@@ -3299,7 +3512,7 @@ Return ONLY valid JSON matching this schema:
               </div>
             </div>
 
-            <div class="sw-card shadow-2xl mb-10">
+            <div class="sw-card shadow-2xl" style="margin-bottom: 2.5rem;">
               <img src="${assetPaths.heroUrl}" alt="${escapeHtml(bizName)} ${escapeHtml(cp.displayTrade)}" class="w-full h-72 sm:h-96 object-cover">
             </div>
 
@@ -3369,17 +3582,177 @@ Return ONLY valid JSON matching this schema:
                 <span class="text-xs font-extrabold uppercase tracking-widest block" style="color: ${lightSurfaceAccent};">${escapeHtml(cp.aboutEyebrow)}</span>
                 <h2 class="text-3xl font-extrabold brand-heading" style="color: #111827;">${escapeHtml(cp.aboutHeading)}</h2>
                 <p class="text-base leading-relaxed" style="color: #475569;">${escapeHtml(activeOwnerStory)}</p>
-                <div class="p-5 sw-card border-l-4" style="border-left-color: var(--c-primary); background-color: #F8FAFC;">
-                  <p class="text-sm font-medium" style="color: #111827;">"${escapeHtml(cp.aboutQuote)}"</p>
+                <div class="sw-grid-2 pt-2" style="gap: 1rem;">
+                  ${getComparisonFactors(trade, bizName).slice(0, 2).map(row => `
+                    <div class="p-4 sw-card" style="background-color: #F8FAFC;">
+                      <span class="text-xs font-extrabold uppercase block mb-1" style="color: ${lightSurfaceAccent};">${escapeHtml(row.factor)}</span>
+                      <p class="text-xs font-semibold" style="color: #111827;">&#10004; ${escapeHtml(row.us)}</p>
+                    </div>
+                  `).join('')}
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        ${comparisonSectionHtml}
-        ${buildGallerySectionHtml('#FFFFFF', true)}
-        ${ctaBannerHtml}
+        ${buildGallerySectionHtml('#F8FAFC', true)}
+
+        <section class="py-16" style="background-color: #FFFFFF;">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="p-8 sm:p-12 sw-card flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8" style="background-color: #0F172A; color: #FFFFFF; border-color: #1E293B;">
+              <div class="max-w-2xl space-y-3">
+                <span class="text-xs font-extrabold uppercase tracking-widest block" style="color: ${darkSurfaceAccent};">${escapeHtml(cp.ctaBadge)}</span>
+                <h2 class="text-2xl sm:text-4xl font-extrabold brand-heading" style="color: #FFFFFF;">${escapeHtml(cp.ctaHeadline)}</h2>
+                <p class="text-sm sm:text-base" style="color: #E2E8F0;">Direct scheduling and transparent written estimates across ${escapeHtml(cityInfo.regionLabel)}.</p>
+              </div>
+              <div class="flex flex-wrap gap-3 shrink-0">
+                <a href="contact.html" class="brand-btn-primary px-7 py-3.5 font-extrabold text-sm shadow-lg" style="border: 1px solid rgba(255,255,255,0.22);">Request Estimate &rarr;</a>
+                <a href="tel:${cleanPhone}" class="px-6 py-3.5 sw-btn-radius font-bold text-sm border" style="background-color: #1E293B; color: #FFFFFF; border-color: rgba(255,255,255,0.28);">Call ${escapeHtml(phone)}</a>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    } else if (layoutMode === 'bold-editorial-grid') {
+      mainBodyLayoutHtml = `
+        <section style="background-color: #18181B; color: #FFFFFF;">
+          <div class="max-w-7xl mx-auto sw-split-50">
+            <div class="px-6 sm:px-10 lg:px-14 py-16 lg:py-24 flex flex-col justify-center space-y-6">
+              <div class="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest" style="color: ${darkSurfaceAccent};">
+                <span class="w-2 h-2 rounded-full" style="background-color: ${darkSurfaceAccent};"></span>
+                <span>${escapeHtml(city)} &bull; ${escapeHtml(cp.displayTrade)}</span>
+              </div>
+              <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight brand-heading" style="color: #FFFFFF;">
+                ${escapeHtml(activeTagline)}
+              </h1>
+              <p class="text-base sm:text-lg leading-relaxed" style="color: #E4E4E7;">
+                ${escapeHtml(activeOwnerStory)}
+              </p>
+              <div class="flex flex-wrap items-center gap-3 pt-2">
+                <a href="#estimator" class="brand-btn-primary px-7 py-3.5 font-extrabold text-sm uppercase tracking-wider" style="border: 1px solid rgba(255,255,255,0.22);">
+                  Get Written Estimate &rarr;
+                </a>
+                <a href="tel:${cleanPhone}" class="px-6 py-3.5 sw-btn-radius font-bold text-sm border" style="border-color: rgba(255,255,255,0.3); background-color: #27272A; color: #FFFFFF;">
+                  Call ${escapeHtml(phone)}
+                </a>
+              </div>
+              <div class="pt-6 border-t grid grid-cols-3 gap-4" style="border-color: #27272A;">
+                <div>
+                  <div class="text-sm font-extrabold" style="color: ${darkSurfaceAccent};">${ratingChipLeft}</div>
+                  <div class="text-xs mt-0.5" style="color: #D4D4D8;">Local Rating</div>
+                </div>
+                <div>
+                  <div class="text-sm font-extrabold" style="color: #FFFFFF;">Insured</div>
+                  <div class="text-xs mt-0.5" style="color: #D4D4D8;">${escapeHtml(cityInfo.regionShort)}</div>
+                </div>
+                <div>
+                  <div class="text-sm font-extrabold" style="color: #FFFFFF;">24-48 Hr</div>
+                  <div class="text-xs mt-0.5" style="color: #D4D4D8;">Quote Turnaround</div>
+                </div>
+              </div>
+            </div>
+            <div class="min-h-80 lg:min-h-full overflow-hidden">
+              <img src="${assetPaths.heroUrl}" alt="${escapeHtml(bizName)} ${escapeHtml(cp.displayTrade)}" class="w-full h-full object-cover" style="min-height: 360px;">
+            </div>
+          </div>
+        </section>
+
+        <section class="py-20" style="background-color: #FFFFFF;">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+              <div>
+                <span class="text-xs font-extrabold uppercase tracking-widest block mb-1" style="color: ${lightSurfaceAccent};">${escapeHtml(cp.servicesEyebrow)}</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold brand-heading" style="color: #111827;">${escapeHtml(cp.servicesHeading)}</h2>
+              </div>
+              <a href="services.html" class="text-sm font-extrabold uppercase tracking-wider" style="color: ${lightSurfaceAccent};">View All Capabilities &rarr;</a>
+            </div>
+            <div class="sw-bento-grid">
+              <article class="sw-card flex flex-col justify-between" style="background-color: #F5F5F4; border-color: #D6D3D1;">
+                <div class="h-72 overflow-hidden">
+                  <img src="${assetPaths.service1Url}" alt="${escapeHtml(activeServices[0]?.name || cp.fallbackServices[0].name)}" class="w-full h-full object-cover">
+                </div>
+                <div class="p-8 space-y-3">
+                  <span class="text-xs font-extrabold uppercase tracking-wider" style="color: ${lightSurfaceAccent};">01 &bull; Featured Capability</span>
+                  <h3 class="text-2xl font-extrabold brand-heading" style="color: #111827;">${escapeHtml(activeServices[0]?.name || cp.fallbackServices[0].name)}</h3>
+                  <p class="text-sm leading-relaxed" style="color: #44403C;">${escapeHtml(activeServices[0]?.desc || cp.fallbackServices[0].desc)}</p>
+                  <a href="contact.html" class="inline-block pt-1 text-sm font-bold" style="color: ${lightSurfaceAccent};">${escapeHtml(cp.serviceCardCta)} &rarr;</a>
+                </div>
+              </article>
+              <div class="flex flex-col gap-6 justify-between">
+                ${activeServices.slice(1, 3).map((s, idx) => {
+                  const imgUrl = idx === 0 ? assetPaths.service2Url : assetPaths.service3Url;
+                  return `
+                    <article class="sw-card flex flex-col sm:flex-row items-stretch" style="background-color: #F5F5F4; border-color: #D6D3D1;">
+                      <div class="w-full sm:w-44 h-44 sm:h-auto overflow-hidden shrink-0">
+                        <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover">
+                      </div>
+                      <div class="p-6 flex flex-col justify-center">
+                        <span class="text-xs font-extrabold uppercase tracking-wider mb-1" style="color: ${lightSurfaceAccent};">0${idx + 2} &bull; ${escapeHtml(s.badge || cp.defaultBadge)}</span>
+                        <h3 class="text-lg font-extrabold brand-heading mb-1" style="color: #111827;">${escapeHtml(s.name)}</h3>
+                        <p class="text-xs leading-relaxed" style="color: #44403C;">${escapeHtml(s.desc)}</p>
+                      </div>
+                    </article>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+            ${extraServicesHtml}
+          </div>
+        </section>
+
+        <section class="py-16 border-y" style="background-color: #FAFAF9; border-color: #E7E5E4;">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+              <div>
+                <span class="text-xs font-extrabold uppercase tracking-widest block mb-1" style="color: ${lightSurfaceAccent};">${escapeHtml(cp.galleryEyebrow)}</span>
+                <h2 class="text-3xl font-extrabold brand-heading" style="color: #111827;">${escapeHtml(cp.galleryHeading)}</h2>
+              </div>
+              <p class="text-xs font-semibold uppercase tracking-wider" style="color: #57534E;">${escapeHtml(city)}</p>
+            </div>
+            <div class="sw-mosaic-3">
+              ${assetPaths.gallery.map((gUrl, idx) => `
+                <div class="sw-card" style="border-color: #D6D3D1;">
+                  <div class="${idx === 0 ? 'h-72 sm:h-80' : 'h-64 sm:h-80'} overflow-hidden">
+                    <img src="${gUrl}" alt="${escapeHtml(cp.galleryAltPrefix)} ${idx + 1}" class="w-full h-full object-cover">
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </section>
+
+        <section id="estimator" class="py-20" style="background-color: #FFFFFF;">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 sw-grid-split">
+            <div class="space-y-6">
+              <span class="text-xs font-extrabold uppercase tracking-widest block" style="color: ${lightSurfaceAccent};">${escapeHtml(cp.comparisonEyebrow)}</span>
+              <h2 class="text-3xl sm:text-4xl font-extrabold brand-heading" style="color: #111827;">${escapeHtml(cp.comparisonHeading)}</h2>
+              <div class="sw-grid-2" style="gap: 1rem;">
+                ${getComparisonFactors(trade, bizName).map(row => `
+                  <div class="p-4 sw-card" style="background-color: #FAFAF9; border-color: #E7E5E4;">
+                    <span class="text-xs font-extrabold uppercase block mb-1" style="color: ${lightSurfaceAccent};">${escapeHtml(row.factor)}</span>
+                    <p class="text-xs font-bold" style="color: #111827;">&#10004; ${escapeHtml(row.us)}</p>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <div>
+              ${buildEstimateFormHtml('card')}
+            </div>
+          </div>
+        </section>
+
+        <section class="py-14 border-t" style="background-color: #18181B; border-color: #27272A; color: #FFFFFF;">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="max-w-xl">
+              <span class="text-xs font-extrabold uppercase tracking-widest block mb-2" style="color: ${darkSurfaceAccent};">${escapeHtml(cp.ctaBadge)}</span>
+              <h2 class="text-2xl sm:text-3xl font-extrabold brand-heading" style="color: #FFFFFF;">${escapeHtml(cp.ctaHeadline)}</h2>
+            </div>
+            <div class="flex flex-wrap gap-3 shrink-0">
+              <a href="tel:${cleanPhone}" class="brand-btn-primary px-7 py-3.5 font-extrabold text-sm shadow-lg" style="border: 1px solid rgba(255,255,255,0.2);">Call ${escapeHtml(phone)}</a>
+              <a href="contact.html" class="px-6 py-3.5 sw-btn-radius font-bold text-sm border" style="background-color: #27272A; color: #FFFFFF; border-color: #3F3F46;">Request Quote &rarr;</a>
+            </div>
+          </div>
+        </section>
       `;
     } else if (layoutMode === 'split-hero-timber') {
       mainBodyLayoutHtml = `
@@ -3401,16 +3774,16 @@ Return ONLY valid JSON matching this schema:
                   <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 brand-btn-primary font-bold px-7 py-4 shadow-xl transition-all hover:scale-105 text-base">
                     Call ${escapeHtml(phone)}
                   </a>
-                  <a href="#estimator" class="inline-flex items-center gap-2 brand-surface-card font-semibold px-7 py-4 transition-all hover:opacity-90 text-base" style="color: #111827;">
+                  <a href="#estimator" class="inline-flex items-center gap-2 brand-surface-card font-semibold px-7 py-4 transition-all hover:opacity-90 text-base" style="color: #111827; border-color: #cbd5e1;">
                     Request Free Quote &darr;
                   </a>
                 </div>
                 <div class="flex flex-wrap items-center gap-6 pt-6 border-t" style="border-color: #E2E8F0;">
                   <div class="flex items-center gap-2 text-sm font-semibold" style="color: #111827;">
-                    <span class="text-amber-500">${ratingChipLeft}</span> <span>${ratingChipRight}</span>
+                    <span style="color: ${lightSurfaceAccent};">${ratingChipLeft}</span> <span>${ratingChipRight}</span>
                   </div>
                   <div class="flex items-center gap-2 text-sm font-semibold" style="color: #111827;">
-                    <span class="text-emerald-600">&#10004;</span> <span>${escapeHtml(cp.heroRootChip)}</span>
+                    <span class="text-emerald-700">&#10004;</span> <span>${escapeHtml(cp.heroRootChip)}</span>
                   </div>
                   <div class="flex items-center gap-2 text-sm font-semibold" style="color: #111827;">
                     <span>${escapeHtml(cp.heroTrustBadge)}</span>
@@ -3420,10 +3793,10 @@ Return ONLY valid JSON matching this schema:
               <div class="relative">
                 <div class="relative sw-card shadow-2xl border-2" style="border-color: #E2E8F0;">
                   <img src="${assetPaths.heroUrl}" alt="${escapeHtml(bizName)} ${escapeHtml(cp.displayTrade)}" class="w-full h-80 sm:h-96 object-cover">
-                  <div class="p-5 text-white" style="background-color: #0F172A;">
+                  <div class="p-5" style="background-color: #1C1917; color: #FFFFFF;">
                     <span class="text-xs uppercase tracking-widest font-extrabold block mb-1" style="color: ${darkSurfaceAccent};">${escapeHtml(cp.heroCardLabel)}</span>
-                    <p class="font-bold text-base leading-snug text-white">${escapeHtml(activeTagline || cp.heroCardFallbackTitle)}</p>
-                    <p class="text-xs text-slate-300 mt-1">${escapeHtml(cp.heroCardSubtitle)}</p>
+                    <p class="font-bold text-base leading-snug" style="color: #FFFFFF;">${escapeHtml(activeTagline || cp.heroCardFallbackTitle)}</p>
+                    <p class="text-xs mt-1" style="color: #E7E5E4;">${escapeHtml(cp.heroCardSubtitle)}</p>
                   </div>
                 </div>
               </div>
@@ -3456,7 +3829,7 @@ Return ONLY valid JSON matching this schema:
                   <div class="sw-card shadow-xl transition-all hover:-translate-y-1 group" style="border-top: 4px solid var(--c-primary);">
                     <div class="h-56 overflow-hidden relative">
                       <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
-                      <span class="absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full bg-slate-900 text-white">${escapeHtml(s.badge || cp.defaultBadge)}</span>
+                      <span class="absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full" style="background-color: #1C1917; color: #FFFFFF;">${escapeHtml(s.badge || cp.defaultBadge)}</span>
                     </div>
                     <div class="p-7">
                       <h3 class="text-xl font-bold mb-2 brand-heading" style="color: #111827;">${escapeHtml(s.name)}</h3>
@@ -3493,29 +3866,29 @@ Return ONLY valid JSON matching this schema:
         ${buildGallerySectionHtml('#FFFFFF', true)}
       `;
     } else {
-      // 'shield-banner-estimator': Dark conversion split-hero with floating quote card + gallery strip + 1+2 service bento
+      // 'shield-banner-estimator': Dark conversion split-hero with floating quote card + gallery strip + 1+2 service bento + split CTA
       mainBodyLayoutHtml = `
-        <section class="relative py-16 lg:py-24 overflow-hidden text-white" style="background-image: linear-gradient(125deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.88) 60%, rgba(15,23,42,0.78) 100%), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
+        <section class="relative py-16 lg:py-24 overflow-hidden text-white" style="background-color: #0F172A; color: #FFFFFF; background-image: linear-gradient(125deg, rgba(15,23,42,0.96) 0%, rgba(15,23,42,0.90) 60%, rgba(15,23,42,0.80) 100%), url('${assetPaths.heroUrl}'); background-size: cover; background-position: center;">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 sw-grid-split">
             <div class="space-y-6">
-              <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase border border-white/15" style="background-color: rgba(255,255,255,0.08); color: ${darkSurfaceAccent};">
+              <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase border" style="background-color: rgba(15,23,42,0.8); border-color: rgba(255,255,255,0.22); color: ${darkSurfaceAccent};">
                 <span>${escapeHtml(cp.fortressEyebrow)}</span>
               </div>
-              <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-none text-white brand-heading">
+              <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-none brand-heading" style="color: #FFFFFF; text-shadow: 0 2px 12px rgba(0,0,0,0.45);">
                 ${escapeHtml(activeTagline)}
               </h1>
-              <p class="text-base sm:text-lg leading-relaxed text-slate-200 max-w-xl">
+              <p class="text-base sm:text-lg leading-relaxed max-w-xl" style="color: #F1F5F9;">
                 ${escapeHtml(activeOwnerStory)}
               </p>
               <div class="flex flex-wrap items-center gap-4 pt-2">
-                <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-7 py-3.5 sw-btn-radius font-bold text-sm sm:text-base border border-white/25 bg-slate-800 hover:bg-slate-700 text-white">
+                <a href="tel:${cleanPhone}" class="inline-flex items-center gap-2 px-7 py-3.5 sw-btn-radius font-bold text-sm sm:text-base border transition-all" style="border-color: rgba(255,255,255,0.35); background-color: #1E293B; color: #FFFFFF;">
                   <span>Call ${escapeHtml(phone)}</span>
                 </a>
                 <a href="services.html" class="text-sm font-bold underline" style="color: ${darkSurfaceAccent};">
                   Explore Services &rarr;
                 </a>
               </div>
-              <div class="flex flex-wrap items-center gap-6 pt-4 text-xs font-semibold text-slate-300">
+              <div class="flex flex-wrap items-center gap-6 pt-4 text-xs font-semibold" style="color: #E2E8F0;">
                 <span>${ratingChipLeft} ${ratingChipRight}</span>
                 <span>&#10004; ${escapeHtml(cp.heroRootChip)}</span>
               </div>
@@ -3577,8 +3950,20 @@ Return ONLY valid JSON matching this schema:
           </div>
         </section>
 
-        ${comparisonSectionHtml}
-        ${ctaBannerHtml}
+        <section class="py-16 border-t" style="background-color: #0F172A; border-color: #1E293B; color: #FFFFFF;">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 sw-grid-split">
+            <div class="space-y-4">
+              <span class="text-xs font-extrabold uppercase tracking-widest block" style="color: ${darkSurfaceAccent};">${escapeHtml(cp.ctaBadge)}</span>
+              <h2 class="text-3xl sm:text-4xl font-extrabold brand-heading" style="color: #FFFFFF;">${escapeHtml(cp.ctaHeadline)}</h2>
+              <p class="text-base" style="color: #E2E8F0;">Upfront written pricing and rapid response across ${escapeHtml(cityInfo.regionLabel)}.</p>
+            </div>
+            <div class="sw-card p-6 sm:p-8 flex flex-col gap-3" style="background-color: #FFFFFF; color: #111827;">
+              <span class="text-xs font-extrabold uppercase tracking-wider" style="color: ${lightSurfaceAccent};">Speak Directly With Our Crew</span>
+              <a href="tel:${cleanPhone}" class="text-2xl font-black" style="color: #111827;">${escapeHtml(phone)}</a>
+              <a href="contact.html" class="brand-btn-primary text-center py-3.5 px-6 font-extrabold text-sm shadow-md">Schedule Written Estimate &rarr;</a>
+            </div>
+          </div>
+        </section>
       `;
     }
 
@@ -3606,9 +3991,9 @@ Return ONLY valid JSON matching this schema:
   <section id="ai-summary" class="py-12 border-y" style="background-color: #F8FAFC; border-color: #E2E8F0;">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="p-6 rounded-2xl bg-white border shadow-sm" style="border-color: #E2E8F0;">
-        <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color: var(--c-primary);">Company Summary for Property Owners</p>
+        <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color: ${lightSurfaceAccent};">Company Summary for Property Owners</p>
         <p class="text-sm leading-relaxed" style="color: #334155;">
-          <strong style="color: #111827;">${escapeHtml(bizName)}</strong> is a ${escapeHtml(cp.summaryRole)} headquartered in ${escapeHtml(city)}, providing dependable services across ${escapeHtml(serviceArea)}. Call <a href="tel:${cleanPhone}" class="font-bold underline" style="color: var(--c-primary);">${escapeHtml(phone)}</a> for free on-site consultations and transparent pricing.
+          <strong style="color: #111827;">${escapeHtml(bizName)}</strong> is a ${escapeHtml(cp.summaryRole)} headquartered in ${escapeHtml(city)}, providing dependable services across ${escapeHtml(serviceArea)}. Call <a href="tel:${cleanPhone}" class="font-bold underline" style="color: ${lightSurfaceAccent};">${escapeHtml(phone)}</a> for free on-site consultations and transparent pricing.
         </p>
       </div>
     </div>

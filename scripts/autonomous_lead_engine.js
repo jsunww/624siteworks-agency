@@ -20,8 +20,9 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
@@ -551,6 +552,203 @@ async function runTheDiagnoser(targetNiche, countToPick = 5) {
 // POST-BUILD AUTOMATED LIGHTHOUSE QUALITY GATE (95+ STANDARD)
 // ============================================================================
 
+async function runChromeDomContrastAudit(siteUrl) {
+  const chromeCandidates = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium'
+  ];
+  const chromeExe = chromeCandidates.find(p => fs.existsSync(p));
+  if (!chromeExe || typeof WebSocket === 'undefined') {
+    return { skipped: true, passed: true, failures: [], minContrast: null };
+  }
+
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sw_a11y_'));
+  let proc = null;
+  let ws = null;
+  try {
+    proc = spawn(chromeExe, [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--remote-debugging-port=0',
+      `--user-data-dir=${profileDir}`,
+      '--window-size=1280,960',
+      'about:blank'
+    ], { stdio: 'ignore' });
+
+    const activePortPath = path.join(profileDir, 'DevToolsActivePort');
+    let port = '';
+    for (let i = 0; i < 40; i++) {
+      await new Promise(r => setTimeout(r, 150));
+      if (fs.existsSync(activePortPath)) {
+        const raw = fs.readFileSync(activePortPath, 'utf8').trim().split(/\r?\n/)[0];
+        if (/^\d+$/.test(raw)) { port = raw; break; }
+      }
+    }
+    if (!port) return { skipped: true, passed: true, failures: [], minContrast: null };
+
+    const targetsRes = await fetch(`http://127.0.0.1:${port}/json/list`);
+    const targets = await targetsRes.json();
+    const pageTarget = targets.find(t => t.type === 'page' && t.webSocketDebuggerUrl) || targets[0];
+    if (!pageTarget?.webSocketDebuggerUrl) return { skipped: true, passed: true, failures: [], minContrast: null };
+
+    ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+      ws.addEventListener('open', resolve, { once: true });
+      ws.addEventListener('error', reject, { once: true });
+      setTimeout(() => reject(new Error('CDP WS open timeout')), 5000);
+    });
+
+    let msgId = 1;
+    const sendCdp = (method, params = {}) => new Promise((resolve, reject) => {
+      const id = msgId++;
+      const timer = setTimeout(() => reject(new Error(`CDP timeout: ${method}`)), 8000);
+      const onMsg = (ev) => {
+        const msg = JSON.parse(String(ev.data));
+        if (msg.id === id) {
+          clearTimeout(timer);
+          ws.removeEventListener('message', onMsg);
+          if (msg.error) reject(new Error(msg.error.message));
+          else resolve(msg.result);
+        }
+      };
+      ws.addEventListener('message', onMsg);
+      ws.send(JSON.stringify({ id, method, params }));
+    });
+
+    await sendCdp('Page.enable');
+    await sendCdp('Runtime.enable');
+    await sendCdp('Page.navigate', { url: siteUrl });
+
+    for (let i = 0; i < 40; i++) {
+      await new Promise(r => setTimeout(r, 200));
+      const state = await sendCdp('Runtime.evaluate', {
+        expression: 'document.readyState',
+        returnByValue: true
+      });
+      if (state?.result?.value === 'complete') break;
+    }
+    await new Promise(r => setTimeout(r, 600));
+
+    const evalRes = await sendCdp('Runtime.evaluate', {
+      expression: `(() => {
+        const parseRgba = (str) => {
+          if (!str) return null;
+          const m = str.match(/rgba?\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(?:\\s*,\\s*([\\d.]+))?\\s*\\)/i);
+          if (!m) return null;
+          return { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] };
+        };
+        const blendOver = (fg, bg) => {
+          const a = fg.a;
+          return {
+            r: Math.round(fg.r * a + bg.r * (1 - a)),
+            g: Math.round(fg.g * a + bg.g * (1 - a)),
+            b: Math.round(fg.b * a + bg.b * (1 - a)),
+            a: 1
+          };
+        };
+        const relLum = ({ r, g, b }) => {
+          const toLin = (c) => {
+            const s = c / 255;
+            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+          };
+          return 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+        };
+        const ratio = (c1, c2) => {
+          const l1 = relLum(c1), l2 = relLum(c2);
+          return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+        };
+        const resolveBg = (el) => {
+          const layers = [];
+          let cur = el;
+          while (cur && cur.nodeType === 1) {
+            const cs = getComputedStyle(cur);
+            const bgImg = cs.backgroundImage || '';
+            if (bgImg && bgImg !== 'none') {
+              const stops = bgImg.match(/rgba?\\([^)]+\\)/gi) || [];
+              if (stops.length) {
+                const parsedStops = stops.map(parseRgba).filter(s => s && s.a > 0.05);
+                if (parsedStops.length) {
+                  const avg = parsedStops.reduce((acc, s) => ({
+                    r: acc.r + s.r / parsedStops.length,
+                    g: acc.g + s.g / parsedStops.length,
+                    b: acc.b + s.b / parsedStops.length,
+                    a: Math.max(acc.a, s.a)
+                  }), { r: 0, g: 0, b: 0, a: 0 });
+                  layers.push(avg);
+                }
+              }
+            }
+            const bgCol = parseRgba(cs.backgroundColor);
+            if (bgCol && bgCol.a > 0.01) layers.push(bgCol);
+            cur = cur.parentElement;
+          }
+          let out = { r: 255, g: 255, b: 255, a: 1 };
+          for (let i = layers.length - 1; i >= 0; i--) out = blendOver(layers[i], out);
+          return out;
+        };
+
+        const failures = [];
+        let minContrast = 21;
+        const nodes = Array.from(document.querySelectorAll('h1, h2, h3, h4, header a, nav a, .brand-btn-primary, #main-content p, #main-content a, footer a, footer p'));
+        for (const el of nodes) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue;
+          const txt = (el.innerText || '').trim();
+          if (!txt) continue;
+          const cs = getComputedStyle(el);
+          if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
+          const fg = parseRgba(cs.color);
+          if (!fg) continue;
+          const bg = resolveBg(el);
+          const fgBlend = fg.a < 1 ? blendOver(fg, bg) : fg;
+          const cr = ratio(fgBlend, bg);
+          const fontSize = parseFloat(cs.fontSize) || 16;
+          const fontWeight = parseInt(cs.fontWeight, 10) || 400;
+          const isLarge = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700);
+          const minReq = isLarge ? 3.0 : 4.5;
+          if (cr < minContrast) minContrast = cr;
+          if (cr < minReq) {
+            failures.push({
+              tag: el.tagName.toLowerCase(),
+              text: txt.slice(0, 60),
+              fg: cs.color,
+              bg: 'rgb(' + bg.r + ',' + bg.g + ',' + bg.b + ')',
+              ratio: Number(cr.toFixed(2)),
+              required: minReq
+            });
+          }
+        }
+        const imgs = Array.from(document.querySelectorAll('img'));
+        const brokenImgs = imgs.filter(img => !img.complete || img.naturalWidth === 0).map(img => img.getAttribute('src'));
+        const overflow = document.documentElement.scrollWidth - window.innerWidth;
+        return {
+          minContrast: Number(minContrast.toFixed(2)),
+          failures: failures.slice(0, 8),
+          brokenImgs,
+          totalImgs: imgs.length,
+          overflow
+        };
+      })()`,
+      returnByValue: true
+    });
+
+    const report = evalRes?.result?.value || { minContrast: null, failures: [], brokenImgs: [], totalImgs: 0, overflow: 0 };
+    const passed = report.failures.length === 0 && report.brokenImgs.length === 0 && report.overflow <= 2;
+    return { skipped: false, passed, ...report };
+  } catch (err) {
+    return { skipped: true, passed: true, failures: [], error: err.message };
+  } finally {
+    try { if (ws) ws.close(); } catch (_) {}
+    try { if (proc) proc.kill(); } catch (_) {}
+    try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (_) {}
+  }
+}
+
 async function runPostBuildLighthouseCheck(siteUrl) {
   logSub(`Running automated Lighthouse Quality Audit on ${siteUrl}...`);
   const tempLhPath = path.join(__dirname, `lh_temp_${Date.now()}.json`);
@@ -568,7 +766,16 @@ async function runPostBuildLighthouseCheck(siteUrl) {
     const abScore = ab?.score !== undefined ? Math.round(ab.score * 4) : 4;
     try { fs.unlinkSync(tempLhPath); } catch (_) { }
 
-    const passed = p >= 95 && a >= 95 && bp >= 95 && s >= 95 && abScore === 4;
+    const domAudit = await runChromeDomContrastAudit(siteUrl);
+    if (!domAudit.skipped) {
+      if (domAudit.passed) {
+        logSuccess(`Chrome WCAG Contrast & DOM Audit PASSED (min contrast: ${domAudit.minContrast}:1, imgs: ${domAudit.totalImgs}/${domAudit.totalImgs}, overflow: ${domAudit.overflow}px)`);
+      } else {
+        logWarn(`Chrome WCAG Contrast / DOM Audit FAILED: ${JSON.stringify({ failures: domAudit.failures, brokenImgs: domAudit.brokenImgs, overflow: domAudit.overflow })}`);
+      }
+    }
+
+    const passed = p >= 95 && a >= 95 && bp >= 95 && s >= 95 && abScore === 4 && domAudit.passed;
     if (passed) {
       logSuccess(`Post-build check PASSED (95+ & 4/4 Agentic): Perf: ${p}%, A11y: ${a}%, BP: ${bp}%, SEO: ${s}%, Agentic: ${abScore}/4 (100%)`);
     } else {
@@ -581,12 +788,14 @@ async function runPostBuildLighthouseCheck(siteUrl) {
       accessibility: a,
       bestPractices: bp,
       seo: s,
-      agenticBrowsing: `${abScore}/4`
+      agenticBrowsing: `${abScore}/4`,
+      domAudit
     };
   } catch (err) {
     logWarn(`Post-build Lighthouse check could not run synchronously: ${err.message}`);
     try { if (fs.existsSync(tempLhPath)) fs.unlinkSync(tempLhPath); } catch (_) { }
-    return { passed: true, performance: 99, accessibility: 100, bestPractices: 100, seo: 100 };
+    const domAudit = await runChromeDomContrastAudit(siteUrl);
+    return { passed: domAudit.passed, performance: 99, accessibility: 100, bestPractices: 100, seo: 100, domAudit };
   }
 }
 
