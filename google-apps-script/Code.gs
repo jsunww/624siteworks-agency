@@ -125,7 +125,8 @@ function handleLeadEngineApiRequest_(params) {
       const bizName = params.bizName || '';
       const city = params.city || '';
       const domain = params.domain || '';
-      res = researchBusinessSocialsAndWeb_(bizName, city, domain);
+      const phone = params.phone || '';
+      res = researchBusinessSocialsAndWeb_(bizName, city, domain, phone);
     } else if (action === 'researchCustomProspect') {
       res = researchCustomProspectCore(params);
     } else if (action === 'refreshContacts') {
@@ -574,6 +575,7 @@ function scrapeAndAuditLeadsCore(query) {
         const searchEnrich = discoverContactAndSocials_(bizName, targetLocation, siteUrl || fbUrl, {
           serperKey: serperKey,
           serpApiKey: '', // Save AI Overview quota for Gate 2 / Custom Research / Builder unless needed
+          phone: item.phone || '',
           existingEmail: email,
           existingFacebook: fbUrl,
           allowSerpApiAiOverview: false
@@ -1357,13 +1359,29 @@ function enrichApprovedLeadsCore() {
 
     try {
       // Enrich missing/placeholder email or missing/invalid Facebook before writing prompt fields
-      const hasValidExistingEmail = isValidBusinessEmail_(existingEmail);
+      const rowPhone = String(row[COL.PHONE - 1] || '').trim();
+      const isMismatchedFbDomain = /facebook\.com|fb\.com/i.test(domainStatus) && !isMatchingCompanyFacebookUrl_(domainStatus, bizName, '');
+      if (isMismatchedFbDomain) {
+        domainStatus = 'No Website Listed';
+        sheet.getRange(rowNumber, COL.DOMAIN_STATUS).setValue(domainStatus);
+      }
+      const existingEmailDom = (existingEmail && existingEmail.includes('@')) ? existingEmail.split('@')[1].toLowerCase() : '';
+      const isCustomWrongBrandEmail = Boolean(
+        existingEmailDom && !FREE_EMAIL_DOMAINS_SET_[existingEmailDom] && (!domainStatus || /no website|facebook\.com|fb\.com/i.test(domainStatus))
+        && !matchesBusinessIdentity_(existingEmailDom.split('.')[0], bizName)
+      );
+      if (isCustomWrongBrandEmail) {
+        existingEmail = 'No email found';
+        sheet.getRange(rowNumber, COL.EMAIL).setValue('No email found');
+      }
+      const hasValidExistingEmail = isValidBusinessEmail_(existingEmail) && !isCustomWrongBrandEmail;
       const hasMissingOrBadDomain = !domainStatus || /no website|\/groups\/|facebook\.com\/share/i.test(domainStatus);
       if ((serperKey || serpApiKey) && (!hasValidExistingEmail || hasMissingOrBadDomain)) {
         const contactRes = discoverContactAndSocials_(bizName, serviceArea, domainStatus, {
           serperKey: serperKey,
           serpApiKey: serpApiKey,
           existingEmail: hasValidExistingEmail ? existingEmail : '',
+          phone: rowPhone,
           allowSerpApiAiOverview: true
         });
         if (!hasValidExistingEmail && contactRes.discoveredEmail) {
@@ -1868,26 +1886,133 @@ const FREE_EMAIL_DOMAINS_SET_ = {
 const DEFAULT_IGNORED_EMAIL_EXT_ = /\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf|eot|pdf|map|xml|json|xxx|local|internal|invalid|test)$/i;
 const DEFAULT_IGNORED_EMAIL_DOM_ = /(?:\.gov|\.edu|sentry\.io|wixpress\.com|wix\.com|squarespace\.com|godaddy\.com|weebly\.com|wordpress\.com|wordpress\.org|automattic\.com|cloudflare\.com|example\.com|test\.com|domain\.com|email\.com|yoursite\.com|yourdomain\.com|companyname\.com|website\.com|mysite\.com|placeholder\.com|624siteworks\.com|bbb\.org|angi\.com|angieslist\.com|homeadvisor\.com|thumbtack\.com|yelp\.com|mapquest\.com|yellowpages\.com|manta\.com|buildzoom\.com|bizapedia\.com|zoominfo\.com|dnb\.com|nextdoor\.com|chamberofcommerce\.com|birdeye\.com|houzz\.com|porch\.com|facebook\.com|fb\.com|instagram\.com|linkedin\.com|google\.com)$/i;
 
+const DISTINCTIVE_STOPWORDS_SET_ = {
+  tree: 1, trees: 1, service: 1, services: 1, care: 1, company: 1, inc: 1, llc: 1, co: 1, corp: 1,
+  ltd: 1, wisconsin: 1, wi: 1, fox: 1, valley: 1, cities: 1, appleton: 1, neenah: 1, menasha: 1,
+  kaukauna: 1, kimberly: 1, little: 1, chute: 1, oshkosh: 1, green: 1, bay: 1, de: 1, pere: 1,
+  brillion: 1, sherwood: 1, omro: 1, the: 1, and: 1, of: 1, mr: 1, electric: 1, electrical: 1,
+  plumbing: 1, plumber: 1, heating: 1, cooling: 1, hvac: 1, refrigeration: 1, sewer: 1, drain: 1,
+  concrete: 1, roofing: 1, roof: 1, fencing: 1, fence: 1, deck: 1, decks: 1, siding: 1, window: 1,
+  windows: 1, door: 1, doors: 1, painting: 1, painter: 1, landscaping: 1, landscape: 1, design: 1,
+  lawn: 1, paving: 1, asphalt: 1, blacktop: 1, sealcoat: 1, sealcoating: 1, waterproofing: 1,
+  basement: 1, demolition: 1, excavating: 1, excavation: 1, earthwork: 1, dirt: 1, grading: 1,
+  hauling: 1, trucking: 1, foundation: 1, contractor: 1, contracting: 1, construction: 1, builders: 1,
+  remodeling: 1, drywall: 1, flooring: 1, masonry: 1, septic: 1, well: 1, pump: 1, stump: 1, removal: 1,
+  trimming: 1, pruning: 1, snow: 1, plow: 1, plowing: 1, supply: 1, supplies: 1, mechanical: 1,
+  system: 1, systems: 1, solutions: 1, expert: 1, experts: 1, specialist: 1, specialists: 1,
+  concept: 1, concepts: 1, works: 1, work: 1, plus: 1, usa: 1, america: 1, american: 1, national: 1,
+  united: 1, general: 1, superior: 1, badger: 1, four: 1, season: 1, seasons: 1, group: 1,
+  enterprises: 1, industries: 1, associates: 1, brothers: 1, bros: 1, sons: 1, home: 1,
+  residential: 1, commercial: 1, pro: 1, pros: 1, all: 1, custom: 1, quality: 1, best: 1,
+  premier: 1, elite: 1, local: 1, northeast: 1, midwest: 1
+};
+
 function getDistinctiveBizTokens_(bizName) {
-  const genericWords = {
-    tree: 1, trees: 1, service: 1, services: 1, care: 1, company: 1, inc: 1, llc: 1, co: 1, corp: 1,
-    ltd: 1, wisconsin: 1, wi: 1, fox: 1, valley: 1, cities: 1, appleton: 1, neenah: 1, menasha: 1,
-    kaukauna: 1, kimberly: 1, little: 1, chute: 1, oshkosh: 1, green: 1, bay: 1, de: 1, pere: 1,
-    brillion: 1, sherwood: 1, the: 1, and: 1, of: 1, electric: 1, electrical: 1, plumbing: 1, plumber: 1,
-    heating: 1, cooling: 1, hvac: 1, refrigeration: 1, sewer: 1, drain: 1, concrete: 1, roofing: 1, roof: 1,
-    fencing: 1, fence: 1, deck: 1, decks: 1, siding: 1, window: 1, windows: 1, door: 1, doors: 1,
-    painting: 1, painter: 1, landscaping: 1, landscape: 1, design: 1, lawn: 1, paving: 1, contractor: 1,
-    contracting: 1, construction: 1, builders: 1, remodeling: 1, drywall: 1, flooring: 1, masonry: 1,
-    excavating: 1, excavation: 1, septic: 1, well: 1, pump: 1, stump: 1, removal: 1, trimming: 1,
-    pruning: 1, snow: 1, plow: 1, plowing: 1, supply: 1, supplies: 1, mechanical: 1, system: 1, systems: 1,
-    solutions: 1, group: 1, enterprises: 1, industries: 1, associates: 1, brothers: 1, bros: 1, sons: 1,
-    home: 1, residential: 1, commercial: 1, pro: 1, pros: 1, all: 1, season: 1, seasons: 1, custom: 1,
-    quality: 1, best: 1, premier: 1, elite: 1, local: 1, northeast: 1, midwest: 1
-  };
   const clean = String(bizName || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
   const rawTokens = clean.split(/\s+/).filter(function(t) { return t.length >= 2; });
-  const distinct = rawTokens.filter(function(t) { return !genericWords[t]; });
-  return distinct.length ? distinct : rawTokens.filter(function(t) { return t !== 'the' && t !== 'and' && t !== 'llc' && t !== 'inc'; });
+  return rawTokens.filter(function(t) { return !DISTINCTIVE_STOPWORDS_SET_[t]; });
+}
+
+function getBrandStems_(bizName) {
+  const words = String(bizName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(function(w) { return w.length >= 2 && !/^(?:the|and|of|llc|inc|co|corp|ltd)$/i.test(w); });
+  const stems = [];
+  if (words.length >= 2) {
+    stems.push(words.join(''));
+    const startsWithGeo = /^(?:fox|wisconsin|wi|green|appleton|oshkosh|neenah|menasha|kaukauna|kimberly)$/i.test(words[0]);
+    if (!startsWithGeo) {
+      if (words.length >= 3) stems.push(words.slice(0, 3).join(''));
+      stems.push(words.slice(0, 2).join(''));
+    }
+  } else if (words.length === 1) {
+    stems.push(words[0]);
+  }
+  return stems.filter(function(s, i, a) { return s.length >= 5 && a.indexOf(s) === i; });
+}
+
+function normalizePhone10_(phoneStr) {
+  const digits = String(phoneStr || '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.charAt(0) === '1') return digits.slice(1);
+  return digits.length === 10 ? digits : '';
+}
+
+function evaluateCompanyPhoneMatch_(text, expectedPhone) {
+  const target10 = normalizePhone10_(expectedPhone);
+  if (!target10) return 'unknown';
+  const raw = String(text || '');
+  const phoneMatches = raw.match(/(?:\+?1[-.\s]?)?(?:\(\s*([2-9]\d{2})\s*\)|\b([2-9]\d{2}))[-.\s]*(\d{3})[-.\s]*(\d{4})\b/g) || [];
+  if (!phoneMatches.length) return 'none';
+  const tollFree = { '800': 1, '888': 1, '877': 1, '866': 1, '855': 1, '844': 1, '833': 1 };
+  let sawOtherLocalPhone = false;
+  for (let i = 0; i < phoneMatches.length; i++) {
+    const p10 = normalizePhone10_(phoneMatches[i]);
+    if (!p10) continue;
+    if (p10 === target10) return 'match';
+    if (!tollFree[p10.slice(0, 3)]) sawOtherLocalPhone = true;
+  }
+  return sawOtherLocalPhone ? 'conflict' : 'none';
+}
+
+function matchesBusinessIdentity_(targetText, bizName) {
+  const targetClean = String(targetText || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!targetClean) return false;
+  const bizTokens = getDistinctiveBizTokens_(bizName);
+  if (bizTokens.length > 0) {
+    return bizTokens.some(function(t) { return targetClean.indexOf(t) !== -1; });
+  }
+  const stems = getBrandStems_(bizName);
+  return stems.some(function(st) { return targetClean.indexOf(st) !== -1; });
+}
+
+function extractFacebookSlugInfo_(rawUrl) {
+  let u = String(rawUrl || '').trim().split('?')[0].split('#')[0];
+  u = u.replace(/\/+$/, '');
+  const isPostOrSubpath = /\/(?:posts|photos|videos|reel|reels|story\.php|permalink\.php)\b/i.test(rawUrl);
+  const pathPart = u.replace(/^https?:\/\/(?:[a-z0-9-]+\.)?(?:facebook\.com|fb\.com)/i, '');
+  let slugPart = '';
+  if (/^\/profile\.php/i.test(rawUrl) || /^\/\d{6,}$/.test(pathPart)) {
+    return { hasNamedSlug: false, slugClean: '', slugWords: [], isPostOrSubpath: isPostOrSubpath };
+  }
+  const pagesM = pathPart.match(/^\/(?:pages|p|people|pg)\/([^\/]+)/i);
+  if (pagesM) {
+    slugPart = pagesM[1];
+  } else {
+    slugPart = pathPart.replace(/^\//, '').split('/')[0] || '';
+  }
+  // Strip trailing Facebook numeric page ID suffix like "-100093400957756"
+  slugPart = slugPart.replace(/-\d{6,}$/, '');
+  const slugWords = slugPart.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  const slugClean = slugPart.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const hasNamedSlug = Boolean(slugClean && !/^\d+$/.test(slugClean) && slugClean !== 'profilephp');
+  return { hasNamedSlug: hasNamedSlug, slugClean: slugClean, slugWords: slugWords, isPostOrSubpath: isPostOrSubpath };
+}
+
+function isMatchingCompanyFacebookUrl_(fbUrl, bizName, extraText) {
+  const norm = normalizeFacebookUrl_(fbUrl);
+  if (!norm) return false;
+  const slugInfo = extractFacebookSlugInfo_(norm);
+  if (slugInfo.hasNamedSlug) {
+    if (!matchesBusinessIdentity_(slugInfo.slugClean, bizName)) {
+      return false;
+    }
+  }
+  if (extraText) {
+    const emailMatches = String(extraText).match(/[a-z0-9._%+-]+@([a-z0-9.-]+\.[a-z]{2,12})/gi) || [];
+    for (let i = 0; i < emailMatches.length; i++) {
+      const dom = emailMatches[i].split('@')[1].toLowerCase();
+      if (!FREE_EMAIL_DOMAINS_SET_[dom]) {
+        const domStem = dom.split('.')[0];
+        if (!matchesBusinessIdentity_(domStem, bizName)) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 function decodeHtmlAndObfuscatedEmails_(raw) {
@@ -2108,30 +2233,63 @@ function normalizeFacebookUrl_(rawUrl) {
 }
 
 function scoreFacebookCandidate_(rawUrl, ctx) {
-  const normUrl = normalizeFacebookUrl_(rawUrl);
+  const meta = ctx || {};
+  const rawOrigUrl = String(rawUrl || '');
+  const normUrl = normalizeFacebookUrl_(rawOrigUrl);
   if (!normUrl) return { url: '', score: -1000 };
 
-  const meta = ctx || {};
   const bizName = String(meta.bizName || '').trim();
   const title = String(meta.title || '').trim();
   const snippet = String(meta.snippet || '').trim();
   const geoTarget = parseGeoTarget_(meta.location || CONFIG.DEFAULT_SERVICE_AREA);
 
   const bizTokens = getDistinctiveBizTokens_(bizName);
-  const pathPart = normUrl.replace(/^https?:\/\/www\.facebook\.com/i, '');
-  const titleAndSlug = (title + ' ' + pathPart).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const slugInfo = extractFacebookSlugInfo_(normUrl);
+  const isPostOrig = /\/(?:posts|photos|videos|reel|reels|story\.php|permalink\.php)\b/i.test(rawOrigUrl);
 
+  // CRITICAL: Reject cross-company Facebook links!
+  // 1) If URL has a named page slug (e.g. /duelconcreteconstruction or /p/Asphalt-Paving-Experts-...), the SLUG ITSELF must match our company identity!
+  // 2) Never strip a /posts/ or /photos/ URL back to a root page unless the slug actually matches our business!
+  // 3) Reject if snippet/title contains a different company's custom email domain (e.g. lizzie@duelconcrete.com for Vienola Concrete)!
+  if (meta.sourceType !== 'website') {
+    if (slugInfo.hasNamedSlug) {
+      if (!matchesBusinessIdentity_(slugInfo.slugClean, bizName)) {
+        return { url: '', score: -1000 };
+      }
+    } else if (isPostOrig) {
+      return { url: '', score: -1000 };
+    } else if (!matchesBusinessIdentity_(title, bizName)) {
+      return { url: '', score: -1000 };
+    }
+    if (!isMatchingCompanyFacebookUrl_(normUrl, bizName, title + ' ' + snippet)) {
+      return { url: '', score: -1000 };
+    }
+  } else if (slugInfo.hasNamedSlug && bizName && !matchesBusinessIdentity_(slugInfo.slugClean, bizName)) {
+    // Even on a website link, ensure it isn't linking to an unrelated Facebook page slug when distinctive tokens exist
+    if (bizTokens.length > 0 && !matchesBusinessIdentity_(slugInfo.slugClean, bizName)) {
+      return { url: '', score: -1000 };
+    }
+  }
+
+  const titleAndSlug = (title + ' ' + slugInfo.slugClean).toLowerCase().replace(/[^a-z0-9]/g, '');
   let titleMatches = 0;
   for (let i = 0; i < bizTokens.length; i++) {
     if (titleAndSlug.indexOf(bizTokens[i]) !== -1) titleMatches++;
   }
+  if (bizTokens.length === 0 && matchesBusinessIdentity_(titleAndSlug, bizName)) {
+    titleMatches = 1;
+  }
 
-  // Never accept an unrelated Facebook page whose title and slug share zero tokens with the business
-  if (meta.sourceType !== 'website' && bizTokens.length > 0 && titleMatches === 0) {
+  // Never accept an unrelated Facebook page whose title and slug share zero tokens/identity with the business
+  if (meta.sourceType !== 'website' && !matchesBusinessIdentity_(titleAndSlug, bizName)) {
     return { url: '', score: -1000 };
   }
 
   const combinedText = [normUrl, title, snippet].join(' ');
+  const phoneMatchStatus = evaluateCompanyPhoneMatch_(combinedText, meta.phone || '');
+  if (phoneMatchStatus === 'conflict') {
+    return { url: '', score: -1000 };
+  }
   const geoAll = detectGeoAlignment_(combinedText, geoTarget);
   const geoTitle = detectGeoAlignment_(title + ' ' + normUrl, geoTarget);
 
@@ -2148,11 +2306,13 @@ function scoreFacebookCandidate_(rawUrl, ctx) {
 
   let score = meta.sourceType === 'website' ? 60 : 20;
   score += Math.min(titleMatches, 3) * 25;
+  if (slugInfo.hasNamedSlug && matchesBusinessIdentity_(slugInfo.slugClean, bizName)) score += 35;
+  if (phoneMatchStatus === 'match') score += 40;
   if (geoAll.hasTargetCityMatch) score += 50;
   if (geoAll.hasTargetStateMatch) score += 35;
   if (/\/profile\.php\?id=/i.test(normUrl)) score -= 15;
 
-  // For search-discovered Facebook results, require local state/city proof unless company name is multi-token unique and no conflict
+  // For search-discovered Facebook results, require local state/city proof
   const hasGeoProof = geoAll.hasTargetCityMatch || geoAll.hasTargetStateMatch;
   if (meta.sourceType !== 'website' && !hasGeoProof) {
     return { url: '', score: -200 };
@@ -2206,10 +2366,18 @@ function scoreEmailCandidate_(email, ctx) {
   }
 
   let tokenHitsInEmail = 0;
-  for (let i = 0; i < bizTokens.length; i++) {
-    const tk = bizTokens[i];
-    if (localClean.indexOf(tk) !== -1 || (!isFreeMail && domNoTld.indexOf(tk) !== -1)) {
-      tokenHitsInEmail++;
+  if (bizTokens.length > 0) {
+    for (let i = 0; i < bizTokens.length; i++) {
+      const tk = bizTokens[i];
+      if (localClean.indexOf(tk) !== -1 || (!isFreeMail && domNoTld.indexOf(tk) !== -1)) {
+        tokenHitsInEmail++;
+      }
+    }
+  } else {
+    // Generic/geo names (e.g. "Fox Valley Asphalt Solutions") must match multi-word brand stem, never a single trade word
+    const brandStems = getBrandStems_(bizName);
+    if (brandStems.some(function(st) { return localClean.indexOf(st) !== -1 || (!isFreeMail && domNoTld.indexOf(st) !== -1); })) {
+      tokenHitsInEmail = 1;
     }
   }
 
@@ -2226,7 +2394,15 @@ function scoreEmailCandidate_(email, ctx) {
     return score;
   }
 
-  // Web search sources (AI Overview, Knowledge Graph, Organic Snippets) require strict anti-competitor & geo validation
+  if (meta.conflictedEmails && meta.conflictedEmails[e] && !(meta.matchedPhoneEmails && meta.matchedPhoneEmails[e]) && !matchesWebsiteHost) {
+    return -1000;
+  }
+
+  // Web search sources (AI Overview, Knowledge Graph, Organic Snippets) require strict anti-competitor, phone & geo validation
+  const emailPhoneStatus = evaluateCompanyPhoneMatch_(titleText + ' ' + contextText, meta.phone || '');
+  if (emailPhoneStatus === 'conflict' && !matchesWebsiteHost) {
+    return -1000;
+  }
   const windowGeo = detectGeoAlignment_(titleText + ' ' + contextText + ' ' + linkText, geoTarget);
   if (windowGeo.conflictingStates.length > 0 && !windowGeo.hasTargetCityMatch && !matchesWebsiteHost) {
     return -1000;
@@ -2243,15 +2419,21 @@ function scoreEmailCandidate_(email, ctx) {
   for (let i = 0; i < bizTokens.length; i++) {
     if (combinedMetaLower.indexOf(bizTokens[i]) !== -1) bizMentionCount++;
   }
+  if (bizTokens.length === 0 && matchesBusinessIdentity_(combinedMetaLower, bizName)) {
+    bizMentionCount = 1;
+  }
 
   const titleLowerClean = titleText.toLowerCase().replace(/[^a-z0-9]/g, '');
   let titleBizHits = 0;
   for (let i = 0; i < bizTokens.length; i++) {
     if (titleLowerClean.indexOf(bizTokens[i]) !== -1) titleBizHits++;
   }
+  if (bizTokens.length === 0 && matchesBusinessIdentity_(titleLowerClean, bizName)) {
+    titleBizHits = 1;
+  }
 
   if (sourceType === 'ai_overview' || sourceType === 'knowledge_graph' || sourceType === 'answer_box') {
-    if (bizTokens.length > 0 && bizMentionCount === 0 && tokenHitsInEmail === 0 && !matchesWebsiteHost) {
+    if (bizMentionCount === 0 && tokenHitsInEmail === 0 && !matchesWebsiteHost) {
       return -500;
     }
     score = 65;
@@ -2260,6 +2442,7 @@ function scoreEmailCandidate_(email, ctx) {
   }
 
   if (matchesWebsiteHost) score += 60;
+  if (emailPhoneStatus === 'match') score += 45;
   if (tokenHitsInEmail > 0) score += Math.min(tokenHitsInEmail, 2) * 35;
   if (titleBizHits > 0 && windowGeo.conflictingStates.length === 0) score += 30;
   if (windowGeo.hasTargetCityMatch) score += 25;
@@ -2287,7 +2470,9 @@ function scoreEmailCandidate_(email, ctx) {
       }
     }
     const preWindow = contextText.slice(Math.max(0, Math.floor(contextText.length / 2) - 180), Math.ceil(contextText.length / 2) + 80).toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
-    const nearBizHit = bizTokens.length === 0 || bizTokens.some(function(t) { return preWindow.indexOf(t) !== -1; });
+    const nearBizHit = bizTokens.length > 0
+      ? bizTokens.some(function(t) { return preWindow.indexOf(t) !== -1; })
+      : matchesBusinessIdentity_(preWindow, bizName);
     const hasLocalGeo = windowGeo.hasTargetCityMatch || windowGeo.hasTargetStateMatch;
     if (windowGeo.conflictingStates.length > 0 || !hasLocalGeo || !nearBizHit) {
       return -200;
@@ -2309,19 +2494,37 @@ function selectBestEmailFromSources_(sources, ctx) {
   const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi;
   const bestByEmail = {};
   const groundedEmails = {};
+  const conflictedEmails = {};
+  const matchedPhoneEmails = {};
+  const groundingPool = (sources || []).concat((ctx && Array.isArray(ctx.extraGroundingSources)) ? ctx.extraGroundingSources : []);
 
-  // Pre-collect emails seen in non-AI-Overview sources so AI Overview hallucinations of unrelated free-mails can be filtered out
-  for (let sIdx = 0; sIdx < (sources || []).length; sIdx++) {
-    const src = sources[sIdx];
+  // Pre-collect clean grounded emails AND phone-conflicted emails from non-AI-Overview sources
+  for (let sIdx = 0; sIdx < groundingPool.length; sIdx++) {
+    const src = groundingPool[sIdx];
     if (!src || !src.text || src.sourceType === 'ai_overview') continue;
     const dec = decodeHtmlAndObfuscatedEmails_(src.text);
+    const srcFull = [src.title || '', src.link || '', dec].join(' ');
+    const srcPhoneStatus = evaluateCompanyPhoneMatch_(srcFull, ctx && ctx.phone ? ctx.phone : '');
+    const srcIdentityOk = src.sourceType === 'website' || matchesBusinessIdentity_(srcFull, ctx && ctx.bizName ? ctx.bizName : '');
     const hits = dec.match(emailRegex) || [];
     for (let h = 0; h < hits.length; h++) {
-      groundedEmails[hits[h].trim().toLowerCase()] = true;
+      const em = hits[h].trim().toLowerCase();
+      if (srcPhoneStatus === 'conflict') {
+        conflictedEmails[em] = true;
+      } else if (srcPhoneStatus === 'match') {
+        matchedPhoneEmails[em] = true;
+      }
+      if (srcPhoneStatus !== 'conflict' && srcIdentityOk) {
+        groundedEmails[em] = true;
+      }
     }
   }
 
-  const enrichedCtx = Object.assign({}, ctx, { groundedEmails: groundedEmails });
+  const enrichedCtx = Object.assign({}, ctx, {
+    groundedEmails: groundedEmails,
+    conflictedEmails: conflictedEmails,
+    matchedPhoneEmails: matchedPhoneEmails
+  });
 
   for (let sIdx = 0; sIdx < (sources || []).length; sIdx++) {
     const src = sources[sIdx];
@@ -2495,28 +2698,37 @@ function collectSerperSearchSignals_(serperKey, searchQuery, excludeDomains, biz
 
     const data = JSON.parse(resp.getContentText());
 
+    const expectedPhone = signalOpts.phone || '';
+
     if (data.answerBox) {
       const abChunks = [];
       extractSerpApiTextRecursive_(data.answerBox, abChunks);
       if (abChunks.length) {
-        collected.emailSources.push({ text: abChunks.join(' '), sourceType: 'answer_box', title: bizName });
+        const abText = abChunks.join(' ');
+        if (evaluateCompanyPhoneMatch_(abText, expectedPhone) !== 'conflict') {
+          collected.emailSources.push({ text: abText, sourceType: 'answer_box', title: bizName });
+        }
       }
     }
 
     if (data.knowledgeGraph) {
-      collected.knowledgeGraph = data.knowledgeGraph;
       const kgChunks = [];
       extractSerpApiTextRecursive_(data.knowledgeGraph, kgChunks);
-      if (kgChunks.length) {
-        collected.emailSources.push({ text: kgChunks.join(' '), sourceType: 'knowledge_graph', title: data.knowledgeGraph.title || bizName });
-      }
-      if (data.knowledgeGraph.website) {
-        const kgHost = normalizeHost_(data.knowledgeGraph.website);
-        const isDirKg = (excludeDomains || []).some(function(ex) { return kgHost === ex || kgHost.endsWith('.' + ex); });
-        if (/facebook\.com\//i.test(data.knowledgeGraph.website)) {
-          collected.fbCandidates.push({ link: data.knowledgeGraph.website, title: data.knowledgeGraph.title || bizName, snippet: data.knowledgeGraph.type || '', sourceType: 'knowledge_graph' });
-        } else if (kgHost && !isDirKg) {
-          collected.discoveredWebsite = data.knowledgeGraph.website;
+      const kgPhoneText = [data.knowledgeGraph.phoneNumber || '', kgChunks.join(' ')].join(' ');
+      const kgPhoneStatus = evaluateCompanyPhoneMatch_(kgPhoneText, expectedPhone);
+      if (kgPhoneStatus !== 'conflict') {
+        collected.knowledgeGraph = data.knowledgeGraph;
+        if (kgChunks.length) {
+          collected.emailSources.push({ text: kgChunks.join(' '), sourceType: 'knowledge_graph', title: data.knowledgeGraph.title || bizName });
+        }
+        if (data.knowledgeGraph.website) {
+          const kgHost = normalizeHost_(data.knowledgeGraph.website);
+          const isDirKg = (excludeDomains || []).some(function(ex) { return kgHost === ex || kgHost.endsWith('.' + ex); });
+          if (/facebook\.com\//i.test(data.knowledgeGraph.website)) {
+            collected.fbCandidates.push({ link: data.knowledgeGraph.website, title: data.knowledgeGraph.title || bizName, snippet: data.knowledgeGraph.type || '', sourceType: 'knowledge_graph' });
+          } else if (kgHost && !isDirKg) {
+            collected.discoveredWebsite = data.knowledgeGraph.website;
+          }
         }
       }
     }
@@ -2564,13 +2776,12 @@ function collectSerperSearchSignals_(serperKey, searchQuery, excludeDomains, biz
           || (excludeDomains || []).some(function(ex) { return host === ex || host.endsWith('.' + ex); });
         const hostClean = host.replace(/[^a-z0-9]/g, '');
         const itemGeo = detectGeoAlignment_(rawTitle + ' ' + snippet, targetGeo);
-        const matchesName = bizTokens.length === 0
-          ? titleLower.indexOf(bizName.toLowerCase().split(/\s+/)[0]) !== -1
-          : bizTokens.some(function(t) { return hostClean.indexOf(t) !== -1; });
+        const matchesName = matchesBusinessIdentity_(hostClean, bizName);
+        const itemPhoneStatus = evaluateCompanyPhoneMatch_(rawTitle + ' ' + snippet, expectedPhone);
         const hasGeoProof = itemGeo.hasTargetCityMatch || itemGeo.hasTargetStateMatch;
         const notWrongState = !(itemGeo.conflictingStates.length > 0 && !itemGeo.hasTargetCityMatch && !itemGeo.hasTargetStateMatch);
         const notWrongMetro = !(itemGeo.conflictingMetro && !itemGeo.hasTargetCityMatch);
-        if (!isDir && matchesName && hasGeoProof && notWrongState && notWrongMetro) {
+        if (!isDir && matchesName && itemPhoneStatus !== 'conflict' && hasGeoProof && notWrongState && notWrongMetro) {
           collected.discoveredWebsite = link.split('#')[0];
         }
       }
@@ -2582,6 +2793,7 @@ function collectSerperSearchSignals_(serperKey, searchQuery, excludeDomains, biz
 
 function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) {
   const options = opts || {};
+  const expectedPhone = options.phone || '';
   const props = PropertiesService.getScriptProperties();
   const serperKey = options.serperKey !== undefined ? options.serperKey : (props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '');
   const serpApiKey = options.serpApiKey !== undefined ? options.serpApiKey : (props.getProperty('SERPAPI_API_KEY') || '');
@@ -2627,6 +2839,7 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
     const scoredPreFb = scoreFacebookCandidate_(options.existingFacebook, {
       bizName: bizName,
       location: cityOrArea || CONFIG.DEFAULT_SERVICE_AREA,
+      phone: expectedPhone,
       title: bizName,
       snippet: cleanCityLabel,
       sourceType: 'organic'
@@ -2641,7 +2854,7 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
 
   // Stage 2: Primary Serper web search
   if (serperKey && bizName) {
-    const pass1 = collectSerperSearchSignals_(serperKey, '"' + bizName + '" ' + cleanCityLabel, excludedDirectoryDomains, bizTokens, bizName, geoTarget);
+    const pass1 = collectSerperSearchSignals_(serperKey, '"' + bizName + '" ' + cleanCityLabel, excludedDirectoryDomains, bizTokens, bizName, geoTarget, { phone: expectedPhone });
     if (pass1.discoveredWebsite && !out.discoveredWebsite) out.discoveredWebsite = pass1.discoveredWebsite;
     if (pass1.knowledgeGraph) {
       out.knowledgeGraph = pass1.knowledgeGraph;
@@ -2658,7 +2871,7 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
 
     // Evaluate Stage 2 email right away before firing extra queries
     if (!out.discoveredEmail && emailSources.length) {
-      const winner1 = selectBestEmailFromSources_(emailSources, { bizName: bizName, websiteHost: activeHost, location: cleanCityLabel });
+      const winner1 = selectBestEmailFromSources_(emailSources, { bizName: bizName, websiteHost: activeHost, location: cleanCityLabel, phone: expectedPhone });
       if (winner1 && winner1.email) {
         out.discoveredEmail = winner1.email;
         out.emailSource = 'serper_' + winner1.sourceType;
@@ -2671,6 +2884,7 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
       const scored = scoreFacebookCandidate_(fbCandidates[i].link, {
         bizName: bizName,
         location: cleanCityLabel,
+        phone: expectedPhone,
         title: fbCandidates[i].title,
         snippet: fbCandidates[i].snippet,
         sourceType: fbCandidates[i].sourceType
@@ -2687,17 +2901,19 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
       const emailQ = activeHost
         ? (bizName + ' ' + cityTokenStr + ' email OR site:' + activeHost)
         : (bizName + ' ' + cityTokenStr + ' email');
-      const passEmail = collectSerperSearchSignals_(serperKey, emailQ, excludedDirectoryDomains, bizTokens, bizName, geoTarget, { allowWebsiteDiscovery: false });
+      const passEmail = collectSerperSearchSignals_(serperKey, emailQ, excludedDirectoryDomains, bizTokens, bizName, geoTarget, { allowWebsiteDiscovery: false, phone: expectedPhone });
       if (passEmail.snippets.length) {
         passEmail.snippets.forEach(function(s) {
           if (out.snippets.indexOf(s) === -1) out.snippets.push(s);
         });
       }
       fbCandidates.push(...passEmail.fbCandidates);
-      const winner2 = selectBestEmailFromSources_(emailSources.concat(passEmail.emailSources), {
+      emailSources.push(...passEmail.emailSources);
+      const winner2 = selectBestEmailFromSources_(emailSources, {
         bizName: bizName,
         websiteHost: websiteHost || normalizeHost_(out.discoveredWebsite),
-        location: cleanCityLabel
+        location: cleanCityLabel,
+        phone: expectedPhone
       });
       if (winner2 && winner2.email) {
         out.discoveredEmail = winner2.email;
@@ -2709,12 +2925,13 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
     if (!out.socials.facebook) {
       const stateTitle = geoTarget.targetStateName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
       const fbQuery = 'site:facebook.com "' + bizName + '" ' + stateTitle;
-      const passFb = collectSerperSearchSignals_(serperKey, fbQuery, excludedDirectoryDomains, bizTokens, bizName, geoTarget, { allowWebsiteDiscovery: false });
+      const passFb = collectSerperSearchSignals_(serperKey, fbQuery, excludedDirectoryDomains, bizTokens, bizName, geoTarget, { allowWebsiteDiscovery: false, phone: expectedPhone });
       const allFbCands = fbCandidates.concat(passFb.fbCandidates);
       for (let i = 0; i < allFbCands.length; i++) {
         const scored = scoreFacebookCandidate_(allFbCands[i].link, {
           bizName: bizName,
           location: cleanCityLabel,
+          phone: expectedPhone,
           title: allFbCands[i].title,
           snippet: allFbCands[i].snippet,
           sourceType: allFbCands[i].sourceType
@@ -2724,11 +2941,16 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
           out.socials.facebook = scored.url;
         }
       }
+      if (passFb.emailSources.length) {
+        emailSources.push(...passFb.emailSources);
+      }
       if (!out.discoveredEmail && passFb.emailSources.length) {
         const winnerFbEmail = selectBestEmailFromSources_(passFb.emailSources, {
           bizName: bizName,
           websiteHost: websiteHost || normalizeHost_(out.discoveredWebsite),
-          location: cleanCityLabel
+          location: cleanCityLabel,
+          phone: expectedPhone,
+          extraGroundingSources: emailSources
         });
         if (winnerFbEmail && winnerFbEmail.email) {
           out.discoveredEmail = winnerFbEmail.email;
@@ -2747,7 +2969,9 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
       const winnerAio = selectBestEmailFromSources_(serpData.emailSources, {
         bizName: bizName,
         websiteHost: websiteHost || normalizeHost_(out.discoveredWebsite),
-        location: cleanCityLabel
+        location: cleanCityLabel,
+        phone: expectedPhone,
+        extraGroundingSources: emailSources
       });
       if (winnerAio && winnerAio.email) {
         out.discoveredEmail = winnerAio.email;
@@ -2760,6 +2984,7 @@ function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) 
         const scored = scoreFacebookCandidate_(serpData.fbCandidates[i].link, {
           bizName: bizName,
           location: cleanCityLabel,
+          phone: expectedPhone,
           title: serpData.fbCandidates[i].title,
           snippet: serpData.fbCandidates[i].snippet,
           sourceType: serpData.fbCandidates[i].sourceType
@@ -2795,10 +3020,11 @@ function buildFallbackEmail_(bizName, domainStatus) {
  * Researches social profiles, verified email, real website images, brand colors, and company facts
  * for deep bespoke spec-site generation.
  */
-function researchBusinessSocialsAndWeb_(bizName, city, domain) {
+function researchBusinessSocialsAndWeb_(bizName, city, domain, phone) {
   const props = PropertiesService.getScriptProperties();
   const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '';
   const serpApiKey = props.getProperty('SERPAPI_API_KEY') || '';
+  const expectedPhone = String(phone || '').trim();
 
   const result = {
     success: true,
@@ -2819,9 +3045,13 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
 
   // 1. Direct Website + Subpage Scrape FIRST if a custom website domain was provided
   const initialScrapeTarget = (domain && !/no website|facebook\.com|fb\.com/i.test(domain)) ? domain : '';
+  const cleanDomainParam = (domain && /facebook\.com|fb\.com/i.test(domain) && !isMatchingCompanyFacebookUrl_(domain, bizName, ''))
+    ? 'No Website Listed'
+    : domain;
   const cleanCity = city || 'Fox Valley, WI';
   const websiteCtx = {
     bizName: bizName,
+    phone: expectedPhone,
     websiteHost: initialScrapeTarget ? normalizeHost_(initialScrapeTarget) : '',
     location: cleanCity
   };
@@ -2854,11 +3084,12 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
             .replace(/<style[\s\S]*?<\/style>/gi, ' ')
             .replace(/<[^>]+>/g, ' ')
             .replace(/\s+/g, ' ');
+          const sitePhoneStatus = evaluateCompanyPhoneMatch_(visibleText, expectedPhone);
           const siteGeo = detectGeoAlignment_(visibleText, siteGeoTarget);
           const wrongState = siteGeo.conflictingStates.length > 0 && !siteGeo.hasTargetCityMatch && !siteGeo.hasTargetStateMatch;
           const wrongMetro = siteGeo.conflictingMetro && !siteGeo.hasTargetCityMatch;
           const missingGeoProof = !siteGeo.hasTargetCityMatch && !siteGeo.hasTargetStateMatch;
-          if (wrongState || wrongMetro || missingGeoProof) {
+          if (sitePhoneStatus === 'conflict' || wrongState || wrongMetro || missingGeoProof) {
             result.discoveredWebsite = '';
             return;
           }
@@ -2870,7 +3101,7 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
             result.discoveredEmail = ext.email;
             result.emailSource = s === 0 ? 'website_home' : 'website_' + subpaths[s].replace('/', '');
           }
-          if (!result.socials.facebook && ext.facebook) {
+          if (!result.socials.facebook && ext.facebook && isMatchingCompanyFacebookUrl_(ext.facebook, bizName, '')) {
             result.socials.facebook = ext.facebook;
           }
         }
@@ -2921,11 +3152,12 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
   }
 
   // 2. Multi-stage Web, Social, Email (including AI Overview fallback) Discovery
-  const contactAndSocials = discoverContactAndSocials_(bizName, cleanCity, domain, {
+  const contactAndSocials = discoverContactAndSocials_(bizName, cleanCity, cleanDomainParam, {
     serperKey: serperKey,
     serpApiKey: serpApiKey,
     existingEmail: result.discoveredEmail,
     existingFacebook: result.socials.facebook,
+    phone: expectedPhone,
     allowSerpApiAiOverview: true
   });
 
@@ -3381,6 +3613,7 @@ function researchCustomProspectCore(params) {
             serpApiKey: serpApiKey,
             existingEmail: email,
             existingFacebook: fbUrl,
+            phone: p.phoneNumber || (audit.metrics && audit.metrics.extractedPhone) || '',
             allowSerpApiAiOverview: allowAio
           });
           if (!email && enr.discoveredEmail) email = enr.discoveredEmail;
@@ -3514,7 +3747,8 @@ function researchCustomProspectCore(params) {
 
   // Web & Social Discovery (finds website + state-verified FB/IG/BBB/Yelp + email including AI Overview fallback)
   const researchCityForWeb = extractCityFromAddress_(resolvedLocation, resolvedLocation);
-  const researchData = researchBusinessSocialsAndWeb_(resolvedBizName, researchCityForWeb, effectiveUrl || '');
+  const phoneHint = (matchedPlace && matchedPlace.phoneNumber) || (preAudit && preAudit.metrics && preAudit.metrics.extractedPhone) || '';
+  const researchData = researchBusinessSocialsAndWeb_(resolvedBizName, researchCityForWeb, effectiveUrl || '', phoneHint);
   if (!effectiveUrl && researchData.discoveredWebsite) {
     effectiveUrl = researchData.discoveredWebsite;
   }
@@ -3700,15 +3934,28 @@ function refreshLeadContactsCore(params) {
       updatedDomainCount++;
     }
 
-    const emailIsMissingOrInvalid = !curEmail || curEmail === 'No email found' || !isValidBusinessEmail_(curEmail);
+    const curEmailDom = (curEmail && curEmail.includes('@')) ? curEmail.split('@')[1].toLowerCase() : '';
+    const isCustomWrongBrandEmail = Boolean(
+      curEmailDom && !FREE_EMAIL_DOMAINS_SET_[curEmailDom] && curDomain
+      && (/no website|facebook\.com|fb\.com/i.test(curDomain))
+      && !matchesBusinessIdentity_(curEmailDom.split('.')[0], bizName)
+    );
+    const emailIsMissingOrInvalid = !curEmail || curEmail === 'No email found' || !isValidBusinessEmail_(curEmail) || isCustomWrongBrandEmail;
+    const isMismatchedFbDomain = /facebook\.com|fb\.com/i.test(curDomain) && !isMatchingCompanyFacebookUrl_(curDomain, bizName, '');
     const domainNeedsCheck = !curDomain
       || /no website/i.test(curDomain)
+      || isMismatchedFbDomain
       || (/facebook\.com|fb\.com/i.test(curDomain) && !normalizeFacebookUrl_(curDomain))
       || (/facebook\.com|fb\.com/i.test(curDomain) && !/^https:\/\/www\.facebook\.com\//i.test(curDomain));
 
-    // Also scrub explicitly invalid placeholder email like xxxx@xxxx.xxx even if nothing else runs
-    if (curEmail && curEmail !== 'No email found' && !isValidBusinessEmail_(curEmail)) {
+    // Also scrub explicitly invalid placeholder email or mismatched wrong-brand domain email / Facebook URL
+    if ((curEmail && curEmail !== 'No email found' && !isValidBusinessEmail_(curEmail)) || isCustomWrongBrandEmail) {
       sheet.getRange(rowNum, COL.EMAIL).setValue('No email found');
+    }
+    if (isMismatchedFbDomain) {
+      sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue('No Website Listed');
+      curDomain = 'No Website Listed';
+      updatedDomainCount++;
     }
 
     if (!targetRowNum && !emailIsMissingOrInvalid && !domainNeedsCheck) continue;
@@ -3719,6 +3966,7 @@ function refreshLeadContactsCore(params) {
     // Use Google Maps lookup to get exact city/website/phone when row only had regional label or bare state name
     let lookupName = bizName;
     let lookupCity = serviceArea;
+    let rowPhone = String(row[COL.PHONE - 1] || '').trim();
     if (/^(?:wisconsin|wi)$/i.test(lookupName)) {
       const effectiveCurEmail = String(sheet.getRange(rowNum, COL.EMAIL).getValue() || curEmail || '').trim();
       const emailLocal = (effectiveCurEmail && effectiveCurEmail.includes('@') && isValidBusinessEmail_(effectiveCurEmail))
@@ -3750,14 +3998,15 @@ function refreshLeadContactsCore(params) {
             updatedDomainCount++;
             rowChanges.newDomain = curDomain;
           }
-          if (!row[COL.PHONE - 1] && hit.place.phoneNumber) {
-            sheet.getRange(rowNum, COL.PHONE).setValue(hit.place.phoneNumber);
+          if (!rowPhone && hit.place.phoneNumber) {
+            rowPhone = String(hit.place.phoneNumber).trim();
+            sheet.getRange(rowNum, COL.PHONE).setValue(rowPhone);
           }
         }
       } catch (e) {}
     }
 
-    const res = researchBusinessSocialsAndWeb_(lookupName, lookupCity, curDomain);
+    const res = researchBusinessSocialsAndWeb_(lookupName, lookupCity, curDomain, rowPhone);
     if (emailIsMissingOrInvalid && res.discoveredEmail && isValidBusinessEmail_(res.discoveredEmail)) {
       sheet.getRange(rowNum, COL.EMAIL).setValue(res.discoveredEmail);
       updatedEmailCount++;
@@ -3779,7 +4028,11 @@ function refreshLeadContactsCore(params) {
       }
     } else if (/facebook\.com|fb\.com/i.test(curDomainAfter)) {
       const norm = normalizeFacebookUrl_(curDomainAfter);
-      if (norm && norm !== curDomainAfter) {
+      if (!isMatchingCompanyFacebookUrl_(norm || curDomainAfter, lookupName, '')) {
+        sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue('No Website Listed');
+        updatedDomainCount++;
+        rowChanges.newDomain = 'No Website Listed';
+      } else if (norm && norm !== curDomainAfter) {
         sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue(norm);
         updatedDomainCount++;
         rowChanges.newDomain = norm;

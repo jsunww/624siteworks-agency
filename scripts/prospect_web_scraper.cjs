@@ -226,6 +226,120 @@ function normalizeFacebookUrl(rawUrl) {
   return `https://www.facebook.com${cleanPath}`;
 }
 
+const SCRAPER_BIZ_STOPWORDS = new Set([
+  'tree', 'trees', 'service', 'services', 'care', 'company', 'inc', 'llc', 'co', 'corp', 'ltd',
+  'wisconsin', 'wi', 'green', 'bay', 'appleton', 'oshkosh', 'neenah', 'menasha', 'sherwood', 'brillion', 'omro',
+  'kaukauna', 'kimberly', 'little', 'chute', 'de', 'pere', 'fox', 'valley', 'cities', 'north', 'east',
+  'the', 'and', 'of', 'mr', 'pro', 'pros', 'custom', 'quality', 'best', 'premier', 'elite', 'local', 'northeast', 'midwest',
+  'all', 'season', 'seasons', 'fencing', 'fence', 'deck', 'decks', 'siding', 'window', 'windows',
+  'door', 'doors', 'painting', 'painter', 'roofing', 'roof', 'concrete', 'sewer', 'drain',
+  'plumbing', 'plumber', 'heating', 'cooling', 'hvac', 'refrigeration', 'electric', 'electrical',
+  'landscaping', 'landscape', 'design', 'lawn', 'asphalt', 'blacktop', 'sealcoat', 'sealcoating',
+  'paving', 'waterproofing', 'basement', 'demolition', 'earthwork', 'dirt', 'grading', 'hauling', 'trucking',
+  'foundation', 'contractor', 'contracting', 'construction', 'builders', 'remodeling', 'drywall', 'flooring', 'masonry',
+  'excavating', 'excavation', 'septic', 'well', 'pump', 'stump', 'removal', 'trimming', 'pruning',
+  'snow', 'plow', 'plowing', 'supply', 'supplies', 'mechanical', 'system', 'systems', 'solutions',
+  'expert', 'experts', 'specialist', 'specialists', 'concept', 'concepts', 'works', 'work',
+  'plus', 'usa', 'america', 'american', 'national', 'united', 'general', 'superior', 'badger', 'four',
+  'group', 'enterprises', 'industries', 'associates', 'brothers', 'bros', 'sons', 'home', 'residential', 'commercial'
+]);
+
+function getDistinctiveBizTokensList(bizName) {
+  return String(bizName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(tok => tok.length >= 2 && !SCRAPER_BIZ_STOPWORDS.has(tok));
+}
+
+function getBrandStems(bizName) {
+  const words = String(bizName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(w => w.length >= 2 && !/^(?:the|and|of|llc|inc|co|corp|ltd)$/i.test(w));
+  const stems = [];
+  if (words.length >= 2) {
+    stems.push(words.join(''));
+    const startsWithGeo = /^(?:fox|wisconsin|wi|green|appleton|oshkosh|neenah|menasha|kaukauna|kimberly)$/i.test(words[0]);
+    if (!startsWithGeo) {
+      if (words.length >= 3) stems.push(words.slice(0, 3).join(''));
+      stems.push(words.slice(0, 2).join(''));
+    }
+  } else if (words.length === 1) {
+    stems.push(words[0]);
+  }
+  return [...new Set(stems.filter(s => s.length >= 5))];
+}
+
+function normalizePhone10(phoneStr) {
+  const digits = String(phoneStr || '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.charAt(0) === '1') return digits.slice(1);
+  return digits.length === 10 ? digits : '';
+}
+
+function evaluateCompanyPhoneMatch(text, expectedPhone) {
+  const target10 = normalizePhone10(expectedPhone);
+  if (!target10) return 'unknown';
+  const phoneMatches = String(text || '').match(/(?:\+?1[-.\s]?)?(?:\(\s*([2-9]\d{2})\s*\)|\b([2-9]\d{2}))[-.\s]*(\d{3})[-.\s]*(\d{4})\b/g) || [];
+  if (!phoneMatches.length) return 'none';
+  const tollFree = new Set(['800', '888', '877', '866', '855', '844', '833']);
+  let sawOtherLocalPhone = false;
+  for (const m of phoneMatches) {
+    const p10 = normalizePhone10(m);
+    if (!p10) continue;
+    if (p10 === target10) return 'match';
+    if (!tollFree.has(p10.slice(0, 3))) sawOtherLocalPhone = true;
+  }
+  return sawOtherLocalPhone ? 'conflict' : 'none';
+}
+
+function matchesBusinessIdentity(targetText, bizName) {
+  const targetClean = String(targetText || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!targetClean) return false;
+  const tokens = getDistinctiveBizTokensList(bizName);
+  if (tokens.length > 0) {
+    return tokens.some(t => targetClean.includes(t));
+  }
+  const stems = getBrandStems(bizName);
+  return stems.some(st => targetClean.includes(st));
+}
+
+function extractFacebookSlugInfo(rawUrl) {
+  const cleanUrl = String(rawUrl || '').trim().split('?')[0].split('#')[0].replace(/\/+$/, '');
+  const pathPart = cleanUrl.replace(/^https?:\/\/(?:[a-z0-9-]+\.)?(?:facebook\.com|fb\.com)/i, '');
+  if (/^\/profile\.php/i.test(String(rawUrl || '').trim().replace(/^https?:\/\/(?:[a-z0-9-]+\.)?(?:facebook\.com|fb\.com)/i, '')) || /^\/\d{6,}$/.test(pathPart)) {
+    return { hasNamedSlug: false, slugClean: '' };
+  }
+  const pagesM = pathPart.match(/^\/(?:pages|p|people|pg)\/([^/]+)/i);
+  let slugPart = pagesM ? pagesM[1] : (pathPart.replace(/^\//, '').split('/')[0] || '');
+  slugPart = slugPart.replace(/-\d{6,}$/, '');
+  const slugClean = slugPart.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const hasNamedSlug = Boolean(slugClean && !/^\d+$/.test(slugClean) && slugClean !== 'profilephp');
+  return { hasNamedSlug, slugClean };
+}
+
+function isMatchingCompanyFacebook(fbUrl, bizName, extraText = '') {
+  const norm = normalizeFacebookUrl(fbUrl);
+  if (!norm) return false;
+  const slugInfo = extractFacebookSlugInfo(norm);
+  if (slugInfo.hasNamedSlug && !matchesBusinessIdentity(slugInfo.slugClean, bizName)) {
+    return false;
+  }
+  if (extraText) {
+    const freeMail = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'att.net', 'sbcglobal.net', 'charter.net', 'spectrum.net', 'new.rr.com']);
+    const emails = String(extraText).match(/[a-z0-9._%+-]+@([a-z0-9.-]+\.[a-z]{2,12})/gi) || [];
+    for (const em of emails) {
+      const dom = em.split('@')[1].toLowerCase();
+      if (!freeMail.has(dom) && !matchesBusinessIdentity(dom.split('.')[0], bizName)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function extractBestSiteEmail(htmlSource, websiteHost) {
   const decoded = decodeHtmlAndObfuscatedEmails(htmlSource);
   const hostClean = String(websiteHost || '').toLowerCase().replace(/^www\./, '');
@@ -701,7 +815,13 @@ module.exports = {
   cleanHex,
   isValidBusinessEmail,
   normalizeFacebookUrl,
-  decodeHtmlAndObfuscatedEmails
+  decodeHtmlAndObfuscatedEmails,
+  getDistinctiveBizTokensList,
+  getBrandStems,
+  matchesBusinessIdentity,
+  isMatchingCompanyFacebook,
+  normalizePhone10,
+  evaluateCompanyPhoneMatch
 };
 
 if (require.main === module) {
