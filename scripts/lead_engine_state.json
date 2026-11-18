@@ -1,7 +1,7 @@
 {
-  "lastRunIndex": 7,
-  "lastRunDate": "2026-11-17T12:04:32.302Z",
-  "totalSitesBuilt": 25,
+  "lastRunIndex": 9,
+  "lastRunDate": "2026-11-18T12:15:30.066Z",
+  "totalSitesBuilt": 30,
   "runs": [
     {
       "date": "2026-11-06T21:11:01.552Z",
@@ -205,6 +205,41 @@
           "name": "M K Electrical Services",
           "url": "https://m-k-electrical-services.pages.dev",
           "score": 89
+        }
+      ]
+    },
+    {
+      "date": "2026-11-18T12:15:30.066Z",
+      "niche": {
+        "trade": "Foundation Repair",
+        "city": "Oshkosh, WI",
+        "query": "Foundation repair contractor, Oshkosh, WI"
+      },
+      "sitesBuilt": [
+        {
+          "name": "Fox Valley Asphalt Solutions",
+          "url": "https://fox-valley-asphalt-solutions.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Dirt Works Demolition & Excavating",
+          "url": "https://dirt-works-demolition-excavating.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Stafford Construction Co",
+          "url": "https://stafford-construction-co.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Area Waterproofing & Concrete LLC",
+          "url": "https://area-waterproofing-concrete-llc.pages.dev",
+          "score": 96
+        },
+        {
+          "name": "Vienola Concrete",
+          "url": "https://vienola-concrete.pages.dev",
+          "score": 96
         }
       ]
     }

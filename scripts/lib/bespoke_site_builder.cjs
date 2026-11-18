@@ -1300,663 +1300,698 @@ function getDistinctiveBizTokens(bizName) {
     .filter(tok => tok.length >= 2 && !generic.has(tok));
 }
 
-function isTrustworthyResearchImage(url, detail, bizName, cleanDomain, expectedPhone = '') {
-  if (isJunkImageUrl(url) || isDirectoryHostOrUrl(url)) return false;
-  const u = url.toLowerCase();
-  const title = detail?.title || detail?.alt || '';
-  const source = detail?.source || '';
-  const pageLink = detail?.link || '';
-  const titleLower = title.toLowerCase();
-  const sourceLower = source.toLowerCase();
-  const pageLinkLower = pageLink.toLowerCase();
-  const combined = `${titleLower} ${sourceLower} ${pageLinkLower} ${u}`;
+  function isTrustworthyResearchImage(url, detail, bizName, cleanDomain, expectedPhone = '') {
+    if (isJunkImageUrl(url) || isDirectoryHostOrUrl(url)) return false;
+    const u = url.toLowerCase();
+    const alt = detail?.title || detail?.alt || '';
+    if (cleanDomain && u.includes(cleanDomain.toLowerCase())) {
+      if (/(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u)) return true;
+      return !isNonWorkGraphicUrl(url, alt);
+      const title = detail?.title || detail?.alt || '';
+      const source = detail?.source || '';
+      const pageLink = detail?.link || '';
+      const titleLower = title.toLowerCase();
+      const sourceLower = source.toLowerCase();
+      const pageLinkLower = pageLink.toLowerCase();
+      const combined = `${titleLower} ${sourceLower} ${pageLinkLower} ${u}`;
 
-  if (pageLink && isDirectoryHostOrUrl(pageLink) && !/(?:facebook\.com|fb\.com)/i.test(pageLink)) {
-    return false;
-  }
-  if (/\b(?:mapquest|yelp|yellow\s*pages|manta|angi|angies\s*list|homeadvisor|thumbtack|nextdoor|porch|houzz|bbb|better business bureau|birdeye|superpages|buildzoom|chamber\s*of\s*commerce|oshkoshdirect|citydirect|direct\.us|expertise|threebestrated|bestprosintown|alignable|hotfrog|cylex|brownbook|citysearch|showmelocal)\b/i.test(`${sourceLower} ${titleLower}`)) {
-    return false;
-  }
-  if (/\b(?:top\s*\d+|best\s+\d+|the\s+best\s+\d+|best\s+.+\s+near)\b/i.test(titleLower)
-    || /(?:site is undergoing maintenance|under construction|coming soon|404 not found|domain (?:for sale|expired)|default web site page)/i.test(titleLower)) {
-    return false;
-  }
-  if (expectedPhone && evaluateCompanyPhoneMatch(`${title} ${source}`, expectedPhone) === 'conflict') {
-    return false;
-  }
-  if (isNonWorkGraphicUrl(url, title) && !/(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u)) {
-    return false;
-  }
-
-  const safeCleanDomain = (cleanDomain && !isDirectoryHostOrUrl(cleanDomain)) ? cleanDomain.toLowerCase() : '';
-  const imgHost = u.replace(/^https?:\/\/(?:www\.)?/i, '').split('/')[0].split('?')[0];
-  const pageHost = pageLinkLower.replace(/^https?:\/\/(?:www\.)?/i, '').split('/')[0].split('?')[0];
-
-  // Block third-party trade mentions not matching this company (e.g. Vick's Lawncare on concrete site)
-  const bizLower = String(bizName || '').toLowerCase();
-  const foreignTradeMatch = titleLower.match(/\b(lawncare|lawn\s*care|landscap\w*|glass|auto\s*repair|salon|restaurant|roof\w*|tree\s*service|fenc\w*|plumb\w*|hvac|heating|cooling|electric\w*|concrete|asphalt|paving|waterproof\w*|excavat\w*)\b/i);
-  if (foreignTradeMatch) {
-    const mentionedTrade = foreignTradeMatch[1].toLowerCase().slice(0, 4);
-    const isConstructionOrFlatwork = /construct|build|contract|conc|flat|side|patio|drive|slab|mason|found|waterproof|cement|pave/.test(bizLower);
-    const matchesBizTrade = bizLower.includes(mentionedTrade)
-      || (isConstructionOrFlatwork && /conc|cement|pave|mason|found|water|excav|asph|roof|fenc/.test(mentionedTrade));
-    if (!matchesBizTrade && (!safeCleanDomain || (imgHost !== safeCleanDomain && pageHost !== safeCleanDomain))) {
-      return false;
-    }
-  }
-
-  // Require positive ownership proof:
-  // 1. Hosted on / linked directly from verified company website domain
-  if (safeCleanDomain && ((imgHost === safeCleanDomain || imgHost.endsWith('.' + safeCleanDomain)) || (pageHost === safeCleanDomain || pageHost.endsWith('.' + safeCleanDomain)))) {
-    return true;
-  }
-  // 2. Direct Google Maps Business Profile photo (only without conflicting brand/trade text)
-  if (u.includes('googleusercontent.com/gps-cs-s') || u.includes('googleusercontent.com/grass-cs') || u.includes('googleusercontent.com/p/') || u.includes('lh3.googleusercontent.com/places')) {
-    return !titleLower || matchesBusinessIdentity(combined, bizName);
-  }
-  // 3. Verified matching Facebook business page photo (never unverified crawler / post links)
-  if (pageLink && /(?:facebook\.com|fb\.com)/i.test(pageLink) && isMatchingCompanyFacebook(pageLink, bizName, title)) {
-    return true;
-  }
-  // 4. Image/page host itself matches the company brand identity
-  const hostClean = (pageHost || imgHost).replace(/[^a-z0-9]/g, '');
-  if (hostClean && matchesBusinessIdentity(hostClean, bizName) && (!titleLower || matchesBusinessIdentity(titleLower + ' ' + pageLinkLower, bizName))) {
-    return true;
-  }
-
-  return false;
-}
-
-function createSiteBuilder(options = {}) {
-  const {
-    stockRootDir,
-    previewBannerPath,
-    contactApiPath,
-    styleCssPath,
-    clientOverridesDir,
-    appsScriptUrl,
-    geminiApiKey = '',
-    geminiModel = 'gemini-3.5-flash',
-    geminiFallbackModel = 'gemini-3.5-flash-lite',
-    agencyPhone = '(920) 234-5633',
-    claimBaseUrl = 'https://624siteworks.com/claim.html',
-    gaMeasurementId = process.env.DEMO_GA_MEASUREMENT_ID || 'G-07ZVHY3BBN',
-    serpApiKey = process.env.SERP_API_KEY || '',
-    scrapeProspectWebsite,
-    logger = {}
-  } = options;
-
-  const logSub = logger.logSub || ((m) => console.log(`  -> ${m}`));
-  const logSuccess = logger.logSuccess || ((m) => console.log(`  [OK] ${m}`));
-  const logWarn = logger.logWarn || ((m) => console.warn(`  [WARN] ${m}`));
-
-  const TRADE_PHOTOGRAPHY_TAXONOMY = buildTradePhotographyTaxonomy(stockRootDir);
-
-  function resolveContextualPhoto(tradeKey, contextText, role, offset = 0) {
-    const normTrade = normalizeTradeCategory(tradeKey);
-    const tradePool = TRADE_PHOTOGRAPHY_TAXONOMY[normTrade] || TRADE_PHOTOGRAPHY_TAXONOMY['Fencing'];
-
-    if (role === 'hero' && tradePool.hero?.length) {
-      return tradePool.hero[offset % tradePool.hero.length];
-    }
-    if (role === 'about' && tradePool.about?.length) {
-      return tradePool.about[offset % tradePool.about.length];
-    }
-
-    const text = (contextText || '').toLowerCase();
-
-    if (normTrade === 'Fencing') {
-      if (/chain\s*link|cyclone|wire|security|industrial/i.test(text)) return tradePool.chain_link[offset % tradePool.chain_link.length];
-      if (/vinyl|pvc|white\s*picket|composite/i.test(text)) return tradePool.vinyl[offset % tradePool.vinyl.length];
-      if (/wood|cedar|timber|pine|board|privacy\s*wood/i.test(text)) return tradePool.wood[offset % tradePool.wood.length];
-      if (/iron|metal|aluminum|ornamental|gate/i.test(text)) return tradePool.metal_iron[offset % tradePool.metal_iron.length];
-      if (/deck|patio|pergola/i.test(text)) return tradePool.deck_patio[offset % tradePool.deck_patio.length];
-      if (/repair|storm|post|maintenance/i.test(text)) return tradePool.repair[offset % tradePool.repair.length];
-      const order = [tradePool.wood, tradePool.vinyl, tradePool.chain_link, tradePool.metal_iron];
-      return order[offset % order.length][0];
-    }
-    if (normTrade === 'Roofing') {
-      if (/metal|standing\s*seam|steel/i.test(text)) return tradePool.metal[offset % tradePool.metal.length];
-      if (/flat|commercial|membrane|tpo|epdm/i.test(text)) return tradePool.flat_commercial[offset % tradePool.flat_commercial.length];
-      if (/repair|storm|leak|inspection|chimney/i.test(text)) return tradePool.repair_inspection[offset % tradePool.repair_inspection.length];
-      return tradePool.shingle[offset % tradePool.shingle.length];
-    }
-    if (normTrade === 'Concrete') {
-      if (/stamped|decorative|stained|slate/i.test(text)) return tradePool.stamped_decorative[offset % tradePool.stamped_decorative.length];
-      if (/garage|shop\s*slab|interior\s*slab|floor/i.test(text)) return tradePool.garage_floors[offset % tradePool.garage_floors.length];
-      if (/patio|walkway|sidewalk|stoop|step/i.test(text)) return tradePool.patio_walkway[offset % tradePool.patio_walkway.length];
-      if (/foundation|footing|rebar/i.test(text)) return tradePool.foundation_footing[offset % tradePool.foundation_footing.length];
-      return tradePool.driveway_patio[offset % tradePool.driveway_patio.length];
-    }
-    if (normTrade === 'Plumbing') {
-      if (/drain|sewer|clog|jet/i.test(text)) return tradePool.drain_sewer[offset % tradePool.drain_sewer.length];
-      if (/fixture|faucet|sink|bath/i.test(text)) return tradePool.fixture_bath[offset % tradePool.fixture_bath.length];
-      if (/repair|leak|shut-off|burst/i.test(text)) return tradePool.emergency_repair[offset % tradePool.emergency_repair.length];
-      return tradePool.pipe_water[offset % tradePool.pipe_water.length];
-    }
-    if (normTrade === 'HVAC') {
-      if (/a\/c|air\s*cond|cool|condens|heat\s*pump|mini[-\s]*split/i.test(text)) return tradePool.ac_cooling[offset % tradePool.ac_cooling.length];
-      if (/furnace|boiler|heating|gas/i.test(text)) return tradePool.heating_furnace[offset % tradePool.heating_furnace.length];
-      if (/duct|ventilation|air\s*quality|iaq|humidif/i.test(text)) return tradePool.ductwork_air[offset % tradePool.ductwork_air.length];
-      if (/diagnostic|tune/i.test(text)) return tradePool.tuneup_diagnostics[offset % tradePool.tuneup_diagnostics.length];
-      const order = [tradePool.heating_furnace[0], tradePool.ac_cooling[0], tradePool.ductwork_air[0]];
-      return order[offset % order.length];
-    }
-    if (normTrade === 'Tree Service') {
-      if (/stump|grind/i.test(text)) return tradePool.stump_grinding[offset % tradePool.stump_grinding.length];
-      if (/trim|prun|canopy|crown/i.test(text)) return tradePool.trimming_pruning[offset % tradePool.trimming_pruning.length];
-      if (/storm|emerg|clear/i.test(text)) return tradePool.emergency_storm[offset % tradePool.emergency_storm.length];
-      return tradePool.removal_felling[offset % tradePool.removal_felling.length];
-    }
-    if (normTrade === 'Landscaping') {
-      if (/wall|retaining|stone|paver|patio|pergola/i.test(text)) return tradePool.hardscaping_stone[offset % tradePool.hardscaping_stone.length];
-      if (/grad|sod|cleanup|drain/i.test(text)) return tradePool.grading_sod[offset % tradePool.grading_sod.length];
-      return tradePool.lawn_turf[offset % tradePool.lawn_turf.length];
-    }
-    if (normTrade === 'Electricians') {
-      if (/panel|breaker/i.test(text)) return tradePool.panel_upgrade[offset % tradePool.panel_upgrade.length];
-      if (/light|fixture/i.test(text)) return tradePool.lighting_fixtures[offset % tradePool.lighting_fixtures.length];
-      return tradePool.wiring_ev[offset % tradePool.wiring_ev.length];
-    }
-    if (normTrade === 'Asphalt Paving') {
-      if (/commercial|parking/i.test(text)) return tradePool.commercial_parking[offset % tradePool.commercial_parking.length];
-      if (/roller|machine/i.test(text)) return tradePool.roller_compaction[offset % tradePool.roller_compaction.length];
-      return tradePool.driveway_paving[offset % tradePool.driveway_paving.length];
-    }
-    if (normTrade === 'Foundation Repair') {
-      if (/wall|crack|injection/i.test(text)) return tradePool.wall_crack_repair[offset % tradePool.wall_crack_repair.length];
-      if (/waterproof|drain|sump/i.test(text)) return tradePool.waterproofing_drainage[offset % tradePool.waterproofing_drainage.length];
-      return tradePool.piering_stabilization[offset % tradePool.piering_stabilization.length];
-    }
-    if (normTrade === 'Mechanical Contractor') {
-      if (/weld|spool|arc|gmaw|gtaw|fcaw|asme|aws/i.test(text)) return tradePool.welding_fabrication[offset % tradePool.welding_fabrication.length];
-      if (/waterjet|cut|machin|cnc|flange/i.test(text)) return tradePool.waterjet_machining[offset % tradePool.waterjet_machining.length];
-      if (/boiler|power|steam|co-generation|chiller|refrigerat/i.test(text)) return tradePool.boilers_power_piping[offset % tradePool.boilers_power_piping.length];
-      return tradePool.process_piping[offset % tradePool.process_piping.length];
-    }
-
-    const firstCat = Object.values(tradePool)[0];
-    return firstCat[offset % firstCat.length];
-  }
-
-  async function downloadFile(url, destPath) {
-    try {
-      if (!url || typeof url !== 'string') return false;
-      if (!url.startsWith('http')) {
-        if (fs.existsSync(url) && fs.statSync(url).size >= 800) {
-          fs.copyFileSync(url, destPath);
-          return true;
-        }
+      if (pageLink && isDirectoryHostOrUrl(pageLink) && !/(?:facebook\.com|fb\.com)/i.test(pageLink)) {
         return false;
       }
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(12000)
-      });
-      if (!res.ok) return false;
-      const cType = (res.headers.get('content-type') || '').toLowerCase();
-      if (cType && !cType.startsWith('image/')) return false;
-      const arrayBuf = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuf);
-      if (buffer.length < 800) return false;
-      fs.writeFileSync(destPath, buffer);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
+      if (u.includes('googleusercontent.com/gps-cs-s') || u.includes('googleusercontent.com/grass-cs') || u.includes('googleusercontent.com/p/')) return true;
+      if (/\b(?:mapquest|yelp|yellow\s*pages|manta|angi|angies\s*list|homeadvisor|thumbtack|nextdoor|porch|houzz|bbb|better business bureau|birdeye|superpages|buildzoom|chamber\s*of\s*commerce|oshkoshdirect|citydirect|direct\.us|expertise|threebestrated|bestprosintown|alignable|hotfrog|cylex|brownbook|citysearch|showmelocal)\b/i.test(`${sourceLower} ${titleLower}`)) {
+        return false;
+      }
+      if (/\b(?:top\s*\d+|best\s+\d+|the\s+best\s+\d+|best\s+.+\s+near)\b/i.test(titleLower)
+        || /(?:site is undergoing maintenance|under construction|coming soon|404 not found|domain (?:for sale|expired)|default web site page)/i.test(titleLower)) {
+        return false;
+      }
+      if (expectedPhone && evaluateCompanyPhoneMatch(`${title} ${source}`, expectedPhone) === 'conflict') {
+        return false;
+      }
+      if (isNonWorkGraphicUrl(url, title) && !/(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u)) {
+        return false;
+      }
 
-  async function downloadValidatedPhoto(candidates, fallbackSource, destPath, opts = {}) {
-    const minBytes = opts.minBytes ?? 10000;
-    const minWidth = opts.minWidth ?? 300;
-    const minHeight = opts.minHeight ?? 200;
-    const maxAspectRatio = opts.maxAspectRatio ?? 3.2;
-    let sharpMod = null;
-    try { sharpMod = (await import('sharp')).default; } catch (_) {}
+      const title = (detail?.title || '').toLowerCase();
+      const source = (detail?.source || '').toLowerCase();
+      const combined = `${title} ${source} ${u}`;
+      const bizTokens = getDistinctiveBizTokens(bizName);
+      const hostClean = u.replace(/^https?:\/\/(www\.)?/i, '').split('/')[0].replace(/[^a-z0-9]/g, '');
+      const hostedByBiz = bizTokens.length > 0 && bizTokens.some(t => t.length >= 3 && hostClean.includes(t));
+      const isDirectoryPhoto = u.includes('yelpcdn.com/bphoto') || u.includes('fbcdn.net') || source.includes('yelp') || source.includes('facebook') || source.includes('bbb.org');
+      const safeCleanDomain = (cleanDomain && !isDirectoryHostOrUrl(cleanDomain)) ? cleanDomain.toLowerCase() : '';
+      const imgHost = u.replace(/^https?:\/\/(?:www\.)?/i, '').split('/')[0].split('?')[0];
+      const pageHost = pageLinkLower.replace(/^https?:\/\/(?:www\.)?/i, '').split('/')[0].split('?')[0];
 
-    const list = (Array.isArray(candidates) ? candidates : [candidates]).filter(Boolean);
-    for (const src of list) {
-      const ok = await downloadFile(src, destPath);
-      if (!ok || !fs.existsSync(destPath)) continue;
-      try {
-        const size = fs.statSync(destPath).size;
-        if (size < minBytes) {
-          fs.unlinkSync(destPath);
-          continue;
-        }
-        if (sharpMod) {
-          const meta = await sharpMod(fs.readFileSync(destPath)).metadata();
-          if (!meta.width || !meta.height || meta.width < minWidth || meta.height < minHeight) {
-            fs.unlinkSync(destPath);
-            continue;
-          }
-          const ratio = meta.width / meta.height;
-          if (ratio > maxAspectRatio || ratio < (1 / maxAspectRatio)) {
-            fs.unlinkSync(destPath);
-            continue;
+      if (!isDirectoryPhoto && !hostedByBiz) return false;
+      if (isNonWorkGraphicUrl(url, title) && !/(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u)) return false;
+
+      if (/\b(?:top\s*\d+\s*best|best\s+.+\s+near)\b/i.test(title)) {
+        if (!bizTokens.some(t => title.includes(t))) return false;
+        // Block third-party trade mentions not matching this company (e.g. Vick's Lawncare on concrete site)
+        const bizLower = String(bizName || '').toLowerCase();
+        const foreignTradeMatch = titleLower.match(/\b(lawncare|lawn\s*care|landscap\w*|glass|auto\s*repair|salon|restaurant|roof\w*|tree\s*service|fenc\w*|plumb\w*|hvac|heating|cooling|electric\w*|concrete|asphalt|paving|waterproof\w*|excavat\w*)\b/i);
+        if (foreignTradeMatch) {
+          const mentionedTrade = foreignTradeMatch[1].toLowerCase().slice(0, 4);
+          const isConstructionOrFlatwork = /construct|build|contract|conc|flat|side|patio|drive|slab|mason|found|waterproof|cement|pave/.test(bizLower);
+          const matchesBizTrade = bizLower.includes(mentionedTrade)
+            || (isConstructionOrFlatwork && /conc|cement|pave|mason|found|water|excav|asph|roof|fenc/.test(mentionedTrade));
+          if (!matchesBizTrade && (!safeCleanDomain || (imgHost !== safeCleanDomain && pageHost !== safeCleanDomain))) {
+            return false;
           }
         }
-        return src;
-      } catch (_) {
-        try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (_) {}
-      }
-    }
 
-    if (fallbackSource && await downloadFile(fallbackSource, destPath)) {
-      return fallbackSource;
-    }
-    return null;
-  }
-
-  async function callGemini(promptText, model = geminiModel) {
-    if (!geminiApiKey) throw new Error('GEMINI_API_KEY not configured');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(20000),
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: {
-            temperature: 0.25,
-            maxOutputTokens: 8192,
-            responseMimeType: 'application/json'
+        if (bizTokens.length > 0 && title) {
+          const mentionsOtherTradeBiz = /\b(tree|fenc|roof|plumb|hvac|concrete|asphalt|landscap|electric|inc\.|llc)\b/i.test(title);
+          const hasOwnToken = bizTokens.some(t => combined.includes(t));
+          if (mentionsOtherTradeBiz && !hasOwnToken) return false;
+          // Require positive ownership proof:
+          // 1. Hosted on / linked directly from verified company website domain
+          if (safeCleanDomain && ((imgHost === safeCleanDomain || imgHost.endsWith('.' + safeCleanDomain)) || (pageHost === safeCleanDomain || pageHost.endsWith('.' + safeCleanDomain)))) {
+            return true;
           }
-        })
-      });
+          // 2. Direct Google Maps Business Profile photo (only without conflicting brand/trade text)
+          if (u.includes('googleusercontent.com/gps-cs-s') || u.includes('googleusercontent.com/grass-cs') || u.includes('googleusercontent.com/p/') || u.includes('lh3.googleusercontent.com/places')) {
+            return !titleLower || matchesBusinessIdentity(combined, bizName);
+          }
+          // 3. Verified matching Facebook business page photo (never unverified crawler / post links)
+          if (pageLink && /(?:facebook\.com|fb\.com)/i.test(pageLink) && isMatchingCompanyFacebook(pageLink, bizName, title)) {
+            return true;
+          }
+          // 4. Image/page host itself matches the company brand identity
+          const hostClean = (pageHost || imgHost).replace(/[^a-z0-9]/g, '');
+          if (hostClean && matchesBusinessIdentity(hostClean, bizName) && (!titleLower || matchesBusinessIdentity(titleLower + ' ' + pageLinkLower, bizName))) {
+            return true;
+          }
 
-      if (!res.ok) {
-        if (model !== geminiFallbackModel) {
-          logWarn(`Gemini model ${model} returned ${res.status}. Retrying with fallback ${geminiFallbackModel}...`);
-          return await callGemini(promptText, geminiFallbackModel);
+          return true;
+          return false;
         }
-        const errText = await res.text();
-        throw new Error(`Gemini API HTTP ${res.status}: ${errText}`);
-      }
 
-      const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } catch (err) {
-      if (model !== geminiFallbackModel) {
-        logWarn(`Gemini call failed with ${model}: ${err.message}. Retrying with fallback ${geminiFallbackModel}...`);
-        return await callGemini(promptText, geminiFallbackModel);
-      }
-      throw err;
-    }
-  }
+        function createSiteBuilder(options = {}) {
+          const {
+            stockRootDir,
+            previewBannerPath,
+            contactApiPath,
+            styleCssPath,
+            clientOverridesDir,
+            appsScriptUrl,
+            geminiApiKey = '',
+            geminiModel = 'gemini-3.5-flash',
+            geminiFallbackModel = 'gemini-3.5-flash-lite',
+            agencyPhone = '(920) 234-5633',
+            claimBaseUrl = 'https://624siteworks.com/claim.html',
+            gaMeasurementId = process.env.DEMO_GA_MEASUREMENT_ID || 'G-07ZVHY3BBN',
+            serpApiKey = process.env.SERP_API_KEY || '',
+            scrapeProspectWebsite,
+            logger = {}
+          } = options;
 
-  async function researchBusinessOnline(lead, tradeInfo, preloadedResearchData = null) {
-    const bizName = lead.businessName;
-    const city = tradeInfo.city;
-    const domain = lead.domainStatus || '';
+          const logSub = logger.logSub || ((m) => console.log(`  -> ${m}`));
+          const logSuccess = logger.logSuccess || ((m) => console.log(`  [OK] ${m}`));
+          const logWarn = logger.logWarn || ((m) => console.warn(`  [WARN] ${m}`));
 
-    logSub(`Searching web & social media for "${bizName}" (${city})...`);
+          const TRADE_PHOTOGRAPHY_TAXONOMY = buildTradePhotographyTaxonomy(stockRootDir);
 
-    // Scrub invalid/placeholder sheet email (e.g. xxxx@xxxx.xxx) so discovery can replace it
-    if (lead.email && !isValidBusinessEmail(lead.email)) {
-      lead.email = 'No email found';
-    }
+          function resolveContextualPhoto(tradeKey, contextText, role, offset = 0) {
+            const normTrade = normalizeTradeCategory(tradeKey);
+            const tradePool = TRADE_PHOTOGRAPHY_TAXONOMY[normTrade] || TRADE_PHOTOGRAPHY_TAXONOMY['Fencing'];
 
-    let researchData = {
-      socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
-      discoveredWebsite: '',
-      discoveredEmail: '',
-      websiteImages: [],
-      imageDetails: [],
-      extractedColors: [],
-      snippets: []
-    };
+            if (role === 'hero' && tradePool.hero?.length) {
+              return tradePool.hero[offset % tradePool.hero.length];
+            }
+            if (role === 'about' && tradePool.about?.length) {
+              return tradePool.about[offset % tradePool.about.length];
+            }
 
-    if (preloadedResearchData && typeof preloadedResearchData === 'object') {
-      researchData = { ...researchData, ...preloadedResearchData };
-    } else if (appsScriptUrl) {
-      try {
-        const res = await fetch(`${appsScriptUrl}?action=researchSocials&bizName=${encodeURIComponent(bizName)}&city=${encodeURIComponent(city)}&domain=${encodeURIComponent(domain)}&phone=${encodeURIComponent(lead.phone || '')}`);
-        const json = await res.json();
-        if (json.success) {
-          researchData = { ...researchData, ...json };
-        }
-      } catch (e) {
-        logWarn(`Social research endpoint error: ${e.message}`);
-      }
-    }
+            const text = (contextText || '').toLowerCase();
 
-    // Validate & clean discovered Facebook links AND enforce business identity match (never link another contractor's FB!)
-    if (researchData.socials?.facebook) {
-      const cleanFb = normalizeFacebookUrl(researchData.socials.facebook);
-      if (cleanFb && isMatchingCompanyFacebook(cleanFb, bizName)) {
-        researchData.socials.facebook = cleanFb;
-      } else {
-        logWarn(`Rejected mismatched Facebook URL ("${researchData.socials.facebook}") for "${bizName}"`);
-        researchData.socials.facebook = '';
-      }
-    }
-    if (lead.facebookUrl && !researchData.socials?.facebook) {
-      const cleanLeadFb = normalizeFacebookUrl(lead.facebookUrl);
-      if (cleanLeadFb && isMatchingCompanyFacebook(cleanLeadFb, bizName)) {
-        researchData.socials = { ...(researchData.socials || {}), facebook: cleanLeadFb };
-      } else if (cleanLeadFb) {
-        logWarn(`Rejected mismatched sheet Facebook URL ("${lead.facebookUrl}") for "${bizName}"`);
-        lead.facebookUrl = '';
-      }
-    }
-    if (domain && /facebook\.com|fb\.com/i.test(domain) && !isMatchingCompanyFacebook(domain, bizName)) {
-      logWarn(`Rejected mismatched sheet domain Facebook URL ("${domain}") for "${bizName}"`);
-      domain = 'No Website Listed';
-      lead.domainStatus = 'No Website Listed';
-    }
+            if (normTrade === 'Fencing') {
+              if (/chain\s*link|cyclone|wire|security|industrial/i.test(text)) return tradePool.chain_link[offset % tradePool.chain_link.length];
+              if (/vinyl|pvc|white\s*picket|composite/i.test(text)) return tradePool.vinyl[offset % tradePool.vinyl.length];
+              if (/wood|cedar|timber|pine|board|privacy\s*wood/i.test(text)) return tradePool.wood[offset % tradePool.wood.length];
+              if (/iron|metal|aluminum|ornamental|gate/i.test(text)) return tradePool.metal_iron[offset % tradePool.metal_iron.length];
+              if (/deck|patio|pergola/i.test(text)) return tradePool.deck_patio[offset % tradePool.deck_patio.length];
+              if (/repair|storm|post|maintenance/i.test(text)) return tradePool.repair[offset % tradePool.repair.length];
+              const order = [tradePool.wood, tradePool.vinyl, tradePool.chain_link, tradePool.metal_iron];
+              return order[offset % order.length][0];
+            }
+            if (normTrade === 'Roofing') {
+              if (/metal|standing\s*seam|steel/i.test(text)) return tradePool.metal[offset % tradePool.metal.length];
+              if (/flat|commercial|membrane|tpo|epdm/i.test(text)) return tradePool.flat_commercial[offset % tradePool.flat_commercial.length];
+              if (/repair|storm|leak|inspection|chimney/i.test(text)) return tradePool.repair_inspection[offset % tradePool.repair_inspection.length];
+              return tradePool.shingle[offset % tradePool.shingle.length];
+            }
+            if (normTrade === 'Concrete') {
+              if (/stamped|decorative|stained|slate/i.test(text)) return tradePool.stamped_decorative[offset % tradePool.stamped_decorative.length];
+              if (/garage|shop\s*slab|interior\s*slab|floor/i.test(text)) return tradePool.garage_floors[offset % tradePool.garage_floors.length];
+              if (/patio|walkway|sidewalk|stoop|step/i.test(text)) return tradePool.patio_walkway[offset % tradePool.patio_walkway.length];
+              if (/foundation|footing|rebar/i.test(text)) return tradePool.foundation_footing[offset % tradePool.foundation_footing.length];
+              return tradePool.driveway_patio[offset % tradePool.driveway_patio.length];
+            }
+            if (normTrade === 'Plumbing') {
+              if (/drain|sewer|clog|jet/i.test(text)) return tradePool.drain_sewer[offset % tradePool.drain_sewer.length];
+              if (/fixture|faucet|sink|bath/i.test(text)) return tradePool.fixture_bath[offset % tradePool.fixture_bath.length];
+              if (/repair|leak|shut-off|burst/i.test(text)) return tradePool.emergency_repair[offset % tradePool.emergency_repair.length];
+              return tradePool.pipe_water[offset % tradePool.pipe_water.length];
+            }
+            if (normTrade === 'HVAC') {
+              if (/a\/c|air\s*cond|cool|condens|heat\s*pump|mini[-\s]*split/i.test(text)) return tradePool.ac_cooling[offset % tradePool.ac_cooling.length];
+              if (/furnace|boiler|heating|gas/i.test(text)) return tradePool.heating_furnace[offset % tradePool.heating_furnace.length];
+              if (/duct|ventilation|air\s*quality|iaq|humidif/i.test(text)) return tradePool.ductwork_air[offset % tradePool.ductwork_air.length];
+              if (/diagnostic|tune/i.test(text)) return tradePool.tuneup_diagnostics[offset % tradePool.tuneup_diagnostics.length];
+              const order = [tradePool.heating_furnace[0], tradePool.ac_cooling[0], tradePool.ductwork_air[0]];
+              return order[offset % order.length];
+            }
+            if (normTrade === 'Tree Service') {
+              if (/stump|grind/i.test(text)) return tradePool.stump_grinding[offset % tradePool.stump_grinding.length];
+              if (/trim|prun|canopy|crown/i.test(text)) return tradePool.trimming_pruning[offset % tradePool.trimming_pruning.length];
+              if (/storm|emerg|clear/i.test(text)) return tradePool.emergency_storm[offset % tradePool.emergency_storm.length];
+              return tradePool.removal_felling[offset % tradePool.removal_felling.length];
+            }
+            if (normTrade === 'Landscaping') {
+              if (/wall|retaining|stone|paver|patio|pergola/i.test(text)) return tradePool.hardscaping_stone[offset % tradePool.hardscaping_stone.length];
+              if (/grad|sod|cleanup|drain/i.test(text)) return tradePool.grading_sod[offset % tradePool.grading_sod.length];
+              return tradePool.lawn_turf[offset % tradePool.lawn_turf.length];
+            }
+            if (normTrade === 'Electricians') {
+              if (/panel|breaker/i.test(text)) return tradePool.panel_upgrade[offset % tradePool.panel_upgrade.length];
+              if (/light|fixture/i.test(text)) return tradePool.lighting_fixtures[offset % tradePool.lighting_fixtures.length];
+              return tradePool.wiring_ev[offset % tradePool.wiring_ev.length];
+            }
+            if (normTrade === 'Asphalt Paving') {
+              if (/commercial|parking/i.test(text)) return tradePool.commercial_parking[offset % tradePool.commercial_parking.length];
+              if (/roller|machine/i.test(text)) return tradePool.roller_compaction[offset % tradePool.roller_compaction.length];
+              return tradePool.driveway_paving[offset % tradePool.driveway_paving.length];
+            }
+            if (normTrade === 'Foundation Repair') {
+              if (/wall|crack|injection/i.test(text)) return tradePool.wall_crack_repair[offset % tradePool.wall_crack_repair.length];
+              if (/waterproof|drain|sump/i.test(text)) return tradePool.waterproofing_drainage[offset % tradePool.waterproofing_drainage.length];
+              return tradePool.piering_stabilization[offset % tradePool.piering_stabilization.length];
+            }
+            if (normTrade === 'Mechanical Contractor') {
+              if (/weld|spool|arc|gmaw|gtaw|fcaw|asme|aws/i.test(text)) return tradePool.welding_fabrication[offset % tradePool.welding_fabrication.length];
+              if (/waterjet|cut|machin|cnc|flange/i.test(text)) return tradePool.waterjet_machining[offset % tradePool.waterjet_machining.length];
+              if (/boiler|power|steam|co-generation|chiller|refrigerat/i.test(text)) return tradePool.boilers_power_piping[offset % tradePool.boilers_power_piping.length];
+              return tradePool.process_piping[offset % tradePool.process_piping.length];
+            }
 
-    // Also scrub stale custom-domain email belonging to a different brand when business has no matching website
-    if (lead.email && lead.email !== 'No email found') {
-      const freeEmailDom = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'att.net', 'sbcglobal.net', 'charter.net', 'spectrum.net', 'new.rr.com']);
-      const curDom = (lead.email.split('@')[1] || '').toLowerCase();
-      if (curDom && !freeEmailDom.has(curDom) && (!domain || /no website|facebook\.com/i.test(domain)) && !matchesBusinessIdentity(curDom.split('.')[0], bizName)) {
-        logWarn(`Cleared mismatched custom-domain email ("${lead.email}") for "${bizName}"`);
-        lead.email = 'No email found';
-      }
-    }
+            const firstCat = Object.values(tradePool)[0];
+            return firstCat[offset % firstCat.length];
+          }
 
-    // Adopt verified search-discovered email when lead has none
-    if (researchData.discoveredEmail && isValidBusinessEmail(researchData.discoveredEmail) && (!lead.email || lead.email === 'No email found')) {
-      lead.email = researchData.discoveredEmail.trim().toLowerCase();
-      logSuccess(`Discovered business email via search research: ${lead.email}`);
-    }
+          async function downloadFile(url, destPath) {
+            try {
+              if (!url || typeof url !== 'string') return false;
+              if (!url.startsWith('http')) {
+                if (fs.existsSync(url) && fs.statSync(url).size >= 800) {
+                  fs.copyFileSync(url, destPath);
+                  return true;
+                }
+                return false;
+              }
+              const res = await fetch(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                signal: AbortSignal.timeout(12000)
+              });
+              if (!res.ok) return false;
+              const cType = (res.headers.get('content-type') || '').toLowerCase();
+              if (cType && !cType.startsWith('image/')) return false;
+              const arrayBuf = await res.arrayBuffer();
+              const buffer = Buffer.from(arrayBuf);
+              if (buffer.length < 800) return false;
+              fs.writeFileSync(destPath, buffer);
+              return true;
+            } catch (e) {
+              return false;
+            }
+          }
 
-    if (researchData.socials?.instagram && /(?:citydirect|oshkoshdirect|appletondirect|mapquest|yelp|yellowpages|bbb|angi|homeadvisor|thumbtack|manta)/i.test(researchData.socials.instagram)) {
-      logWarn(`Rejected directory Instagram URL ("${researchData.socials.instagram}") for "${bizName}"`);
-      researchData.socials.instagram = '';
-    }
+          async function downloadValidatedPhoto(candidates, fallbackSource, destPath, opts = {}) {
+            const minBytes = opts.minBytes ?? 10000;
+            const minWidth = opts.minWidth ?? 300;
+            const minHeight = opts.minHeight ?? 200;
+            const maxAspectRatio = opts.maxAspectRatio ?? 3.2;
+            let sharpMod = null;
+            try { sharpMod = (await import('sharp')).default; } catch (_) { }
 
-    // Resolve target domain before filtering images so cleanDomain includes discovered websites
-    let prospectDomain = domain;
-    if (prospectDomain && isDirectoryHostOrUrl(prospectDomain) && !/facebook\.com|fb\.com/i.test(prospectDomain)) {
-      logWarn(`Ignoring directory listing URL ("${prospectDomain}") as website for "${bizName}"`);
-      prospectDomain = 'No Website Listed';
-    }
-    const noListedWebsite = !prospectDomain || prospectDomain.toLowerCase().includes('no website') || prospectDomain.toLowerCase().includes('facebook.com');
-    if (noListedWebsite) {
-      if (bizName.toLowerCase().includes('berken')) {
-        prospectDomain = 'http://www.berkenheating.com';
-      } else if (researchData.discoveredWebsite && /^https?:\/\//i.test(researchData.discoveredWebsite) && !isDirectoryHostOrUrl(researchData.discoveredWebsite)) {
-        prospectDomain = researchData.discoveredWebsite;
-        logSuccess(`Discovered company website via web search: ${prospectDomain}`);
-      } else {
-        const snippetText = (researchData.snippets || []).join(' ').replace(/\S+@\S+/g, ' ');
-        const domainMatches = snippetText.match(/\b([a-zA-Z0-9-]+\.(?:com|org|net|biz))\b/gi) || [];
-        const excludedDomains = [
-          'facebook.com', 'instagram.com', 'linkedin.com', 'bbb.org', 'yelp.com', 'shopify.com',
-          '99designs.com', 'freelancer.com', 'google.com', 'yellowpages.com', 'mapquest.com',
-          'mementor.no', 'sanity.io', 'yahoo.com', 'gmail.com', 'aol.com', 'hotmail.com',
-          'outlook.com', 'msn.com', 'bing.com', 'live.com', 'icloud.com', 'att.net',
-          'sbcglobal.net', 'charter.net', 'spectrum.net', 'comcast.net', 'angi.com',
-          'homeadvisor.com', 'thumbtack.com', 'porch.com', 'houzz.com', 'nextdoor.com',
-          'manta.com', 'chamberofcommerce.com', 'birdeye.com', 'superpages.com',
-          'buildzoom.com', 'bizapedia.com', 'zoominfo.com', 'dnb.com', 'opencorporates.com',
+            const list = (Array.isArray(candidates) ? candidates : [candidates]).filter(Boolean);
+            for (const src of list) {
+              const ok = await downloadFile(src, destPath);
+              if (!ok || !fs.existsSync(destPath)) continue;
+              try {
+                const size = fs.statSync(destPath).size;
+                if (size < minBytes) {
+                  fs.unlinkSync(destPath);
+                  continue;
+                }
+                if (sharpMod) {
+                  const meta = await sharpMod(fs.readFileSync(destPath)).metadata();
+                  if (!meta.width || !meta.height || meta.width < minWidth || meta.height < minHeight) {
+                    fs.unlinkSync(destPath);
+                    continue;
+                  }
+                  const ratio = meta.width / meta.height;
+                  if (ratio > maxAspectRatio || ratio < (1 / maxAspectRatio)) {
+                    fs.unlinkSync(destPath);
+                    continue;
+                  }
+                }
+                return src;
+              } catch (_) {
+                try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (_) { }
+              }
+            }
+
+            if (fallbackSource && await downloadFile(fallbackSource, destPath)) {
+              return fallbackSource;
+            }
+            return null;
+          }
+
+          async function callGemini(promptText, model = geminiModel) {
+            if (!geminiApiKey) throw new Error('GEMINI_API_KEY not configured');
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+            try {
+              const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(20000),
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: promptText }] }],
+                  generationConfig: {
+                    temperature: 0.25,
+                    maxOutputTokens: 8192,
+                    responseMimeType: 'application/json'
+                  }
+                })
+              });
+
+              if (!res.ok) {
+                if (model !== geminiFallbackModel) {
+                  logWarn(`Gemini model ${model} returned ${res.status}. Retrying with fallback ${geminiFallbackModel}...`);
+                  return await callGemini(promptText, geminiFallbackModel);
+                }
+                const errText = await res.text();
+                throw new Error(`Gemini API HTTP ${res.status}: ${errText}`);
+              }
+
+              const data = await res.json();
+              return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            } catch (err) {
+              if (model !== geminiFallbackModel) {
+                logWarn(`Gemini call failed with ${model}: ${err.message}. Retrying with fallback ${geminiFallbackModel}...`);
+                return await callGemini(promptText, geminiFallbackModel);
+              }
+              throw err;
+            }
+          }
+
+          async function researchBusinessOnline(lead, tradeInfo, preloadedResearchData = null) {
+            const bizName = lead.businessName;
+            const city = tradeInfo.city;
+            const domain = lead.domainStatus || '';
+
+            logSub(`Searching web & social media for "${bizName}" (${city})...`);
+
+            // Scrub invalid/placeholder sheet email (e.g. xxxx@xxxx.xxx) so discovery can replace it
+            if (lead.email && !isValidBusinessEmail(lead.email)) {
+              lead.email = 'No email found';
+            }
+
+            let researchData = {
+              socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
+              discoveredWebsite: '',
+              discoveredEmail: '',
+              websiteImages: [],
+              imageDetails: [],
+              extractedColors: [],
+              snippets: []
+            };
+
+            if (preloadedResearchData && typeof preloadedResearchData === 'object') {
+              researchData = { ...researchData, ...preloadedResearchData };
+            } else if (appsScriptUrl) {
+              try {
+                const res = await fetch(`${appsScriptUrl}?action=researchSocials&bizName=${encodeURIComponent(bizName)}&city=${encodeURIComponent(city)}&domain=${encodeURIComponent(domain)}&phone=${encodeURIComponent(lead.phone || '')}`);
+                const json = await res.json();
+                if (json.success) {
+                  researchData = { ...researchData, ...json };
+                }
+              } catch (e) {
+                logWarn(`Social research endpoint error: ${e.message}`);
+              }
+            }
+
+            // Validate & clean discovered Facebook links AND enforce business identity match (never link another contractor's FB!)
+            if (researchData.socials?.facebook) {
+              const cleanFb = normalizeFacebookUrl(researchData.socials.facebook);
+              if (cleanFb && isMatchingCompanyFacebook(cleanFb, bizName)) {
+                researchData.socials.facebook = cleanFb;
+              } else {
+                logWarn(`Rejected mismatched Facebook URL ("${researchData.socials.facebook}") for "${bizName}"`);
+                researchData.socials.facebook = '';
+              }
+            }
+            if (lead.facebookUrl && !researchData.socials?.facebook) {
+              const cleanLeadFb = normalizeFacebookUrl(lead.facebookUrl);
+              if (cleanLeadFb && isMatchingCompanyFacebook(cleanLeadFb, bizName)) {
+                researchData.socials = { ...(researchData.socials || {}), facebook: cleanLeadFb };
+              } else if (cleanLeadFb) {
+                logWarn(`Rejected mismatched sheet Facebook URL ("${lead.facebookUrl}") for "${bizName}"`);
+                lead.facebookUrl = '';
+              }
+            }
+            if (domain && /facebook\.com|fb\.com/i.test(domain) && !isMatchingCompanyFacebook(domain, bizName)) {
+              logWarn(`Rejected mismatched sheet domain Facebook URL ("${domain}") for "${bizName}"`);
+              domain = 'No Website Listed';
+              lead.domainStatus = 'No Website Listed';
+            }
+
+            // Also scrub stale custom-domain email belonging to a different brand when business has no matching website
+            if (lead.email && lead.email !== 'No email found') {
+              const freeEmailDom = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'att.net', 'sbcglobal.net', 'charter.net', 'spectrum.net', 'new.rr.com']);
+              const curDom = (lead.email.split('@')[1] || '').toLowerCase();
+              if (curDom && !freeEmailDom.has(curDom) && (!domain || /no website|facebook\.com/i.test(domain)) && !matchesBusinessIdentity(curDom.split('.')[0], bizName)) {
+                logWarn(`Cleared mismatched custom-domain email ("${lead.email}") for "${bizName}"`);
+                lead.email = 'No email found';
+              }
+            }
+
+            // Adopt verified search-discovered email when lead has none
+            if (researchData.discoveredEmail && isValidBusinessEmail(researchData.discoveredEmail) && (!lead.email || lead.email === 'No email found')) {
+              lead.email = researchData.discoveredEmail.trim().toLowerCase();
+              logSuccess(`Discovered business email via search research: ${lead.email}`);
+            }
+
+            if (researchData.socials?.instagram && /(?:citydirect|oshkoshdirect|appletondirect|mapquest|yelp|yellowpages|bbb|angi|homeadvisor|thumbtack|manta)/i.test(researchData.socials.instagram)) {
+              logWarn(`Rejected directory Instagram URL ("${researchData.socials.instagram}") for "${bizName}"`);
+              researchData.socials.instagram = '';
+            }
+
+            // Resolve target domain before filtering images so cleanDomain includes discovered websites
+            let prospectDomain = domain;
+            if (prospectDomain && isDirectoryHostOrUrl(prospectDomain) && !/facebook\.com|fb\.com/i.test(prospectDomain)) {
+              logWarn(`Ignoring directory listing URL ("${prospectDomain}") as website for "${bizName}"`);
+              prospectDomain = 'No Website Listed';
+            }
+            const noListedWebsite = !prospectDomain || prospectDomain.toLowerCase().includes('no website') || prospectDomain.toLowerCase().includes('facebook.com');
+            if (noListedWebsite) {
+              if (bizName.toLowerCase().includes('berken')) {
+                prospectDomain = 'http://www.berkenheating.com';
+              } else if (researchData.discoveredWebsite && /^https?:\/\//i.test(researchData.discoveredWebsite)) {
+              } else if (researchData.discoveredWebsite && /^https?:\/\//i.test(researchData.discoveredWebsite) && !isDirectoryHostOrUrl(researchData.discoveredWebsite)) {
+                prospectDomain = researchData.discoveredWebsite;
+                logSuccess(`Discovered company website via web search: ${prospectDomain}`);
+              } else {
+                const snippetText = (researchData.snippets || []).join(' ').replace(/\S+@\S+/g, ' ');
+                const domainMatches = snippetText.match(/\b([a-zA-Z0-9-]+\.(?:com|org|net|biz))\b/gi) || [];
+                const excludedDomains = [
+                  'facebook.com', 'instagram.com', 'linkedin.com', 'bbb.org', 'yelp.com', 'shopify.com',
+                  '99designs.com', 'freelancer.com', 'google.com', 'yellowpages.com', 'mapquest.com',
+                  'mementor.no', 'sanity.io', 'yahoo.com', 'gmail.com', 'aol.com', 'hotmail.com',
+                  'outlook.com', 'msn.com', 'bing.com', 'live.com', 'icloud.com', 'att.net',
+                  'sbcglobal.net', 'charter.net', 'spectrum.net', 'comcast.net', 'angi.com',
+                  'homeadvisor.com', 'thumbtack.com', 'porch.com', 'houzz.com', 'nextdoor.com',
+                  'manta.com', 'chamberofcommerce.com', 'birdeye.com', 'superpages.com',
+                  'buildzoom.com', 'bizapedia.com', 'zoominfo.com', 'dnb.com', 'opencorporates.com',
+                  'expertise.com', 'threebestrated.com', 'bestprosintown.com', 'snowlawn.com'
           'expertise.com', 'threebestrated.com', 'bestprosintown.com', 'snowlawn.com',
-          'oshkoshdirect.us', 'appletondirect.us', 'alignable.com', 'hotfrog.com', 'brownbook.net'
-        ];
-        const bizTokens = getDistinctiveBizTokens(bizName);
-        const brandStems = getBrandStems(bizName);
-        for (const dm of domainMatches) {
-          const cleanDm = dm.toLowerCase();
-          const isExcluded = isDirectoryHostOrUrl(cleanDm) || excludedDomains.some(ex => cleanDm === ex || cleanDm.endsWith('.' + ex) || cleanDm.includes(ex));
-          const looksLikeBiz = bizTokens.length > 0
-            ? bizTokens.some(t => cleanDm.includes(t))
-            : brandStems.some(st => cleanDm.includes(st));
-          const dmIdx = snippetText.toLowerCase().indexOf(cleanDm);
-          const dmWin = snippetText.slice(Math.max(0, dmIdx - 180), Math.min(snippetText.length, dmIdx + 180));
-          const domStemOnly = cleanDm.split('.')[0].replace(/[^a-z0-9]/g, '');
-          const endsWithOtherState = /(?:mn|il|mi|ia|ct|tx|fl|oh|nc|sd|ca|ny|pa|ga|va|in|mo|ks|ne|wa|or|az|co)$/i.test(domStemOnly)
-            && !/\b(?:wisconsin|,?\s*wi|appleton|oshkosh|neenah|menasha|kaukauna|kimberly|little chute|green bay|fox valley)\b/i.test(dmWin);
-          const phoneStatus = evaluateCompanyPhoneMatch(dmWin, lead.phone || '');
-          const hasWrongStateOrMetro = /\b(?:hawaii|mililani|las vegas|connecticut|south dakota|north carolina|texas|florida|ohio|michigan|minnesota|illinois|plover|madison|verona|milwaukee)\b|(?:,\s*(?:HI|NV|CT|SD|NC|TX|FL|OH|MI|MN|IL)\b)|\b(?:808|702|608|715|414|262)[-\s).]?\d{3}/i.test(dmWin)
-            && !/\b(?:appleton|kimberly|little chute|brillion|kaukauna|neenah|menasha|oshkosh|green bay|920)\b/i.test(dmWin);
-          if (!isExcluded && looksLikeBiz && !endsWithOtherState && phoneStatus !== 'conflict' && !hasWrongStateOrMetro) {
-            prospectDomain = `http://${cleanDm}`;
-            break;
-          }
-        }
-      }
-    }
+                  'oshkoshdirect.us', 'appletondirect.us', 'alignable.com', 'hotfrog.com', 'brownbook.net'
+                ];
+                const bizTokens = getDistinctiveBizTokens(bizName);
+                const brandStems = getBrandStems(bizName);
+                for (const dm of domainMatches) {
+                  const cleanDm = dm.toLowerCase();
+                  const isExcluded = excludedDomains.some(ex => cleanDm === ex || cleanDm.endsWith('.' + ex) || cleanDm.includes(ex));
+                  const isExcluded = isDirectoryHostOrUrl(cleanDm) || excludedDomains.some(ex => cleanDm === ex || cleanDm.endsWith('.' + ex) || cleanDm.includes(ex));
+                  const looksLikeBiz = bizTokens.length > 0
+                    ? bizTokens.some(t => cleanDm.includes(t))
+                    : brandStems.some(st => cleanDm.includes(st));
+                  const dmIdx = snippetText.toLowerCase().indexOf(cleanDm);
+                  const dmWin = snippetText.slice(Math.max(0, dmIdx - 180), Math.min(snippetText.length, dmIdx + 180));
+                  const domStemOnly = cleanDm.split('.')[0].replace(/[^a-z0-9]/g, '');
+                  const endsWithOtherState = /(?:mn|il|mi|ia|ct|tx|fl|oh|nc|sd|ca|ny|pa|ga|va|in|mo|ks|ne|wa|or|az|co)$/i.test(domStemOnly)
+                    && !/\b(?:wisconsin|,?\s*wi|appleton|oshkosh|neenah|menasha|kaukauna|kimberly|little chute|green bay|fox valley)\b/i.test(dmWin);
+                  const phoneStatus = evaluateCompanyPhoneMatch(dmWin, lead.phone || '');
+                  const hasWrongStateOrMetro = /\b(?:hawaii|mililani|las vegas|connecticut|south dakota|north carolina|texas|florida|ohio|michigan|minnesota|illinois|plover|madison|verona|milwaukee)\b|(?:,\s*(?:HI|NV|CT|SD|NC|TX|FL|OH|MI|MN|IL)\b)|\b(?:808|702|608|715|414|262)[-\s).]?\d{3}/i.test(dmWin)
+                    && !/\b(?:appleton|kimberly|little chute|brillion|kaukauna|neenah|menasha|oshkosh|green bay|920)\b/i.test(dmWin);
+                  if (!isExcluded && looksLikeBiz && phoneStatus !== 'conflict' && !hasWrongStateOrMetro) {
+                    if (!isExcluded && looksLikeBiz && !endsWithOtherState && phoneStatus !== 'conflict' && !hasWrongStateOrMetro) {
+                      prospectDomain = `http://${cleanDm}`;
+                      break;
+                    }
+                  }
+                }
+              }
 
-    const activeDomainForHost = (prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com') && !isDirectoryHostOrUrl(prospectDomain))
-      ? prospectDomain
+              const activeDomainForHost = (prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com'))
+              const activeDomainForHost = (prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com') && !isDirectoryHostOrUrl(prospectDomain))
+                ? prospectDomain
+                : domain;
       : (domain && !isDirectoryHostOrUrl(domain) ? domain : '');
-    const cleanDomain = (activeDomainForHost && !activeDomainForHost.toLowerCase().includes('no website') && !activeDomainForHost.toLowerCase().includes('facebook.com'))
-      ? activeDomainForHost.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0]
-      : '';
+              const cleanDomain = (activeDomainForHost && !activeDomainForHost.toLowerCase().includes('no website') && !activeDomainForHost.toLowerCase().includes('facebook.com'))
+                ? activeDomainForHost.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0]
+                : '';
 
-    const detailByUrl = new Map((researchData.imageDetails || []).map(d => [d.url, d]));
-    const imageMetaMap = new Map();
-    for (const d of (researchData.imageDetails || [])) {
-      if (d && d.url) {
-        imageMetaMap.set(d.url, { alt: d.title || '', context: d.source || '', link: d.link || '' });
-      }
-    }
+              const detailByUrl = new Map((researchData.imageDetails || []).map(d => [d.url, d]));
+              const imageMetaMap = new Map();
+              for (const d of (researchData.imageDetails || [])) {
+                if (d && d.url) {
+                  imageMetaMap.set(d.url, { alt: d.title || '', context: d.source || '' });
+                  imageMetaMap.set(d.url, { alt: d.title || '', context: d.source || '', link: d.link || '' });
+                }
+              }
 
-    researchData.websiteImages = (researchData.websiteImages || [])
+              researchData.websiteImages = (researchData.websiteImages || [])
+                .filter(u => isTrustworthyResearchImage(u, detailByUrl.get(u), bizName, cleanDomain));
       .filter(u => isTrustworthyResearchImage(u, detailByUrl.get(u), bizName, cleanDomain, lead.phone || ''));
 
-    // Identify explicit logo URL in search results if scraper doesn't yield one later
-    if (!researchData.logo) {
-      const serperLogo = researchData.websiteImages.find(u => /(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u.toLowerCase()) && !isNonWorkGraphicUrl(u));
-      if (serperLogo) researchData.logo = serperLogo;
-    }
-
-    // Include Google Places field photo if present
-    if (lead.logoUrl && !isJunkImageUrl(lead.logoUrl) && !isDirectoryHostOrUrl(lead.logoUrl) && !researchData.websiteImages.includes(lead.logoUrl)) {
-      researchData.websiteImages.unshift(lead.logoUrl);
-    }
-
-    // Deep Website Scraper Agent
-    if (scrapeProspectWebsite && prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com') && !isDirectoryHostOrUrl(prospectDomain)) {
-      try {
-        logSub(`Deep-scraping prospect website (${prospectDomain}) for authentic colors, logo, and work photos...`);
-        const scraped = await scrapeProspectWebsite(prospectDomain);
-        const isParkedOrMissingSite = !scraped || /site not found|domain (?:for sale|expired)|coming soon|404 not found|error 404/i.test(scraped.title || '');
-        const scrapedPhoneConflict = scraped && evaluateCompanyPhoneMatch(`${scraped.phone || ''} ${scraped.address || ''}`, lead.phone || '') === 'conflict';
-        const scrapedStateBlob = scraped ? `${scraped.title || ''} ${scraped.address || ''} ${scraped.metaDescription || ''}` : '';
-        const scrapedWrongState = scraped && /\b(?:minnesota|illinois|michigan|iowa|connecticut|texas|florida|ohio|indiana|south dakota|north carolina|california|new york)\b|,\s*(?:MN|IL|MI|IA|CT|TX|FL|OH|IN|SD|NC|CA|NY)\b/i.test(scrapedStateBlob)
-          && !/\b(?:wisconsin|,?\s*WI|appleton|oshkosh|neenah|menasha|kaukauna|kimberly|little chute|green bay)\b/i.test(scrapedStateBlob);
-        if (scraped && !isParkedOrMissingSite && (scrapedPhoneConflict || scrapedWrongState)) {
-          logWarn(`Ignoring mismatched scraped website ${prospectDomain} (phone=${scraped.phone || 'none'}, address=${scraped.address || 'none'}).`);
-          if (cleanDomain) {
-            researchData.websiteImages = researchData.websiteImages.filter(u => !u.toLowerCase().includes(cleanDomain.toLowerCase()));
-          }
-          if (researchData.discoveredWebsite && researchData.discoveredWebsite.includes(cleanDomain)) {
-            researchData.discoveredWebsite = '';
-          }
-          researchData.logo = '';
-        } else if (scraped && !isParkedOrMissingSite) {
-          if (scraped.colors?.primary) {
-            researchData.extractedColors = [
-              scraped.colors.primary,
-              ...(scraped.colors.extractedPalette || [])
-            ];
-            logSuccess(`Extracted authentic brand color palette: ${researchData.extractedColors.slice(0, 5).join(', ')}`);
-          }
-          if (scraped.logo && !isJunkImageUrl(scraped.logo) && !isDirectoryHostOrUrl(scraped.logo)) {
-            researchData.logo = scraped.logo;
-            if (!researchData.websiteImages.includes(scraped.logo)) {
-              researchData.websiteImages.unshift(scraped.logo);
-            }
-            logSuccess(`Discovered authentic brand logo: ${scraped.logo}`);
-          }
-          if (Array.isArray(scraped.images)) {
-            const authenticImgs = [];
-            for (const imgObj of scraped.images) {
-              const u = typeof imgObj === 'string' ? imgObj : imgObj?.url;
-              if (!u || isJunkImageUrl(u) || isDirectoryHostOrUrl(u) || isNonWorkGraphicUrl(u, imgObj?.alt || '')) continue;
-              authenticImgs.push(u);
-              if (typeof imgObj === 'object') {
-                imageMetaMap.set(u, { alt: imgObj.alt || '', context: imgObj.context || '' });
+              // Identify explicit logo URL in search results if scraper doesn't yield one later
+              if (!researchData.logo) {
+                const serperLogo = researchData.websiteImages.find(u => /(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u.toLowerCase()) && !isNonWorkGraphicUrl(u));
+                if (serperLogo) researchData.logo = serperLogo;
               }
-            }
-            researchData.websiteImages = [
-              ...authenticImgs,
-              ...researchData.websiteImages.filter(u => !authenticImgs.includes(u))
-            ];
-          }
-          if (scraped.services && scraped.services.length > 0) {
-            researchData.realServices = scraped.services;
-            logSuccess(`Detected real service offerings: ${scraped.services.map(s => s.name).join(' | ')}`);
-          }
-          if (scraped.phone && (!lead.phone || lead.phone.includes('234-5633'))) {
-            lead.phone = scraped.phone;
-          }
-          if (scraped.email && isValidBusinessEmail(scraped.email)) {
-            lead.email = scraped.email.trim().toLowerCase();
-            researchData.discoveredEmail = lead.email;
-          }
-          if (scraped.facebook && !researchData.socials?.facebook) {
-            const cleanScrapedFb = normalizeFacebookUrl(scraped.facebook);
-            if (cleanScrapedFb && isMatchingCompanyFacebook(cleanScrapedFb, bizName)) {
-              researchData.socials = { ...(researchData.socials || {}), facebook: cleanScrapedFb };
-            }
-          }
-          if (scraped.aboutSnippets && scraped.aboutSnippets.length > 0) {
-            researchData.snippets.push(...scraped.aboutSnippets);
-          }
-          if (scraped.certifications && scraped.certifications.length > 0) {
-            researchData.certifications = scraped.certifications;
-          }
-          researchData.scrapedWebsiteData = scraped;
-        } else if (scraped && isParkedOrMissingSite) {
-          logWarn(`Ignoring parked/missing site response from ${prospectDomain} ("${scraped.title}").`);
-        }
-      } catch (scrapErr) {
-        logWarn(`Prospect website deep-scrape notice: ${scrapErr.message}`);
-      }
-    }
 
-    // Fallback email extraction from search snippets + SerpApi Google AI Overview when still missing
-    if (!lead.email || lead.email === 'No email found' || !isValidBusinessEmail(lead.email)) {
-      const bizTokens = getDistinctiveBizTokens(bizName);
-      const snippetBlob = (researchData.snippets || []).join(' ');
-      const freeDomains = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'att.net', 'sbcglobal.net', 'charter.net', 'spectrum.net', 'new.rr.com', 'peoplepc.com']);
-      const pickBestEmail = (rawText, groundedTextLower) => {
-        const matches = String(rawText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g) || [];
-        const cityStr = String(city || 'Fox Valley, WI');
-        const stMatch = cityStr.match(/,\s*([A-Z]{2})\b/);
-        const tgtAbbr = (stMatch ? stMatch[1] : 'WI').toLowerCase();
-        let best = null;
-        let bestScore = -999;
-        for (const cand of matches) {
-          const e = cand.toLowerCase();
-          if (!isValidBusinessEmail(e)) continue;
-          const idx = String(rawText).toLowerCase().indexOf(e);
-          const win = String(rawText).slice(Math.max(0, idx - 220), Math.min(String(rawText).length, idx + 220));
-          const winPhoneStatus = evaluateCompanyPhoneMatch(win, lead.phone || '');
-          if (winPhoneStatus === 'conflict') continue;
-          const hasConflictingFullState = /\b(?:connecticut|south dakota|north carolina|texas|florida|ohio|michigan|minnesota|illinois|indiana|iowa|california|new york|pennsylvania|georgia|virginia)\b/i.test(win) && !/\b(?:wisconsin|appleton|neenah|menasha|kaukauna|kimberly|little chute|brillion|oshkosh|green bay)\b/i.test(win);
-          if (hasConflictingFullState) continue;
-          const [local = '', dom = ''] = e.split('@');
-          const domStem = (dom.split('.')[0] || '').toLowerCase();
-          if (domStem.length > 5 && /ct|tx|fl|oh|mi|mn|il|nc|sd|ca|ny|pa|ga|va$/i.test(domStem) && !domStem.endsWith(tgtAbbr) && !/\b(?:wisconsin|,?\s*wi)\b/i.test(win)) {
-            continue;
-          }
-          const domNoTld = dom.replace(/\.[a-z]{2,12}$/i, '').replace(/[^a-z0-9]/g, '');
-          const localClean = local.replace(/[^a-z0-9]/g, '');
-          const brandStems = getBrandStems(bizName);
-          const hits = bizTokens.length > 0
-            ? bizTokens.filter(t => localClean.includes(t) || (!freeDomains.has(dom) && domNoTld.includes(t))).length
-            : (brandStems.some(st => localClean.includes(st) || (!freeDomains.has(dom) && domNoTld.includes(st))) ? 1 : 0);
-          const matchesHost = Boolean(cleanDomain && !freeDomains.has(dom) && (dom === cleanDomain || dom.endsWith(`.${cleanDomain}`)));
-          const isGrounded = Boolean(groundedTextLower && groundedTextLower.includes(e));
-          const isVerifiedBrandEmail = !freeDomains.has(dom)
-            ? (hits > 0 || matchesHost)
-            : (hits > 0 || matchesHost || (isGrounded && winPhoneStatus === 'match'));
-          if (!isVerifiedBrandEmail) continue;
-          const sc = (matchesHost ? 100 : 40) + hits * 35 + (isGrounded ? 20 : 0) + (winPhoneStatus === 'match' ? 45 : 0);
-          if (sc > bestScore) {
-            bestScore = sc;
-            best = e;
-          }
-        }
-        return best;
-      };
+              // Include Google Places field photo if present
+              if (lead.logoUrl && !isJunkImageUrl(lead.logoUrl) && !researchData.websiteImages.includes(lead.logoUrl)) {
+                if (lead.logoUrl && !isJunkImageUrl(lead.logoUrl) && !isDirectoryHostOrUrl(lead.logoUrl) && !researchData.websiteImages.includes(lead.logoUrl)) {
+                  researchData.websiteImages.unshift(lead.logoUrl);
+                }
 
-      const snippetEmail = pickBestEmail(snippetBlob, '');
-      if (snippetEmail) {
-        lead.email = snippetEmail;
-        researchData.discoveredEmail = snippetEmail;
-        logSuccess(`Extracted business email from research snippets: ${snippetEmail}`);
-      } else if (serpApiKey) {
-        try {
-          const cityClean = city && !/fox valley|northeast wisconsin/i.test(city) ? city.replace(/,/g, '') : 'WI';
-          const q = `${bizName} ${cityClean} email`;
-          const sResp = await fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&gl=us&hl=en&api_key=${encodeURIComponent(serpApiKey)}`);
-          if (sResp.ok) {
-            const sData = await sResp.json();
-            let aioText = '';
-            if (sData.ai_overview) {
-              let aio = sData.ai_overview;
-              if (!aio.text_blocks && aio.serpapi_link) {
-                const aioR = await fetch(`${aio.serpapi_link}${aio.serpapi_link.includes('api_key=') ? '' : '&api_key=' + encodeURIComponent(serpApiKey)}`);
-                if (aioR.ok) aio = await aioR.json();
-              }
-              aioText = JSON.stringify(aio.text_blocks || aio);
-            }
-            const kgStr = sData.knowledge_graph ? JSON.stringify(sData.knowledge_graph) : '';
-            const kgSafe = (kgStr && evaluateCompanyPhoneMatch(kgStr, lead.phone || '') !== 'conflict' && matchesBusinessIdentity(kgStr, bizName)) ? kgStr : '';
-            const safeOrganic = (sData.organic_results || []).slice(0, 8).filter((it) => {
-              const txt = [it.title || '', it.link || '', it.snippet || ''].join(' ');
-              return evaluateCompanyPhoneMatch(txt, lead.phone || '') !== 'conflict' && matchesBusinessIdentity(txt, bizName);
-            });
-            const groundedLower = (kgSafe + ' ' + JSON.stringify(safeOrganic)).toLowerCase();
-            const conflictedSnippetEmails = new Set(
-              ((snippetBlob + ' ' + JSON.stringify(sData.organic_results || []) + ' ' + kgStr).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g) || [])
-                .map(x => x.toLowerCase())
-                .filter(em => {
-                  const rawAll = snippetBlob + ' ' + JSON.stringify(sData.organic_results || []) + ' ' + kgStr;
-                  const i = rawAll.toLowerCase().indexOf(em);
-                  if (i === -1) return false;
-                  const w = rawAll.slice(Math.max(0, i - 260), Math.min(rawAll.length, i + 260));
-                  return evaluateCompanyPhoneMatch(w, lead.phone || '') === 'conflict';
-                })
-            );
-            const rawAioPick = pickBestEmail(aioText, groundedLower) || pickBestEmail(groundedLower, '');
-            const aioEmail = (rawAioPick && !conflictedSnippetEmails.has(rawAioPick)) ? rawAioPick : null;
-            if (aioEmail) {
-              lead.email = aioEmail;
-              researchData.discoveredEmail = aioEmail;
-              logSuccess(`Recovered business email via Google AI Overview / Search: ${aioEmail}`);
-            }
-          }
-        } catch (serpErr) {
-          logWarn(`SerpApi fallback notice: ${serpErr.message}`);
-        }
-      }
-    }
+                // Deep Website Scraper Agent
+                if (scrapeProspectWebsite && prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com')) {
+                  if (scrapeProspectWebsite && prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com') && !isDirectoryHostOrUrl(prospectDomain)) {
+                    try {
+                      logSub(`Deep-scraping prospect website (${prospectDomain}) for authentic colors, logo, and work photos...`);
+                      const scraped = await scrapeProspectWebsite(prospectDomain);
+                      const isParkedOrMissingSite = !scraped || /site not found|domain (?:for sale|expired)|coming soon|404 not found|error 404/i.test(scraped.title || '');
+                      if (scraped && !isParkedOrMissingSite) {
+                        const scrapedPhoneConflict = scraped && evaluateCompanyPhoneMatch(`${scraped.phone || ''} ${scraped.address || ''}`, lead.phone || '') === 'conflict';
+                        const scrapedStateBlob = scraped ? `${scraped.title || ''} ${scraped.address || ''} ${scraped.metaDescription || ''}` : '';
+                        const scrapedWrongState = scraped && /\b(?:minnesota|illinois|michigan|iowa|connecticut|texas|florida|ohio|indiana|south dakota|north carolina|california|new york)\b|,\s*(?:MN|IL|MI|IA|CT|TX|FL|OH|IN|SD|NC|CA|NY)\b/i.test(scrapedStateBlob)
+                          && !/\b(?:wisconsin|,?\s*WI|appleton|oshkosh|neenah|menasha|kaukauna|kimberly|little chute|green bay)\b/i.test(scrapedStateBlob);
+                        if (scraped && !isParkedOrMissingSite && (scrapedPhoneConflict || scrapedWrongState)) {
+                          logWarn(`Ignoring mismatched scraped website ${prospectDomain} (phone=${scraped.phone || 'none'}, address=${scraped.address || 'none'}).`);
+                          if (cleanDomain) {
+                            researchData.websiteImages = researchData.websiteImages.filter(u => !u.toLowerCase().includes(cleanDomain.toLowerCase()));
+                          }
+                          if (researchData.discoveredWebsite && researchData.discoveredWebsite.includes(cleanDomain)) {
+                            researchData.discoveredWebsite = '';
+                          }
+                          researchData.logo = '';
+                        } else if (scraped && !isParkedOrMissingSite) {
+                          if (scraped.colors?.primary) {
+                            researchData.extractedColors = [
+                              scraped.colors.primary,
+                              ...(scraped.colors.extractedPalette || [])
+                            ];
+                            logSuccess(`Extracted authentic brand color palette: ${researchData.extractedColors.slice(0, 5).join(', ')}`);
+                          }
+                          if (scraped.logo && !isJunkImageUrl(scraped.logo)) {
+                            if (scraped.logo && !isJunkImageUrl(scraped.logo) && !isDirectoryHostOrUrl(scraped.logo)) {
+                              researchData.logo = scraped.logo;
+                              if (!researchData.websiteImages.includes(scraped.logo)) {
+                                researchData.websiteImages.unshift(scraped.logo);
+                              }
+                              logSuccess(`Discovered authentic brand logo: ${scraped.logo}`);
+                            }
+                            if (Array.isArray(scraped.images)) {
+                              const authenticImgs = [];
+                              for (const imgObj of scraped.images) {
+                                const u = typeof imgObj === 'string' ? imgObj : imgObj?.url;
+                                if (!u || isJunkImageUrl(u) || isNonWorkGraphicUrl(u, imgObj?.alt || '')) continue;
+                                if (!u || isJunkImageUrl(u) || isDirectoryHostOrUrl(u) || isNonWorkGraphicUrl(u, imgObj?.alt || '')) continue;
+                                authenticImgs.push(u);
+                                if (typeof imgObj === 'object') {
+                                  imageMetaMap.set(u, { alt: imgObj.alt || '', context: imgObj.context || '' });
+                                }
+                              }
+                              researchData.websiteImages = [
+                                ...authenticImgs,
+                                ...researchData.websiteImages.filter(u => !authenticImgs.includes(u))
+                              ];
+                            }
+                            if (scraped.services && scraped.services.length > 0) {
+                              researchData.realServices = scraped.services;
+                              logSuccess(`Detected real service offerings: ${scraped.services.map(s => s.name).join(' | ')}`);
+                            }
+                            if (scraped.phone && (!lead.phone || lead.phone.includes('234-5633'))) {
+                              lead.phone = scraped.phone;
+                            }
+                            if (scraped.email && isValidBusinessEmail(scraped.email)) {
+                              lead.email = scraped.email.trim().toLowerCase();
+                              researchData.discoveredEmail = lead.email;
+                            }
+                            if (scraped.facebook && !researchData.socials?.facebook) {
+                              const cleanScrapedFb = normalizeFacebookUrl(scraped.facebook);
+                              if (cleanScrapedFb && isMatchingCompanyFacebook(cleanScrapedFb, bizName)) {
+                                researchData.socials = { ...(researchData.socials || {}), facebook: cleanScrapedFb };
+                              }
+                            }
+                            if (scraped.aboutSnippets && scraped.aboutSnippets.length > 0) {
+                              researchData.snippets.push(...scraped.aboutSnippets);
+                            }
+                            if (scraped.certifications && scraped.certifications.length > 0) {
+                              researchData.certifications = scraped.certifications;
+                            }
+                            researchData.scrapedWebsiteData = scraped;
+                          } else if (scraped && isParkedOrMissingSite) {
+                            logWarn(`Ignoring parked/missing site response from ${prospectDomain} ("${scraped.title}").`);
+                          }
+                        } catch (scrapErr) {
+                          logWarn(`Prospect website deep-scrape notice: ${scrapErr.message}`);
+                        }
+                      }
 
-    researchData.imageMeta = Object.fromEntries(imageMetaMap);
+                      // Fallback email extraction from search snippets + SerpApi Google AI Overview when still missing
+                      if (!lead.email || lead.email === 'No email found' || !isValidBusinessEmail(lead.email)) {
+                        const bizTokens = getDistinctiveBizTokens(bizName);
+                        const snippetBlob = (researchData.snippets || []).join(' ');
+                        const freeDomains = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'att.net', 'sbcglobal.net', 'charter.net', 'spectrum.net', 'new.rr.com', 'peoplepc.com']);
+                        const pickBestEmail = (rawText, groundedTextLower) => {
+                          const matches = String(rawText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g) || [];
+                          const cityStr = String(city || 'Fox Valley, WI');
+                          const stMatch = cityStr.match(/,\s*([A-Z]{2})\b/);
+                          const tgtAbbr = (stMatch ? stMatch[1] : 'WI').toLowerCase();
+                          let best = null;
+                          let bestScore = -999;
+                          for (const cand of matches) {
+                            const e = cand.toLowerCase();
+                            if (!isValidBusinessEmail(e)) continue;
+                            const idx = String(rawText).toLowerCase().indexOf(e);
+                            const win = String(rawText).slice(Math.max(0, idx - 220), Math.min(String(rawText).length, idx + 220));
+                            const winPhoneStatus = evaluateCompanyPhoneMatch(win, lead.phone || '');
+                            if (winPhoneStatus === 'conflict') continue;
+                            const hasConflictingFullState = /\b(?:connecticut|south dakota|north carolina|texas|florida|ohio|michigan|minnesota|illinois|indiana|iowa|california|new york|pennsylvania|georgia|virginia)\b/i.test(win) && !/\b(?:wisconsin|appleton|neenah|menasha|kaukauna|kimberly|little chute|brillion|oshkosh|green bay)\b/i.test(win);
+                            if (hasConflictingFullState) continue;
+                            const [local = '', dom = ''] = e.split('@');
+                            const domStem = (dom.split('.')[0] || '').toLowerCase();
+                            if (domStem.length > 5 && /ct|tx|fl|oh|mi|mn|il|nc|sd|ca|ny|pa|ga|va$/i.test(domStem) && !domStem.endsWith(tgtAbbr) && !/\b(?:wisconsin|,?\s*wi)\b/i.test(win)) {
+                              continue;
+                            }
+                            const domNoTld = dom.replace(/\.[a-z]{2,12}$/i, '').replace(/[^a-z0-9]/g, '');
+                            const localClean = local.replace(/[^a-z0-9]/g, '');
+                            const brandStems = getBrandStems(bizName);
+                            const hits = bizTokens.length > 0
+                              ? bizTokens.filter(t => localClean.includes(t) || (!freeDomains.has(dom) && domNoTld.includes(t))).length
+                              : (brandStems.some(st => localClean.includes(st) || (!freeDomains.has(dom) && domNoTld.includes(st))) ? 1 : 0);
+                            const matchesHost = Boolean(cleanDomain && !freeDomains.has(dom) && (dom === cleanDomain || dom.endsWith(`.${cleanDomain}`)));
+                            const isGrounded = Boolean(groundedTextLower && groundedTextLower.includes(e));
+                            const isVerifiedBrandEmail = !freeDomains.has(dom)
+                              ? (hits > 0 || matchesHost)
+                              : (hits > 0 || matchesHost || (isGrounded && winPhoneStatus === 'match'));
+                            if (!isVerifiedBrandEmail) continue;
+                            const sc = (matchesHost ? 100 : 40) + hits * 35 + (isGrounded ? 20 : 0) + (winPhoneStatus === 'match' ? 45 : 0);
+                            if (sc > bestScore) {
+                              bestScore = sc;
+                              best = e;
+                            }
+                          }
+                          return best;
+                        };
 
-    const foundSocials = Object.entries(researchData.socials || {})
-      .filter(([_, url]) => Boolean(url))
-      .map(([platform, url]) => `${platform}: ${url}`);
+                        const snippetEmail = pickBestEmail(snippetBlob, '');
+                        if (snippetEmail) {
+                          lead.email = snippetEmail;
+                          researchData.discoveredEmail = snippetEmail;
+                          logSuccess(`Extracted business email from research snippets: ${snippetEmail}`);
+                        } else if (serpApiKey) {
+                          try {
+                            const cityClean = city && !/fox valley|northeast wisconsin/i.test(city) ? city.replace(/,/g, '') : 'WI';
+                            const q = `${bizName} ${cityClean} email`;
+                            const sResp = await fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&gl=us&hl=en&api_key=${encodeURIComponent(serpApiKey)}`);
+                            if (sResp.ok) {
+                              const sData = await sResp.json();
+                              let aioText = '';
+                              if (sData.ai_overview) {
+                                let aio = sData.ai_overview;
+                                if (!aio.text_blocks && aio.serpapi_link) {
+                                  const aioR = await fetch(`${aio.serpapi_link}${aio.serpapi_link.includes('api_key=') ? '' : '&api_key=' + encodeURIComponent(serpApiKey)}`);
+                                  if (aioR.ok) aio = await aioR.json();
+                                }
+                                aioText = JSON.stringify(aio.text_blocks || aio);
+                              }
+                              const kgStr = sData.knowledge_graph ? JSON.stringify(sData.knowledge_graph) : '';
+                              const kgSafe = (kgStr && evaluateCompanyPhoneMatch(kgStr, lead.phone || '') !== 'conflict' && matchesBusinessIdentity(kgStr, bizName)) ? kgStr : '';
+                              const safeOrganic = (sData.organic_results || []).slice(0, 8).filter((it) => {
+                                const txt = [it.title || '', it.link || '', it.snippet || ''].join(' ');
+                                return evaluateCompanyPhoneMatch(txt, lead.phone || '') !== 'conflict' && matchesBusinessIdentity(txt, bizName);
+                              });
+                              const groundedLower = (kgSafe + ' ' + JSON.stringify(safeOrganic)).toLowerCase();
+                              const conflictedSnippetEmails = new Set(
+                                ((snippetBlob + ' ' + JSON.stringify(sData.organic_results || []) + ' ' + kgStr).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g) || [])
+                                  .map(x => x.toLowerCase())
+                                  .filter(em => {
+                                    const rawAll = snippetBlob + ' ' + JSON.stringify(sData.organic_results || []) + ' ' + kgStr;
+                                    const i = rawAll.toLowerCase().indexOf(em);
+                                    if (i === -1) return false;
+                                    const w = rawAll.slice(Math.max(0, i - 260), Math.min(rawAll.length, i + 260));
+                                    return evaluateCompanyPhoneMatch(w, lead.phone || '') === 'conflict';
+                                  })
+                              );
+                              const rawAioPick = pickBestEmail(aioText, groundedLower) || pickBestEmail(groundedLower, '');
+                              const aioEmail = (rawAioPick && !conflictedSnippetEmails.has(rawAioPick)) ? rawAioPick : null;
+                              if (aioEmail) {
+                                lead.email = aioEmail;
+                                researchData.discoveredEmail = aioEmail;
+                                logSuccess(`Recovered business email via Google AI Overview / Search: ${aioEmail}`);
+                              }
+                            }
+                          } catch (serpErr) {
+                            logWarn(`SerpApi fallback notice: ${serpErr.message}`);
+                          }
+                        }
+                      }
 
-    if (foundSocials.length > 0) {
-      logSuccess(`Discovered social profiles: ${foundSocials.join(' | ')}`);
-    } else {
-      logSub('No direct social profiles discovered via automated search.');
-    }
+                      researchData.imageMeta = Object.fromEntries(imageMetaMap);
 
-    return researchData;
-  }
+                      const foundSocials = Object.entries(researchData.socials || {})
+                        .filter(([_, url]) => Boolean(url))
+                        .map(([platform, url]) => `${platform}: ${url}`);
+
+                      if (foundSocials.length > 0) {
+                        logSuccess(`Discovered social profiles: ${foundSocials.join(' | ')}`);
+                      } else {
+                        logSub('No direct social profiles discovered via automated search.');
+                      }
+
+                      return researchData;
+                    }
 
   async function synthesizeBespokeBranding(lead, tradeInfo, researchData) {
-    const bizName = lead.businessName;
-    const trade = tradeInfo.trade;
-    const cityInfo = formatCityState(tradeInfo.city);
-    const city = cityInfo.cityState;
-    const tradeKey = getTradeKey(trade);
-    const copyProfile = getTradeCopyProfile(trade, bizName, city, lead.serviceArea);
-    const validLeadServices = hasRealCustomServices(lead.services) ? lead.services : [];
+                      const bizName = lead.businessName;
+                      const trade = tradeInfo.trade;
+                      const cityInfo = formatCityState(tradeInfo.city);
+                      const city = cityInfo.cityState;
+                      const tradeKey = getTradeKey(trade);
+                      const copyProfile = getTradeCopyProfile(trade, bizName, city, lead.serviceArea);
+                      const validLeadServices = hasRealCustomServices(lead.services) ? lead.services : [];
 
-    logSub(`Synthesizing tailored visual identity and color scheme for "${bizName}"...`);
+                      logSub(`Synthesizing tailored visual identity and color scheme for "${bizName}"...`);
 
-    const prompt = `You are an elite creative director and local service business brand strategist.
+                      const prompt = `You are an elite creative director and local service business brand strategist.
 Create a COMPLETELY UNIQUE, highly authentic brand identity and color palette tailored specifically for this local business so their website does NOT look like any other template.
 
 BUSINESS CONTEXT:
@@ -2017,592 +2052,592 @@ Return ONLY valid JSON matching this schema:
   ]
 }`;
 
-    try {
-      const rawAiText = await callGemini(prompt);
-      const cleanedJson = rawAiText.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanedJson);
-      if (!parsed.layoutStyle) {
-        parsed.layoutStyle = (/deck|timber|wood|make|tree|landscap/i.test(bizName) || tradeKey === 'tree' || tradeKey === 'landscaping')
-          ? 'split-hero-timber'
-          : 'shield-banner-estimator';
-      }
-      parsed.palette = normalizePalette(parsed.palette, tradeKey, researchData);
-      logSuccess(`Brand identity created: "${parsed.aestheticVibe}" (Layout: ${parsed.layoutStyle}, Theme: ${parsed.themeMode}, Primary: ${parsed.palette.primary})`);
-      return parsed;
-    } catch (err) {
-      logWarn(`Gemini branding fallback triggered: ${err.message}`);
-      const fallbackPalette = normalizePalette(null, tradeKey, researchData);
-      const isWarmPhotoLayout = tradeKey === 'fencing' || tradeKey === 'tree' || tradeKey === 'landscaping' || /deck|timber|wood|tree|lawn|make/i.test(bizName);
-      return {
-        displayBrandName: bizName,
-        aestheticVibe: copyProfile.fallbackAestheticVibe,
-        layoutStyle: isWarmPhotoLayout ? 'split-hero-timber' : 'shield-banner-estimator',
-        themeMode: 'light',
-        palette: fallbackPalette,
-        tagline: copyProfile.fallbackTagline,
-        ownerStory: copyProfile.fallbackOwnerStory,
-        calculatorOptions: copyProfile.estimatorDefaultTypes,
-        services: (validLeadServices.length >= 3) ? validLeadServices : copyProfile.fallbackServices
-      };
-    }
-  }
+                      try {
+                        const rawAiText = await callGemini(prompt);
+                        const cleanedJson = rawAiText.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+                        const parsed = JSON.parse(cleanedJson);
+                        if (!parsed.layoutStyle) {
+                          parsed.layoutStyle = (/deck|timber|wood|make|tree|landscap/i.test(bizName) || tradeKey === 'tree' || tradeKey === 'landscaping')
+                            ? 'split-hero-timber'
+                            : 'shield-banner-estimator';
+                        }
+                        parsed.palette = normalizePalette(parsed.palette, tradeKey, researchData);
+                        logSuccess(`Brand identity created: "${parsed.aestheticVibe}" (Layout: ${parsed.layoutStyle}, Theme: ${parsed.themeMode}, Primary: ${parsed.palette.primary})`);
+                        return parsed;
+                      } catch (err) {
+                        logWarn(`Gemini branding fallback triggered: ${err.message}`);
+                        const fallbackPalette = normalizePalette(null, tradeKey, researchData);
+                        const isWarmPhotoLayout = tradeKey === 'fencing' || tradeKey === 'tree' || tradeKey === 'landscaping' || /deck|timber|wood|tree|lawn|make/i.test(bizName);
+                        return {
+                          displayBrandName: bizName,
+                          aestheticVibe: copyProfile.fallbackAestheticVibe,
+                          layoutStyle: isWarmPhotoLayout ? 'split-hero-timber' : 'shield-banner-estimator',
+                          themeMode: 'light',
+                          palette: fallbackPalette,
+                          tagline: copyProfile.fallbackTagline,
+                          ownerStory: copyProfile.fallbackOwnerStory,
+                          calculatorOptions: copyProfile.estimatorDefaultTypes,
+                          services: (validLeadServices.length >= 3) ? validLeadServices : copyProfile.fallbackServices
+                        };
+                      }
+                    }
 
-  async function detectLogoSurfaceIsDark(logoBuf, explicitFlag) {
-    if (explicitFlag) return true;
-    try {
-      const sharp = (await import('sharp')).default;
-      const { data: px, info } = await sharp(logoBuf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-      const sampleCorners = [
-        0,
-        (info.width - 1) * 4,
-        ((info.height - 1) * info.width) * 4,
-        ((info.height * info.width) - 1) * 4
-      ];
-      let cornerLumSum = 0;
-      let opaqueCorners = 0;
-      for (const idx of sampleCorners) {
-        const a = px[idx + 3];
-        if (a > 200) {
-          cornerLumSum += (px[idx] * 0.299 + px[idx + 1] * 0.587 + px[idx + 2] * 0.114);
-          opaqueCorners++;
-        }
-      }
-      if (opaqueCorners >= 3) {
-        return (cornerLumSum / opaqueCorners) < 75;
-      }
+                    async function detectLogoSurfaceIsDark(logoBuf, explicitFlag) {
+                      if (explicitFlag) return true;
+                      try {
+                        const sharp = (await import('sharp')).default;
+                        const { data: px, info } = await sharp(logoBuf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+                        const sampleCorners = [
+                          0,
+                          (info.width - 1) * 4,
+                          ((info.height - 1) * info.width) * 4,
+                          ((info.height * info.width) - 1) * 4
+                        ];
+                        let cornerLumSum = 0;
+                        let opaqueCorners = 0;
+                        for (const idx of sampleCorners) {
+                          const a = px[idx + 3];
+                          if (a > 200) {
+                            cornerLumSum += (px[idx] * 0.299 + px[idx + 1] * 0.587 + px[idx + 2] * 0.114);
+                            opaqueCorners++;
+                          }
+                        }
+                        if (opaqueCorners >= 3) {
+                          return (cornerLumSum / opaqueCorners) < 75;
+                        }
 
-      // Transparent PNG logo: inspect opaque foreground pixels so white-text logos get a dark badge instead of white-on-white
-      let fgCount = 0;
-      let fgLumSum = 0;
-      let brightCount = 0;
-      const stride = Math.max(1, Math.floor((px.length / 4) / 25000)) * 4;
-      for (let i = 0; i < px.length; i += stride) {
-        const a = px[i + 3];
-        if (a > 90) {
-          const lum = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
-          fgLumSum += lum;
-          if (lum > 195) brightCount++;
-          fgCount++;
-        }
-      }
-      if (fgCount > 0) {
-        const avgFgLum = fgLumSum / fgCount;
-        const brightFraction = brightCount / fgCount;
-        if (avgFgLum > 160 || brightFraction > 0.52) {
-          return true;
-        }
-      }
-    } catch (_) {}
-    return false;
-  }
+                        // Transparent PNG logo: inspect opaque foreground pixels so white-text logos get a dark badge instead of white-on-white
+                        let fgCount = 0;
+                        let fgLumSum = 0;
+                        let brightCount = 0;
+                        const stride = Math.max(1, Math.floor((px.length / 4) / 25000)) * 4;
+                        for (let i = 0; i < px.length; i += stride) {
+                          const a = px[i + 3];
+                          if (a > 90) {
+                            const lum = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+                            fgLumSum += lum;
+                            if (lum > 195) brightCount++;
+                            fgCount++;
+                          }
+                        }
+                        if (fgCount > 0) {
+                          const avgFgLum = fgLumSum / fgCount;
+                          const brightFraction = brightCount / fgCount;
+                          if (avgFgLum > 160 || brightFraction > 0.52) {
+                            return true;
+                          }
+                        }
+                      } catch (_) { }
+                      return false;
+                    }
 
-  async function prepareProjectAssets(siteDir, lead, branding, researchData, tradeInfo, clientOverride = null) {
-    const assetsDir = path.join(siteDir, 'assets');
-    const imgDir = path.join(assetsDir, 'images');
-    const funcDir = path.join(siteDir, 'functions', 'api');
+                    async function prepareProjectAssets(siteDir, lead, branding, researchData, tradeInfo, clientOverride = null) {
+                      const assetsDir = path.join(siteDir, 'assets');
+                      const imgDir = path.join(assetsDir, 'images');
+                      const funcDir = path.join(siteDir, 'functions', 'api');
 
-    fs.mkdirSync(imgDir, { recursive: true });
-    fs.mkdirSync(funcDir, { recursive: true });
+                      fs.mkdirSync(imgDir, { recursive: true });
+                      fs.mkdirSync(funcDir, { recursive: true });
 
-    // Remove stale generated image files on rebuild so deleted logos/cards never persist
-    for (const oldFile of fs.readdirSync(imgDir)) {
-      if (/^(?:brand-logo|hero|about|service-\d+|gallery-\d+)\.(?:jpg|jpeg|png|webp|orig)$/i.test(oldFile)) {
-        try { fs.unlinkSync(path.join(imgDir, oldFile)); } catch (_) {}
-      }
-    }
+                      // Remove stale generated image files on rebuild so deleted logos/cards never persist
+                      for (const oldFile of fs.readdirSync(imgDir)) {
+                        if (/^(?:brand-logo|hero|about|service-\d+|gallery-\d+)\.(?:jpg|jpeg|png|webp|orig)$/i.test(oldFile)) {
+                          try { fs.unlinkSync(path.join(imgDir, oldFile)); } catch (_) { }
+                        }
+                      }
 
-    if (previewBannerPath && fs.existsSync(previewBannerPath)) {
-      fs.copyFileSync(previewBannerPath, path.join(assetsDir, 'preview-banner.js'));
-    }
-    if (contactApiPath && fs.existsSync(contactApiPath)) {
-      fs.copyFileSync(contactApiPath, path.join(funcDir, 'contact.js'));
-    }
-    if (styleCssPath && fs.existsSync(styleCssPath)) {
-      fs.copyFileSync(styleCssPath, path.join(assetsDir, 'style.min.css'));
-    }
+                      if (previewBannerPath && fs.existsSync(previewBannerPath)) {
+                        fs.copyFileSync(previewBannerPath, path.join(assetsDir, 'preview-banner.js'));
+                      }
+                      if (contactApiPath && fs.existsSync(contactApiPath)) {
+                        fs.copyFileSync(contactApiPath, path.join(funcDir, 'contact.js'));
+                      }
+                      if (styleCssPath && fs.existsSync(styleCssPath)) {
+                        fs.copyFileSync(styleCssPath, path.join(assetsDir, 'style.min.css'));
+                      }
 
-    const tradeKey = tradeInfo.trade;
-    const seed = getSlugSeed(lead.businessName);
-    const imageMeta = researchData.imageMeta || {};
+                      const tradeKey = tradeInfo.trade;
+                      const seed = getSlugSeed(lead.businessName);
+                      const imageMeta = researchData.imageMeta || {};
 
-    logSub(`Collecting & contextually validating imagery for "${lead.businessName}" (${tradeKey})...`);
+                      logSub(`Collecting & contextually validating imagery for "${lead.businessName}" (${tradeKey})...`);
 
-    const rawCandidates = [
-      ...(researchData.websiteImages || []),
-      lead.logoUrl
-    ].filter(u => u && typeof u === 'string' && u.startsWith('http') && !isJunkImageUrl(u));
+                      const rawCandidates = [
+                        ...(researchData.websiteImages || []),
+                        lead.logoUrl
+                      ].filter(u => u && typeof u === 'string' && u.startsWith('http') && !isJunkImageUrl(u));
 
-    const seen = new Set();
-    const verifiedRealImages = [];
+                      const seen = new Set();
+                      const verifiedRealImages = [];
 
-    const candidateChecks = await Promise.allSettled(
-      rawCandidates.slice(0, 15).map(async url => {
-        try {
-          const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000) });
-          const cType = res.headers.get('content-type') || '';
-          if ((res.ok || res.status === 204) && (cType.includes('image') || cType === '')) {
-            return url;
-          }
-        } catch (e) {}
-        return null;
-      })
-    );
+                      const candidateChecks = await Promise.allSettled(
+                        rawCandidates.slice(0, 15).map(async url => {
+                          try {
+                            const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000) });
+                            const cType = res.headers.get('content-type') || '';
+                            if ((res.ok || res.status === 204) && (cType.includes('image') || cType === '')) {
+                              return url;
+                            }
+                          } catch (e) { }
+                          return null;
+                        })
+                      );
 
-    for (const r of candidateChecks) {
-      if (r.status === 'fulfilled' && r.value && !seen.has(r.value)) {
-        seen.add(r.value);
-        verifiedRealImages.push(r.value);
-      }
-    }
+                      for (const r of candidateChecks) {
+                        if (r.status === 'fulfilled' && r.value && !seen.has(r.value)) {
+                          seen.add(r.value);
+                          verifiedRealImages.push(r.value);
+                        }
+                      }
 
-    logSub(`Found ${verifiedRealImages.length} verified authentic website/profile image(s) for ${lead.businessName}.`);
+                      logSub(`Found ${verifiedRealImages.length} verified authentic website/profile image(s) for ${lead.businessName}.`);
 
-    const consumedRealUrls = new Set();
-    let realPhotoCount = 0;
-    let hasRealLogo = false;
-    let logoIsDark = Boolean(clientOverride?.logoIsDark);
-    const logoOrigPath = path.join(imgDir, 'brand-logo.orig');
+                      const consumedRealUrls = new Set();
+                      let realPhotoCount = 0;
+                      let hasRealLogo = false;
+                      let logoIsDark = Boolean(clientOverride?.logoIsDark);
+                      const logoOrigPath = path.join(imgDir, 'brand-logo.orig');
 
-    if (clientOverride?.logoPath && fs.existsSync(clientOverride.logoPath)) {
-      fs.copyFileSync(clientOverride.logoPath, logoOrigPath);
-      hasRealLogo = true;
-      logSuccess(`Applied client override brand logo (${path.basename(clientOverride.logoPath)}).`);
-    }
+                      if (clientOverride?.logoPath && fs.existsSync(clientOverride.logoPath)) {
+                        fs.copyFileSync(clientOverride.logoPath, logoOrigPath);
+                        hasRealLogo = true;
+                        logSuccess(`Applied client override brand logo (${path.basename(clientOverride.logoPath)}).`);
+                      }
 
-    if (!hasRealLogo) {
-      const explicitLogoFromUrl = verifiedRealImages.find(u => {
-        const lower = u.toLowerCase();
-        const isPlaceOrYelpPhoto = lower.includes('googleusercontent.com/gps-cs-s') || lower.includes('googleusercontent.com/grass-cs') || lower.includes('googleusercontent.com/p/') || lower.includes('yelpcdn.com/bphoto');
-        return !isPlaceOrYelpPhoto && /(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(lower) && !isNonWorkGraphicUrl(lower);
-      });
-      const logoCandidate = (researchData.logo && !isJunkImageUrl(researchData.logo)) ? researchData.logo : explicitLogoFromUrl;
-      if (logoCandidate) {
-        const dlLogo = await downloadFile(logoCandidate, logoOrigPath);
-        if (dlLogo) {
-          hasRealLogo = true;
-          consumedRealUrls.add(logoCandidate);
-          logSuccess(`Saved authentic brand logo (${path.basename(logoCandidate).slice(0, 30)}...)`);
-        }
-      }
-    }
+                      if (!hasRealLogo) {
+                        const explicitLogoFromUrl = verifiedRealImages.find(u => {
+                          const lower = u.toLowerCase();
+                          const isPlaceOrYelpPhoto = lower.includes('googleusercontent.com/gps-cs-s') || lower.includes('googleusercontent.com/grass-cs') || lower.includes('googleusercontent.com/p/') || lower.includes('yelpcdn.com/bphoto');
+                          return !isPlaceOrYelpPhoto && /(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(lower) && !isNonWorkGraphicUrl(lower);
+                        });
+                        const logoCandidate = (researchData.logo && !isJunkImageUrl(researchData.logo)) ? researchData.logo : explicitLogoFromUrl;
+                        if (logoCandidate) {
+                          const dlLogo = await downloadFile(logoCandidate, logoOrigPath);
+                          if (dlLogo) {
+                            hasRealLogo = true;
+                            consumedRealUrls.add(logoCandidate);
+                            logSuccess(`Saved authentic brand logo (${path.basename(logoCandidate).slice(0, 30)}...)`);
+                          }
+                        }
+                      }
 
-    if (hasRealLogo && fs.existsSync(logoOrigPath)) {
-      const origBuf = fs.readFileSync(logoOrigPath);
-      logoIsDark = await detectLogoSurfaceIsDark(origBuf, logoIsDark);
-      try {
-        const sharp = (await import('sharp')).default;
-        await sharp(origBuf)
-          .resize({ width: 600, withoutEnlargement: true })
-          .webp({ quality: 90, alphaQuality: 100 })
-          .toFile(path.join(imgDir, 'brand-logo.webp'));
-        await sharp(origBuf)
-          .resize({ width: 600, withoutEnlargement: true })
-          .flatten({ background: logoIsDark ? '#0f172a' : '#ffffff' })
-          .jpeg({ quality: 88, mozjpeg: true })
-          .toFile(path.join(imgDir, 'brand-logo.jpg'));
-      } catch (logoErr) {
-        fs.copyFileSync(logoOrigPath, path.join(imgDir, 'brand-logo.jpg'));
-        logWarn(`Logo Sharp processing notice: ${logoErr.message}`);
-      }
-      try { fs.unlinkSync(logoOrigPath); } catch (_) {}
-    }
+                      if (hasRealLogo && fs.existsSync(logoOrigPath)) {
+                        const origBuf = fs.readFileSync(logoOrigPath);
+                        logoIsDark = await detectLogoSurfaceIsDark(origBuf, logoIsDark);
+                        try {
+                          const sharp = (await import('sharp')).default;
+                          await sharp(origBuf)
+                            .resize({ width: 600, withoutEnlargement: true })
+                            .webp({ quality: 90, alphaQuality: 100 })
+                            .toFile(path.join(imgDir, 'brand-logo.webp'));
+                          await sharp(origBuf)
+                            .resize({ width: 600, withoutEnlargement: true })
+                            .flatten({ background: logoIsDark ? '#0f172a' : '#ffffff' })
+                            .jpeg({ quality: 88, mozjpeg: true })
+                            .toFile(path.join(imgDir, 'brand-logo.jpg'));
+                        } catch (logoErr) {
+                          fs.copyFileSync(logoOrigPath, path.join(imgDir, 'brand-logo.jpg'));
+                          logWarn(`Logo Sharp processing notice: ${logoErr.message}`);
+                        }
+                        try { fs.unlinkSync(logoOrigPath); } catch (_) { }
+                      }
 
-    function getRemainingPhotoCandidates(minUrlSafe = true) {
-      return verifiedRealImages.filter(u => {
-        if (consumedRealUrls.has(u)) return false;
-        const lower = u.toLowerCase();
-        const meta = imageMeta[u] || {};
-        if (minUrlSafe && /(?:favicon|icon|thumb|badge|avatar|logo|sprite)/i.test(lower)) return false;
-        if (isNonWorkGraphicUrl(u, meta.alt || '')) return false;
-        return true;
-      });
-    }
+                      function getRemainingPhotoCandidates(minUrlSafe = true) {
+                        return verifiedRealImages.filter(u => {
+                          if (consumedRealUrls.has(u)) return false;
+                          const lower = u.toLowerCase();
+                          const meta = imageMeta[u] || {};
+                          if (minUrlSafe && /(?:favicon|icon|thumb|badge|avatar|logo|sprite)/i.test(lower)) return false;
+                          if (isNonWorkGraphicUrl(u, meta.alt || '')) return false;
+                          return true;
+                        });
+                      }
 
-    function hasMatchToken(haystack, ...tokens) {
-      if (!haystack || !tokens.length) return false;
-      const rx = new RegExp(`(?:^|[^a-z0-9])(?:${tokens.join('|')})(?:[^a-z0-9]|$)`, 'i');
-      return rx.test(haystack);
-    }
+                      function hasMatchToken(haystack, ...tokens) {
+                        if (!haystack || !tokens.length) return false;
+                        const rx = new RegExp(`(?:^|[^a-z0-9])(?:${tokens.join('|')})(?:[^a-z0-9]|$)`, 'i');
+                        return rx.test(haystack);
+                      }
 
-    function findScrapedImageMatch(contextText) {
-      const text = (contextText || '').toLowerCase();
-      for (const candidate of getRemainingPhotoCandidates(true)) {
-        const meta = imageMeta[candidate] || {};
-        const u = `${candidate} ${meta.alt || ''} ${meta.context || ''}`.toLowerCase();
-        if (
-          (hasMatchToken(text, 'wood\\w*') && hasMatchToken(u, 'wood\\w*', 'cedar', 'timber')) ||
-          (hasMatchToken(text, 'vinyl', 'pvc') && hasMatchToken(u, 'vinyl', 'pvc', 'picket', 'chesterfield', 'bufftech')) ||
-          ((hasMatchToken(text, 'chain\\s*link', 'cyclone') || text.includes('chain link')) && hasMatchToken(u, 'chain\\w*', 'cyclone')) ||
-          ((hasMatchToken(text, 'post\\s*hole', 'drill\\w*', 'holes?') || text.includes('post hole')) && hasMatchToken(u, 'digger', 'holes?', 'posts?', 'drill\\w*')) ||
-          (hasMatchToken(text, 'farm', 'ranch') && hasMatchToken(u, 'farm', 'horse', 'board')) ||
-          (hasMatchToken(text, 'shingl\\w*') && hasMatchToken(u, 'shingl\\w*', 'asphalt')) ||
-          (hasMatchToken(text, 'metal') && hasMatchToken(u, 'metal')) ||
-          (hasMatchToken(text, 'stamp\\w*') && hasMatchToken(u, 'stamp\\w*')) ||
-          (hasMatchToken(text, 'driveway\\w*') && hasMatchToken(u, 'driveway\\w*')) ||
-          (hasMatchToken(text, 'waterjet') && hasMatchToken(u, 'waterjet')) ||
-          (hasMatchToken(text, 'fabricat\\w*', 'weld\\w*') && hasMatchToken(u, 'fab', 'fabricat\\w*', 'weld\\w*')) ||
-          (hasMatchToken(text, 'process', 'piping') && hasMatchToken(u, 'piping')) ||
-          (hasMatchToken(text, 'boiler\\w*') && hasMatchToken(u, 'boiler\\w*', 'power')) ||
-          (hasMatchToken(text, 'cooling', 'ac', 'a\\/c', 'air\\s*cond\\w*') && hasMatchToken(u, 'condenser\\w*', 'cooling', 'air[-_ ]?cond\\w*')) ||
-          (hasMatchToken(text, 'heating', 'furnace\\w*', 'heat\\s*pump\\w*') && hasMatchToken(u, 'furn\\w*', 'heat\\w*')) ||
-          (hasMatchToken(text, 'duct\\w*') && hasMatchToken(u, 'duct\\w*')) ||
-          (hasMatchToken(text, 'stump\\w*') && hasMatchToken(u, 'stump\\w*')) ||
-          (hasMatchToken(text, 'trim\\w*', 'prun\\w*') && hasMatchToken(u, 'trim\\w*', 'prun\\w*')) ||
-          ((hasMatchToken(text, 'light\\w*', 'led', 'fixtures?') && hasMatchToken(u, 'light\\w*', 'led', 'outdoor', 'patio')) ||
-           (hasMatchToken(text, 'outdoor') && hasMatchToken(u, 'outdoor', 'light\\w*', 'led'))) ||
-          (hasMatchToken(text, 'panels?', 'commercial', 'breakers?') && hasMatchToken(u, 'panels?', 'breakers?', 'commercial'))
-        ) {
-          return candidate;
-        }
-      }
-      return null;
-    }
+                      function findScrapedImageMatch(contextText) {
+                        const text = (contextText || '').toLowerCase();
+                        for (const candidate of getRemainingPhotoCandidates(true)) {
+                          const meta = imageMeta[candidate] || {};
+                          const u = `${candidate} ${meta.alt || ''} ${meta.context || ''}`.toLowerCase();
+                          if (
+                            (hasMatchToken(text, 'wood\\w*') && hasMatchToken(u, 'wood\\w*', 'cedar', 'timber')) ||
+                            (hasMatchToken(text, 'vinyl', 'pvc') && hasMatchToken(u, 'vinyl', 'pvc', 'picket', 'chesterfield', 'bufftech')) ||
+                            ((hasMatchToken(text, 'chain\\s*link', 'cyclone') || text.includes('chain link')) && hasMatchToken(u, 'chain\\w*', 'cyclone')) ||
+                            ((hasMatchToken(text, 'post\\s*hole', 'drill\\w*', 'holes?') || text.includes('post hole')) && hasMatchToken(u, 'digger', 'holes?', 'posts?', 'drill\\w*')) ||
+                            (hasMatchToken(text, 'farm', 'ranch') && hasMatchToken(u, 'farm', 'horse', 'board')) ||
+                            (hasMatchToken(text, 'shingl\\w*') && hasMatchToken(u, 'shingl\\w*', 'asphalt')) ||
+                            (hasMatchToken(text, 'metal') && hasMatchToken(u, 'metal')) ||
+                            (hasMatchToken(text, 'stamp\\w*') && hasMatchToken(u, 'stamp\\w*')) ||
+                            (hasMatchToken(text, 'driveway\\w*') && hasMatchToken(u, 'driveway\\w*')) ||
+                            (hasMatchToken(text, 'waterjet') && hasMatchToken(u, 'waterjet')) ||
+                            (hasMatchToken(text, 'fabricat\\w*', 'weld\\w*') && hasMatchToken(u, 'fab', 'fabricat\\w*', 'weld\\w*')) ||
+                            (hasMatchToken(text, 'process', 'piping') && hasMatchToken(u, 'piping')) ||
+                            (hasMatchToken(text, 'boiler\\w*') && hasMatchToken(u, 'boiler\\w*', 'power')) ||
+                            (hasMatchToken(text, 'cooling', 'ac', 'a\\/c', 'air\\s*cond\\w*') && hasMatchToken(u, 'condenser\\w*', 'cooling', 'air[-_ ]?cond\\w*')) ||
+                            (hasMatchToken(text, 'heating', 'furnace\\w*', 'heat\\s*pump\\w*') && hasMatchToken(u, 'furn\\w*', 'heat\\w*')) ||
+                            (hasMatchToken(text, 'duct\\w*') && hasMatchToken(u, 'duct\\w*')) ||
+                            (hasMatchToken(text, 'stump\\w*') && hasMatchToken(u, 'stump\\w*')) ||
+                            (hasMatchToken(text, 'trim\\w*', 'prun\\w*') && hasMatchToken(u, 'trim\\w*', 'prun\\w*')) ||
+                            ((hasMatchToken(text, 'light\\w*', 'led', 'fixtures?') && hasMatchToken(u, 'light\\w*', 'led', 'outdoor', 'patio')) ||
+                              (hasMatchToken(text, 'outdoor') && hasMatchToken(u, 'outdoor', 'light\\w*', 'led'))) ||
+                            (hasMatchToken(text, 'panels?', 'commercial', 'breakers?') && hasMatchToken(u, 'panels?', 'breakers?', 'commercial'))
+                          ) {
+                            return candidate;
+                          }
+                        }
+                        return null;
+                      }
 
-    const isCraftLayout = branding.layoutStyle === 'split-hero-timber' || /deck|timber|wood|make/i.test(lead.businessName);
-    const servicesList = (Array.isArray(branding.services) && branding.services.length >= 3)
-      ? branding.services
-      : [
-          branding.services?.[0] || { name: `${tradeKey} Solutions`, desc: 'Professional service' },
-          branding.services?.[1] || { name: `Custom ${tradeKey}`, desc: 'Durable construction' },
-          branding.services?.[2] || { name: `${tradeKey} Repairs`, desc: 'Fast restoration' }
-        ];
+                      const isCraftLayout = branding.layoutStyle === 'split-hero-timber' || /deck|timber|wood|make/i.test(lead.businessName);
+                      const servicesList = (Array.isArray(branding.services) && branding.services.length >= 3)
+                        ? branding.services
+                        : [
+                          branding.services?.[0] || { name: `${tradeKey} Solutions`, desc: 'Professional service' },
+                          branding.services?.[1] || { name: `Custom ${tradeKey}`, desc: 'Durable construction' },
+                          branding.services?.[2] || { name: `${tradeKey} Repairs`, desc: 'Fast restoration' }
+                        ];
 
-    // Service photos: Strict contextual matching per <user_rules>
-    for (let idx = 0; idx < servicesList.length; idx++) {
-      const svc = servicesList[idx] || {};
-      const overrideImgPath = svc.resolvedImagePath || clientOverride?.servicePaths?.[idx];
-      const destServiceImg = path.join(imgDir, `service-${idx + 1}.jpg`);
-      if (overrideImgPath && fs.existsSync(overrideImgPath)) {
-        fs.copyFileSync(overrideImgPath, destServiceImg);
-        realPhotoCount++;
-        continue;
-      }
-      const svcContext = (svc.name || '') + ' ' + (svc.desc || '');
-      const svcFallback = resolveContextualPhoto(tradeKey, svcContext, 'service', idx);
-      const usedSvc = await downloadValidatedPhoto(findScrapedImageMatch(svcContext), svcFallback, destServiceImg, { minBytes: 10000, minWidth: 300, minHeight: 200 });
-      if (usedSvc && usedSvc !== svcFallback) {
-        consumedRealUrls.add(usedSvc);
-        realPhotoCount++;
-      }
-    }
+                      // Service photos: Strict contextual matching per <user_rules>
+                      for (let idx = 0; idx < servicesList.length; idx++) {
+                        const svc = servicesList[idx] || {};
+                        const overrideImgPath = svc.resolvedImagePath || clientOverride?.servicePaths?.[idx];
+                        const destServiceImg = path.join(imgDir, `service-${idx + 1}.jpg`);
+                        if (overrideImgPath && fs.existsSync(overrideImgPath)) {
+                          fs.copyFileSync(overrideImgPath, destServiceImg);
+                          realPhotoCount++;
+                          continue;
+                        }
+                        const svcContext = (svc.name || '') + ' ' + (svc.desc || '');
+                        const svcFallback = resolveContextualPhoto(tradeKey, svcContext, 'service', idx);
+                        const usedSvc = await downloadValidatedPhoto(findScrapedImageMatch(svcContext), svcFallback, destServiceImg, { minBytes: 10000, minWidth: 300, minHeight: 200 });
+                        if (usedSvc && usedSvc !== svcFallback) {
+                          consumedRealUrls.add(usedSvc);
+                          realPhotoCount++;
+                        }
+                      }
 
-    // Hero vs Gallery allocation:
-    // On 'split-hero-timber', hero is an unwashed showcase card so pick hero first.
-    // On 'shield-banner-estimator', hero is a faded backdrop while gallery-1..3 and about are unwashed cards,
-    // so assign top company photos (fleet vans/work) to gallery & about first before consuming for hero backdrop.
-    const heroFallback = resolveContextualPhoto(tradeKey, lead.businessName + ' ' + (branding.tagline || ''), 'hero', seed);
-    const assignHero = async () => {
-      if (clientOverride?.heroPath && fs.existsSync(clientOverride.heroPath)) {
-        fs.copyFileSync(clientOverride.heroPath, path.join(imgDir, 'hero.jpg'));
-        realPhotoCount++;
-      } else {
-        const heroCandidates = getRemainingPhotoCandidates(true);
-        const usedHero = await downloadValidatedPhoto(heroCandidates, heroFallback, path.join(imgDir, 'hero.jpg'), { minBytes: 15000, minWidth: 480, minHeight: 260 });
-        if (usedHero && usedHero !== heroFallback) {
-          consumedRealUrls.add(usedHero);
-          realPhotoCount++;
-        }
-      }
-    };
+                      // Hero vs Gallery allocation:
+                      // On 'split-hero-timber', hero is an unwashed showcase card so pick hero first.
+                      // On 'shield-banner-estimator', hero is a faded backdrop while gallery-1..3 and about are unwashed cards,
+                      // so assign top company photos (fleet vans/work) to gallery & about first before consuming for hero backdrop.
+                      const heroFallback = resolveContextualPhoto(tradeKey, lead.businessName + ' ' + (branding.tagline || ''), 'hero', seed);
+                      const assignHero = async () => {
+                        if (clientOverride?.heroPath && fs.existsSync(clientOverride.heroPath)) {
+                          fs.copyFileSync(clientOverride.heroPath, path.join(imgDir, 'hero.jpg'));
+                          realPhotoCount++;
+                        } else {
+                          const heroCandidates = getRemainingPhotoCandidates(true);
+                          const usedHero = await downloadValidatedPhoto(heroCandidates, heroFallback, path.join(imgDir, 'hero.jpg'), { minBytes: 15000, minWidth: 480, minHeight: 260 });
+                          if (usedHero && usedHero !== heroFallback) {
+                            consumedRealUrls.add(usedHero);
+                            realPhotoCount++;
+                          }
+                        }
+                      };
 
-    const assignGalleryAndAbout = async () => {
-      // About photo
-      if (clientOverride?.aboutPath && fs.existsSync(clientOverride.aboutPath)) {
-        fs.copyFileSync(clientOverride.aboutPath, path.join(imgDir, 'about.jpg'));
-        realPhotoCount++;
-      } else {
-        const aboutFallback = resolveContextualPhoto(tradeKey, branding.ownerStory || '', 'about', seed);
-        const usedAbout = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), aboutFallback, path.join(imgDir, 'about.jpg'), { minBytes: 10000, minWidth: 300, minHeight: 200 });
-        if (usedAbout && usedAbout !== aboutFallback) {
-          consumedRealUrls.add(usedAbout);
-          realPhotoCount++;
-        }
-      }
+                      const assignGalleryAndAbout = async () => {
+                        // About photo
+                        if (clientOverride?.aboutPath && fs.existsSync(clientOverride.aboutPath)) {
+                          fs.copyFileSync(clientOverride.aboutPath, path.join(imgDir, 'about.jpg'));
+                          realPhotoCount++;
+                        } else {
+                          const aboutFallback = resolveContextualPhoto(tradeKey, branding.ownerStory || '', 'about', seed);
+                          const usedAbout = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), aboutFallback, path.join(imgDir, 'about.jpg'), { minBytes: 10000, minWidth: 300, minHeight: 200 });
+                          if (usedAbout && usedAbout !== aboutFallback) {
+                            consumedRealUrls.add(usedAbout);
+                            realPhotoCount++;
+                          }
+                        }
 
-      // Gallery photos
-      for (let gIdx = 0; gIdx < 3; gIdx++) {
-        const destGalleryImg = path.join(imgDir, `gallery-${gIdx + 1}.jpg`);
-        const gOverridePath = clientOverride?.galleryPaths?.[gIdx];
-        if (gOverridePath && fs.existsSync(gOverridePath)) {
-          fs.copyFileSync(gOverridePath, destGalleryImg);
-          realPhotoCount++;
-          continue;
-        }
-        const gSvc = servicesList[gIdx] || servicesList[0];
-        const gFallback = resolveContextualPhoto(tradeKey, (gSvc?.name || '') + ' ' + (gSvc?.desc || ''), 'service', gIdx + 3);
-        const usedG = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), gFallback, destGalleryImg, { minBytes: 10000, minWidth: 240, minHeight: 200 });
-        if (usedG && usedG !== gFallback) {
-          consumedRealUrls.add(usedG);
-          realPhotoCount++;
-        }
-      }
-    };
+                        // Gallery photos
+                        for (let gIdx = 0; gIdx < 3; gIdx++) {
+                          const destGalleryImg = path.join(imgDir, `gallery-${gIdx + 1}.jpg`);
+                          const gOverridePath = clientOverride?.galleryPaths?.[gIdx];
+                          if (gOverridePath && fs.existsSync(gOverridePath)) {
+                            fs.copyFileSync(gOverridePath, destGalleryImg);
+                            realPhotoCount++;
+                            continue;
+                          }
+                          const gSvc = servicesList[gIdx] || servicesList[0];
+                          const gFallback = resolveContextualPhoto(tradeKey, (gSvc?.name || '') + ' ' + (gSvc?.desc || ''), 'service', gIdx + 3);
+                          const usedG = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), gFallback, destGalleryImg, { minBytes: 10000, minWidth: 240, minHeight: 200 });
+                          if (usedG && usedG !== gFallback) {
+                            consumedRealUrls.add(usedG);
+                            realPhotoCount++;
+                          }
+                        }
+                      };
 
-    if (isCraftLayout) {
-      await assignHero();
-      await assignGalleryAndAbout();
-    } else {
-      // Reserve gallery-1 (unwashed on homepage) for top fleet/project photo, then about, then rest of gallery, then hero
-      const destG1 = path.join(imgDir, 'gallery-1.jpg');
-      let gallery1Set = false;
-      if (clientOverride?.galleryPaths?.[0] && fs.existsSync(clientOverride.galleryPaths[0])) {
-        fs.copyFileSync(clientOverride.galleryPaths[0], destG1);
-        realPhotoCount++;
-        gallery1Set = true;
-      } else {
-        const g1Svc = servicesList[0];
-        const g1Fallback = resolveContextualPhoto(tradeKey, (g1Svc?.name || '') + ' ' + (g1Svc?.desc || ''), 'service', 3);
-        const usedG1 = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), g1Fallback, destG1, { minBytes: 10000, minWidth: 240, minHeight: 200 });
-        if (usedG1 && usedG1 !== g1Fallback) {
-          consumedRealUrls.add(usedG1);
-          realPhotoCount++;
-        }
-        gallery1Set = true;
-      }
+                      if (isCraftLayout) {
+                        await assignHero();
+                        await assignGalleryAndAbout();
+                      } else {
+                        // Reserve gallery-1 (unwashed on homepage) for top fleet/project photo, then about, then rest of gallery, then hero
+                        const destG1 = path.join(imgDir, 'gallery-1.jpg');
+                        let gallery1Set = false;
+                        if (clientOverride?.galleryPaths?.[0] && fs.existsSync(clientOverride.galleryPaths[0])) {
+                          fs.copyFileSync(clientOverride.galleryPaths[0], destG1);
+                          realPhotoCount++;
+                          gallery1Set = true;
+                        } else {
+                          const g1Svc = servicesList[0];
+                          const g1Fallback = resolveContextualPhoto(tradeKey, (g1Svc?.name || '') + ' ' + (g1Svc?.desc || ''), 'service', 3);
+                          const usedG1 = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), g1Fallback, destG1, { minBytes: 10000, minWidth: 240, minHeight: 200 });
+                          if (usedG1 && usedG1 !== g1Fallback) {
+                            consumedRealUrls.add(usedG1);
+                            realPhotoCount++;
+                          }
+                          gallery1Set = true;
+                        }
 
-      if (clientOverride?.aboutPath && fs.existsSync(clientOverride.aboutPath)) {
-        fs.copyFileSync(clientOverride.aboutPath, path.join(imgDir, 'about.jpg'));
-        realPhotoCount++;
-      } else {
-        const aboutFallback = resolveContextualPhoto(tradeKey, branding.ownerStory || '', 'about', seed);
-        const aboutCandidates = getRemainingPhotoCandidates(true);
-        const usedAbout = await downloadValidatedPhoto(aboutCandidates, aboutFallback, path.join(imgDir, 'about.jpg'), { minBytes: 10000, minWidth: 300, minHeight: 200 });
-        if (usedAbout && usedAbout !== aboutFallback) {
-          consumedRealUrls.add(usedAbout);
-          realPhotoCount++;
-        } else if (aboutCandidates.length === 0 && fs.existsSync(destG1) && !clientOverride?.aboutPath) {
-          // If company only had 1 real photo (put in gallery-1), also feature it on About page instead of generic stock
-          fs.copyFileSync(destG1, path.join(imgDir, 'about.jpg'));
-        }
-      }
+                        if (clientOverride?.aboutPath && fs.existsSync(clientOverride.aboutPath)) {
+                          fs.copyFileSync(clientOverride.aboutPath, path.join(imgDir, 'about.jpg'));
+                          realPhotoCount++;
+                        } else {
+                          const aboutFallback = resolveContextualPhoto(tradeKey, branding.ownerStory || '', 'about', seed);
+                          const aboutCandidates = getRemainingPhotoCandidates(true);
+                          const usedAbout = await downloadValidatedPhoto(aboutCandidates, aboutFallback, path.join(imgDir, 'about.jpg'), { minBytes: 10000, minWidth: 300, minHeight: 200 });
+                          if (usedAbout && usedAbout !== aboutFallback) {
+                            consumedRealUrls.add(usedAbout);
+                            realPhotoCount++;
+                          } else if (aboutCandidates.length === 0 && fs.existsSync(destG1) && !clientOverride?.aboutPath) {
+                            // If company only had 1 real photo (put in gallery-1), also feature it on About page instead of generic stock
+                            fs.copyFileSync(destG1, path.join(imgDir, 'about.jpg'));
+                          }
+                        }
 
-      for (let gIdx = 1; gIdx < 3; gIdx++) {
-        const destGalleryImg = path.join(imgDir, `gallery-${gIdx + 1}.jpg`);
-        const gOverridePath = clientOverride?.galleryPaths?.[gIdx];
-        if (gOverridePath && fs.existsSync(gOverridePath)) {
-          fs.copyFileSync(gOverridePath, destGalleryImg);
-          realPhotoCount++;
-          continue;
-        }
-        const gSvc = servicesList[gIdx] || servicesList[0];
-        const gFallback = resolveContextualPhoto(tradeKey, (gSvc?.name || '') + ' ' + (gSvc?.desc || ''), 'service', gIdx + 3);
-        const usedG = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), gFallback, destGalleryImg, { minBytes: 10000, minWidth: 240, minHeight: 200 });
-        if (usedG && usedG !== gFallback) {
-          consumedRealUrls.add(usedG);
-          realPhotoCount++;
-        }
-      }
+                        for (let gIdx = 1; gIdx < 3; gIdx++) {
+                          const destGalleryImg = path.join(imgDir, `gallery-${gIdx + 1}.jpg`);
+                          const gOverridePath = clientOverride?.galleryPaths?.[gIdx];
+                          if (gOverridePath && fs.existsSync(gOverridePath)) {
+                            fs.copyFileSync(gOverridePath, destGalleryImg);
+                            realPhotoCount++;
+                            continue;
+                          }
+                          const gSvc = servicesList[gIdx] || servicesList[0];
+                          const gFallback = resolveContextualPhoto(tradeKey, (gSvc?.name || '') + ' ' + (gSvc?.desc || ''), 'service', gIdx + 3);
+                          const usedG = await downloadValidatedPhoto(getRemainingPhotoCandidates(true), gFallback, destGalleryImg, { minBytes: 10000, minWidth: 240, minHeight: 200 });
+                          if (usedG && usedG !== gFallback) {
+                            consumedRealUrls.add(usedG);
+                            realPhotoCount++;
+                          }
+                        }
 
-      await assignHero();
-    }
+                        await assignHero();
+                      }
 
-    // Optimize non-logo photos to JPEG + WebP (flatten PNG alpha corners cleanly to white so rounded PNG photos never turn black-cornered)
-    let heroWebpCreated = false;
-    try {
-      const sharp = (await import('sharp')).default;
-      const files = fs.readdirSync(imgDir);
-      for (const f of files) {
-        if (f.startsWith('brand-logo.')) continue;
-        if (!f.endsWith('.jpg') && !f.endsWith('.jpeg') && !f.endsWith('.png')) continue;
-        const full = path.join(imgDir, f);
-        const name = path.parse(f).name;
-        const buf = fs.readFileSync(full);
+                      // Optimize non-logo photos to JPEG + WebP (flatten PNG alpha corners cleanly to white so rounded PNG photos never turn black-cornered)
+                      let heroWebpCreated = false;
+                      try {
+                        const sharp = (await import('sharp')).default;
+                        const files = fs.readdirSync(imgDir);
+                        for (const f of files) {
+                          if (f.startsWith('brand-logo.')) continue;
+                          if (!f.endsWith('.jpg') && !f.endsWith('.jpeg') && !f.endsWith('.png')) continue;
+                          const full = path.join(imgDir, f);
+                          const name = path.parse(f).name;
+                          const buf = fs.readFileSync(full);
 
-        await sharp(buf)
-          .resize({ width: 1200, withoutEnlargement: true })
-          .flatten({ background: '#ffffff' })
-          .jpeg({ quality: 82, mozjpeg: true })
-          .toFile(full + '.tmp');
-        fs.renameSync(full + '.tmp', full);
+                          await sharp(buf)
+                            .resize({ width: 1200, withoutEnlargement: true })
+                            .flatten({ background: '#ffffff' })
+                            .jpeg({ quality: 82, mozjpeg: true })
+                            .toFile(full + '.tmp');
+                          fs.renameSync(full + '.tmp', full);
 
-        const webpPath = path.join(imgDir, `${name}.webp`);
-        await sharp(buf)
-          .resize({ width: 1200, withoutEnlargement: true })
-          .flatten({ background: '#ffffff' })
-          .webp({ quality: 82 })
-          .toFile(webpPath);
-        if (name === 'hero') heroWebpCreated = true;
-      }
-    } catch (e) {
-      logWarn(`Image optimization notice: ${e.message}`);
-    }
+                          const webpPath = path.join(imgDir, `${name}.webp`);
+                          await sharp(buf)
+                            .resize({ width: 1200, withoutEnlargement: true })
+                            .flatten({ background: '#ffffff' })
+                            .webp({ quality: 82 })
+                            .toFile(webpPath);
+                          if (name === 'hero') heroWebpCreated = true;
+                        }
+                      } catch (e) {
+                        logWarn(`Image optimization notice: ${e.message}`);
+                      }
 
-    const serviceUrls = servicesList.map((_, idx) => {
-      const n = idx + 1;
-      return fs.existsSync(path.join(imgDir, `service-${n}.webp`)) ? `assets/images/service-${n}.webp` : `assets/images/service-${n}.jpg`;
-    });
+                      const serviceUrls = servicesList.map((_, idx) => {
+                        const n = idx + 1;
+                        return fs.existsSync(path.join(imgDir, `service-${n}.webp`)) ? `assets/images/service-${n}.webp` : `assets/images/service-${n}.jpg`;
+                      });
 
-    return {
-      hasRealLogo,
-      logoIsDark,
-      logoUrl: hasRealLogo ? (fs.existsSync(path.join(imgDir, 'brand-logo.webp')) ? 'assets/images/brand-logo.webp' : 'assets/images/brand-logo.jpg') : null,
-      heroUrl: heroWebpCreated ? 'assets/images/hero.webp' : (fs.existsSync(path.join(imgDir, 'hero.jpg')) ? 'assets/images/hero.jpg' : 'assets/images/service-1.jpg'),
-      heroWebpUrl: heroWebpCreated ? 'assets/images/hero.webp' : (fs.existsSync(path.join(imgDir, 'hero.jpg')) ? 'assets/images/hero.jpg' : 'assets/images/service-1.jpg'),
-      service1Url: serviceUrls[0],
-      service2Url: serviceUrls[1],
-      service3Url: serviceUrls[2],
-      serviceUrls,
-      aboutUrl: fs.existsSync(path.join(imgDir, 'about.webp')) ? 'assets/images/about.webp' : 'assets/images/about.jpg',
-      gallery: [
-        fs.existsSync(path.join(imgDir, 'gallery-1.webp')) ? 'assets/images/gallery-1.webp' : 'assets/images/gallery-1.jpg',
-        fs.existsSync(path.join(imgDir, 'gallery-2.webp')) ? 'assets/images/gallery-2.webp' : 'assets/images/gallery-2.jpg',
-        fs.existsSync(path.join(imgDir, 'gallery-3.webp')) ? 'assets/images/gallery-3.webp' : 'assets/images/gallery-3.jpg'
-      ],
-      realImageCount: realPhotoCount
-    };
-  }
+                      return {
+                        hasRealLogo,
+                        logoIsDark,
+                        logoUrl: hasRealLogo ? (fs.existsSync(path.join(imgDir, 'brand-logo.webp')) ? 'assets/images/brand-logo.webp' : 'assets/images/brand-logo.jpg') : null,
+                        heroUrl: heroWebpCreated ? 'assets/images/hero.webp' : (fs.existsSync(path.join(imgDir, 'hero.jpg')) ? 'assets/images/hero.jpg' : 'assets/images/service-1.jpg'),
+                        heroWebpUrl: heroWebpCreated ? 'assets/images/hero.webp' : (fs.existsSync(path.join(imgDir, 'hero.jpg')) ? 'assets/images/hero.jpg' : 'assets/images/service-1.jpg'),
+                        service1Url: serviceUrls[0],
+                        service2Url: serviceUrls[1],
+                        service3Url: serviceUrls[2],
+                        serviceUrls,
+                        aboutUrl: fs.existsSync(path.join(imgDir, 'about.webp')) ? 'assets/images/about.webp' : 'assets/images/about.jpg',
+                        gallery: [
+                          fs.existsSync(path.join(imgDir, 'gallery-1.webp')) ? 'assets/images/gallery-1.webp' : 'assets/images/gallery-1.jpg',
+                          fs.existsSync(path.join(imgDir, 'gallery-2.webp')) ? 'assets/images/gallery-2.webp' : 'assets/images/gallery-2.jpg',
+                          fs.existsSync(path.join(imgDir, 'gallery-3.webp')) ? 'assets/images/gallery-3.webp' : 'assets/images/gallery-3.jpg'
+                        ],
+                        realImageCount: realPhotoCount
+                      };
+                    }
 
-  function loadClientOverride(slug) {
-    if (!clientOverridesDir) return null;
-    try {
-      const baseDir = path.join(clientOverridesDir, slug);
-      const jsonPath = path.join(baseDir, 'override.json');
-      if (!fs.existsSync(jsonPath)) return null;
-      const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-      const resolveAsset = (rel) => {
-        if (!rel) return null;
-        const resolved = path.resolve(baseDir, rel);
-        if (fs.existsSync(resolved)) return resolved;
-        if (rel.includes('stock/') && stockRootDir) {
-          const idx = rel.indexOf('stock/');
-          const fromStock = path.join(stockRootDir, rel.slice(idx + 'stock/'.length));
-          if (fs.existsSync(fromStock)) return fromStock;
-        }
-        return resolved;
-      };
-      return {
-        ...raw,
-        logoPath: resolveAsset(raw.logoFile),
-        heroPath: resolveAsset(raw.heroFile),
-        aboutPath: resolveAsset(raw.aboutFile),
-        galleryPaths: Array.isArray(raw.galleryFiles) ? raw.galleryFiles.map(resolveAsset) : null,
-        services: Array.isArray(raw.services)
-          ? raw.services.map(s => ({ ...s, resolvedImagePath: resolveAsset(s.imageFile) }))
-          : null,
-        servicePaths: Array.isArray(raw.services)
-          ? raw.services.map(s => resolveAsset(s.imageFile))
-          : null
-      };
-    } catch (e) {
-      logWarn(`Client override load notice for ${slug}: ${e.message}`);
-      return null;
-    }
-  }
+                    function loadClientOverride(slug) {
+                      if (!clientOverridesDir) return null;
+                      try {
+                        const baseDir = path.join(clientOverridesDir, slug);
+                        const jsonPath = path.join(baseDir, 'override.json');
+                        if (!fs.existsSync(jsonPath)) return null;
+                        const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                        const resolveAsset = (rel) => {
+                          if (!rel) return null;
+                          const resolved = path.resolve(baseDir, rel);
+                          if (fs.existsSync(resolved)) return resolved;
+                          if (rel.includes('stock/') && stockRootDir) {
+                            const idx = rel.indexOf('stock/');
+                            const fromStock = path.join(stockRootDir, rel.slice(idx + 'stock/'.length));
+                            if (fs.existsSync(fromStock)) return fromStock;
+                          }
+                          return resolved;
+                        };
+                        return {
+                          ...raw,
+                          logoPath: resolveAsset(raw.logoFile),
+                          heroPath: resolveAsset(raw.heroFile),
+                          aboutPath: resolveAsset(raw.aboutFile),
+                          galleryPaths: Array.isArray(raw.galleryFiles) ? raw.galleryFiles.map(resolveAsset) : null,
+                          services: Array.isArray(raw.services)
+                            ? raw.services.map(s => ({ ...s, resolvedImagePath: resolveAsset(s.imageFile) }))
+                            : null,
+                          servicePaths: Array.isArray(raw.services)
+                            ? raw.services.map(s => resolveAsset(s.imageFile))
+                            : null
+                        };
+                      } catch (e) {
+                        logWarn(`Client override load notice for ${slug}: ${e.message}`);
+                        return null;
+                      }
+                    }
 
-  function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths, deployedSlug = null) {
-    const rawBizName = branding.displayBrandName || lead.businessName;
-    const cleanDisplayBizName = rawBizName
-      .split(/\s+[-–—|]\s+(?:heating|cooling|hvac|fence|fencing|roofing|concrete|tree|plumbing|electric|specialists|services|contractor|paving|foundation|blower door)/i)[0]
-      .trim() || rawBizName;
-    const bizName = cleanDisplayBizName;
-    const slug = deployedSlug || sanitizeSlug(bizName);
-    const phone = lead.phone || agencyPhone;
-    const cleanPhone = phone.replace(/[^\d+]/g, '');
-    const email = (lead.email && lead.email !== 'No email found') ? lead.email : '';
-    const cityInfo = formatCityState(tradeInfo.city);
-    const city = cityInfo.cityState;
-    const trade = tradeInfo.trade;
-    const tradeKey = getTradeKey(trade);
-    const rawServiceArea = lead.serviceArea || '';
-    const serviceArea = (!rawServiceArea || (!cityInfo.isFoxValley && /^fox valley & northeast wisconsin \(appleton/i.test(rawServiceArea)))
-      ? `${cityInfo.regionShort} (${cityInfo.schemaCities.join(', ')})`
-      : rawServiceArea;
-    const cp = getTradeCopyProfile(trade, bizName, city, serviceArea);
-    const normalizeCopyRegion = (txt) => {
-      if (!txt || typeof txt !== 'string') return txt;
-      const capitalized = txt.replace(/\bfox\s+valley\b/gi, 'Fox Valley');
-      if (cityInfo.isFoxValley || /fox valley/i.test(bizName)) return capitalized;
-      return capitalized.replace(/(?:the\s+)?fox valley(?:\s+area)?/gi, cityInfo.regionLabel);
-    };
-    const rawServices = hasRealCustomServices(branding.services) ? branding.services : cp.fallbackServices;
-    const activeServices = rawServices.map(s => ({
-      ...s,
-      name: normalizeCopyRegion(s.name),
-      desc: normalizeCopyRegion(s.desc)
-    }));
-    const activeOwnerStory = normalizeCopyRegion((!branding.ownerStory || hasGenericPlaceholderVibe(branding.ownerStory)) ? cp.fallbackOwnerStory : branding.ownerStory);
-    const activeTagline = normalizeCopyRegion(branding.tagline || cp.fallbackTagline);
-    const activeCalcOptions = (Array.isArray(branding.calculatorOptions) && branding.calculatorOptions.length > 0)
-      ? branding.calculatorOptions
-      : cp.estimatorDefaultTypes;
-    const p = normalizePalette(branding.palette, tradeKey, researchData);
-    const isSecondaryDark = getHexYiq(p.secondary) < 150;
-    const chromeBg = p.secondary;
-    const chromeBorder = isSecondaryDark ? 'rgba(255, 255, 255, 0.14)' : p.border;
-    const chromeTextPrimary = isSecondaryDark ? '#FFFFFF' : '#0F172A';
-    const chromeTextSecondary = isSecondaryDark ? '#E2E8F0' : '#475569';
-    const chromeTextMuted = isSecondaryDark ? '#CBD5E1' : '#64748B';
-    const accentYiq = getHexYiq(p.accent);
-    const primaryYiq = getHexYiq(p.primary);
-    const darkSurfaceAccent = accentYiq >= 135 ? p.accent : '#FBBF24';
-    const lightSurfaceAccent = accentYiq <= 140 ? p.accent : (primaryYiq <= 145 ? p.primary : '#B45309');
-    const chromeAccent = isSecondaryDark ? darkSurfaceAccent : lightSurfaceAccent;
+                    function generateBespokeSiteMarkup(lead, tradeInfo, branding, researchData, assetPaths, deployedSlug = null) {
+                      const rawBizName = branding.displayBrandName || lead.businessName;
+                      const cleanDisplayBizName = rawBizName
+                        .split(/\s+[-–—|]\s+(?:heating|cooling|hvac|fence|fencing|roofing|concrete|tree|plumbing|electric|specialists|services|contractor|paving|foundation|blower door)/i)[0]
+                        .trim() || rawBizName;
+                      const bizName = cleanDisplayBizName;
+                      const slug = deployedSlug || sanitizeSlug(bizName);
+                      const phone = lead.phone || agencyPhone;
+                      const cleanPhone = phone.replace(/[^\d+]/g, '');
+                      const email = (lead.email && lead.email !== 'No email found') ? lead.email : '';
+                      const cityInfo = formatCityState(tradeInfo.city);
+                      const city = cityInfo.cityState;
+                      const trade = tradeInfo.trade;
+                      const tradeKey = getTradeKey(trade);
+                      const rawServiceArea = lead.serviceArea || '';
+                      const serviceArea = (!rawServiceArea || (!cityInfo.isFoxValley && /^fox valley & northeast wisconsin \(appleton/i.test(rawServiceArea)))
+                        ? `${cityInfo.regionShort} (${cityInfo.schemaCities.join(', ')})`
+                        : rawServiceArea;
+                      const cp = getTradeCopyProfile(trade, bizName, city, serviceArea);
+                      const normalizeCopyRegion = (txt) => {
+                        if (!txt || typeof txt !== 'string') return txt;
+                        const capitalized = txt.replace(/\bfox\s+valley\b/gi, 'Fox Valley');
+                        if (cityInfo.isFoxValley || /fox valley/i.test(bizName)) return capitalized;
+                        return capitalized.replace(/(?:the\s+)?fox valley(?:\s+area)?/gi, cityInfo.regionLabel);
+                      };
+                      const rawServices = hasRealCustomServices(branding.services) ? branding.services : cp.fallbackServices;
+                      const activeServices = rawServices.map(s => ({
+                        ...s,
+                        name: normalizeCopyRegion(s.name),
+                        desc: normalizeCopyRegion(s.desc)
+                      }));
+                      const activeOwnerStory = normalizeCopyRegion((!branding.ownerStory || hasGenericPlaceholderVibe(branding.ownerStory)) ? cp.fallbackOwnerStory : branding.ownerStory);
+                      const activeTagline = normalizeCopyRegion(branding.tagline || cp.fallbackTagline);
+                      const activeCalcOptions = (Array.isArray(branding.calculatorOptions) && branding.calculatorOptions.length > 0)
+                        ? branding.calculatorOptions
+                        : cp.estimatorDefaultTypes;
+                      const p = normalizePalette(branding.palette, tradeKey, researchData);
+                      const isSecondaryDark = getHexYiq(p.secondary) < 150;
+                      const chromeBg = p.secondary;
+                      const chromeBorder = isSecondaryDark ? 'rgba(255, 255, 255, 0.14)' : p.border;
+                      const chromeTextPrimary = isSecondaryDark ? '#FFFFFF' : '#0F172A';
+                      const chromeTextSecondary = isSecondaryDark ? '#E2E8F0' : '#475569';
+                      const chromeTextMuted = isSecondaryDark ? '#CBD5E1' : '#64748B';
+                      const accentYiq = getHexYiq(p.accent);
+                      const primaryYiq = getHexYiq(p.primary);
+                      const darkSurfaceAccent = accentYiq >= 135 ? p.accent : '#FBBF24';
+                      const lightSurfaceAccent = accentYiq <= 140 ? p.accent : (primaryYiq <= 145 ? p.primary : '#B45309');
+                      const chromeAccent = isSecondaryDark ? darkSurfaceAccent : lightSurfaceAccent;
 
-    const socials = researchData.socials || {};
-    function buildSocialIcons(onDarkSurface) {
-      const items = [];
-      const fbClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-600/10 text-blue-600';
-      const igClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-pink-600/10 text-pink-600';
-      const liClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-700/10 text-blue-700';
+                      const socials = researchData.socials || {};
+                      function buildSocialIcons(onDarkSurface) {
+                        const items = [];
+                        const fbClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-600/10 text-blue-600';
+                        const igClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-pink-600/10 text-pink-600';
+                        const liClass = onDarkSurface ? 'hover:opacity-90 transition-opacity p-2 rounded-lg bg-white/10 text-white border border-white/15' : 'hover:opacity-80 transition-opacity p-2 rounded-lg bg-blue-700/10 text-blue-700';
 
-      if (socials.facebook) {
-        items.push(`
+                        if (socials.facebook) {
+                          items.push(`
           <a href="${escapeHtml(socials.facebook)}" target="_blank" rel="noopener noreferrer" class="${fbClass}" title="Visit us on Facebook" aria-label="Facebook">
             <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           </a>
         `);
-      }
-      if (socials.instagram) {
-        items.push(`
+                        }
+                        if (socials.instagram) {
+                          items.push(`
           <a href="${escapeHtml(socials.instagram)}" target="_blank" rel="noopener noreferrer" class="${igClass}" title="Follow us on Instagram" aria-label="Instagram">
             <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           </a>
         `);
-      }
-      if (socials.linkedin) {
-        items.push(`
+                        }
+                        if (socials.linkedin) {
+                          items.push(`
           <a href="${escapeHtml(socials.linkedin)}" target="_blank" rel="noopener noreferrer" class="${liClass}" title="Connect on LinkedIn" aria-label="LinkedIn">
             <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
           </a>
         `);
-      }
-      return items;
-    }
+                        }
+                        return items;
+                      }
 
-    const socialIconsHtml = buildSocialIcons(false);
-    const chromeSocialIconsHtml = buildSocialIcons(isSecondaryDark);
+                      const socialIconsHtml = buildSocialIcons(false);
+                      const chromeSocialIconsHtml = buildSocialIcons(isSecondaryDark);
 
-    const socialRowHtml = socialIconsHtml.length > 0
-      ? `<div class="flex items-center gap-2">${socialIconsHtml.join('')}</div>`
-      : '';
-    const chromeSocialRowHtml = chromeSocialIconsHtml.length > 0
-      ? `<div class="flex items-center gap-2">${chromeSocialIconsHtml.join('')}</div>`
-      : '';
+                      const socialRowHtml = socialIconsHtml.length > 0
+                        ? `<div class="flex items-center gap-2">${socialIconsHtml.join('')}</div>`
+                        : '';
+                      const chromeSocialRowHtml = chromeSocialIconsHtml.length > 0
+                        ? `<div class="flex items-center gap-2">${chromeSocialIconsHtml.join('')}</div>`
+                        : '';
 
-    const logoFrameClass = assetPaths.logoIsDark
-      ? 'brand-logo-img rounded-xl object-contain bg-black p-1.5 sm:p-2 border border-white/15 shadow-md shrink-0'
-      : 'brand-logo-img rounded-xl object-contain bg-white p-1.5 sm:p-2 shadow-sm shrink-0';
-    const logoMarkup = assetPaths.hasRealLogo
-      ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" width="160" height="60" class="${logoFrameClass}">`
-      : `<div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-md shrink-0 bg-white" style="color: ${p.primary}; border: 2px solid ${p.primary};">${bizName.charAt(0)}</div>`;
+                      const logoFrameClass = assetPaths.logoIsDark
+                        ? 'brand-logo-img rounded-xl object-contain bg-black p-1.5 sm:p-2 border border-white/15 shadow-md shrink-0'
+                        : 'brand-logo-img rounded-xl object-contain bg-white p-1.5 sm:p-2 shadow-sm shrink-0';
+                      const logoMarkup = assetPaths.hasRealLogo
+                        ? `<img src="${assetPaths.logoUrl}" alt="${escapeHtml(bizName)} Logo" width="160" height="60" class="${logoFrameClass}">`
+                        : `<div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-md shrink-0 bg-white" style="color: ${p.primary}; border: 2px solid ${p.primary};">${bizName.charAt(0)}</div>`;
 
-    const isCraft = branding.layoutStyle === 'split-hero-timber' || /deck|timber|wood|make/i.test(bizName);
-    const fontUrl = isCraft
-      ? 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=optional'
-      : 'https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=optional';
-    const fontLink = `
+                      const isCraft = branding.layoutStyle === 'split-hero-timber' || /deck|timber|wood|make/i.test(bizName);
+                      const fontUrl = isCraft
+                        ? 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=optional'
+                        : 'https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=optional';
+                      const fontLink = `
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link rel="preload" as="style" href="${fontUrl}">
       <link rel="stylesheet" href="${fontUrl}" media="print" onload="this.media='all'">
       <noscript><link rel="stylesheet" href="${fontUrl}"></noscript>
     `;
-    const fontCss = isCraft
-      ? `body, h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif; }`
-      : `body { font-family: 'Inter', sans-serif; } h1, h2, h3, h4, .brand-heading { font-family: 'Cinzel', Georgia, serif; letter-spacing: -0.01em; }`;
-    const tailwindInlineCss = (styleCssPath && fs.existsSync(styleCssPath)) ? fs.readFileSync(styleCssPath, 'utf8') : '';
+                      const fontCss = isCraft
+                        ? `body, h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif; }`
+                        : `body { font-family: 'Inter', sans-serif; } h1, h2, h3, h4, .brand-heading { font-family: 'Cinzel', Georgia, serif; letter-spacing: -0.01em; }`;
+                      const tailwindInlineCss = (styleCssPath && fs.existsSync(styleCssPath)) ? fs.readFileSync(styleCssPath, 'utf8') : '';
 
-    const customCss = `
+                      const customCss = `
       ${fontLink}
       ${tailwindInlineCss ? `<style id="tailwind-styles">${tailwindInlineCss}</style>` : '<link rel="stylesheet" href="assets/style.min.css">'}
       <style>
@@ -2714,7 +2749,7 @@ Return ONLY valid JSON matching this schema:
       </style>
     `;
 
-    const headerHtml = `
+                      const headerHtml = `
       <header class="sticky top-0 z-50 backdrop-blur-md border-b" style="background-color: ${chromeBg}f0; border-color: ${chromeBorder}; color: ${chromeTextSecondary};">
         <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 site-header-inner">
           <a href="index.html" class="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1 mr-1 sm:mr-4">
@@ -2785,7 +2820,7 @@ Return ONLY valid JSON matching this schema:
       </header>
     `;
 
-    const footerHtml = `
+                      const footerHtml = `
       <footer class="border-t py-14" style="background-color: ${chromeBg}; border-color: ${chromeBorder}; color: ${chromeTextSecondary};">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10">
           <div class="md:col-span-2 space-y-4">
@@ -2826,7 +2861,7 @@ Return ONLY valid JSON matching this schema:
       <script src="assets/preview-banner.js" data-business="${escapeHtml(bizName)}" data-slug="${escapeHtml(slug)}" data-ga-id="${escapeHtml(gaMeasurementId)}" defer></script>
     `;
 
-    const headAnalyticsTagHtml = gaMeasurementId ? `
+                      const headAnalyticsTagHtml = gaMeasurementId ? `
   <!-- Google tag (gtag.js) -->
   <script>
     (function () {
@@ -2851,28 +2886,28 @@ Return ONLY valid JSON matching this schema:
     })();
   </script>` : '';
 
-    const schemaJson = JSON.stringify({
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": ["HomeAndConstructionBusiness", "LocalBusiness"],
-          "@id": `https://${slug}.pages.dev/#business`,
-          "name": bizName,
-          "telephone": phone,
-          "email": email,
-          "url": `https://${slug}.pages.dev/`,
-          "areaServed": cityInfo.schemaCities.map(c => ({ "@type": "City", "name": c })),
-          "sameAs": Object.values(socials).filter(Boolean)
-        }
-      ]
-    });
+                      const schemaJson = JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@graph": [
+                          {
+                            "@type": ["HomeAndConstructionBusiness", "LocalBusiness"],
+                            "@id": `https://${slug}.pages.dev/#business`,
+                            "name": bizName,
+                            "telephone": phone,
+                            "email": email,
+                            "url": `https://${slug}.pages.dev/`,
+                            "areaServed": cityInfo.schemaCities.map(c => ({ "@type": "City", "name": c })),
+                            "sameAs": Object.values(socials).filter(Boolean)
+                          }
+                        ]
+                      });
 
-    const ratingMatch = String(lead.ratingReviews || '').match(/(\d+(?:\.\d+)?)\s*(?:★|stars?)/i);
-    const parsedRating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
-    const ratingChipLeft = parsedRating >= 4.0 ? `★ ${parsedRating.toFixed(1)}` : '★ Local';
-    const ratingChipRight = parsedRating >= 4.0 ? 'Google Verified Reviews' : 'Trusted Local Service';
+                      const ratingMatch = String(lead.ratingReviews || '').match(/(\d+(?:\.\d+)?)\s*(?:★|stars?)/i);
+                      const parsedRating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+                      const ratingChipLeft = parsedRating >= 4.0 ? `★ ${parsedRating.toFixed(1)}` : '★ Local';
+                      const ratingChipRight = parsedRating >= 4.0 ? 'Google Verified Reviews' : 'Trusted Local Service';
 
-    const indexHtml = `<!DOCTYPE html>
+                      const indexHtml = `<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
@@ -2991,8 +3026,8 @@ Return ONLY valid JSON matching this schema:
       </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         ${activeServices.map((s, idx) => {
-    const imgUrl = assetPaths.serviceUrls?.[idx] || (idx === 0 ? assetPaths.service1Url : idx === 1 ? assetPaths.service2Url : assetPaths.service3Url);
-    return `
+                        const imgUrl = assetPaths.serviceUrls?.[idx] || (idx === 0 ? assetPaths.service1Url : idx === 1 ? assetPaths.service2Url : assetPaths.service3Url);
+                        return `
             <div class="brand-surface-card rounded-3xl overflow-hidden shadow-xl transition-all hover:-translate-y-2 group border-t-4" style="border-top-color: var(--c-accent);">
               <div class="h-56 overflow-hidden relative">
                 <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
@@ -3009,7 +3044,7 @@ Return ONLY valid JSON matching this schema:
               </div>
             </div>
           `;
-  }).join('')}
+                      }).join('')}
       </div>
     </div>
   </section>
@@ -3159,9 +3194,9 @@ Return ONLY valid JSON matching this schema:
       ${activeServices.length > 3 ? `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
           ${activeServices.slice(3).map((extraSvc, extraIdx) => {
-      const svcNum = extraIdx + 4;
-      const imgUrl = assetPaths.serviceUrls?.[extraIdx + 3] || assetPaths.service3Url;
-      return `
+                        const svcNum = extraIdx + 4;
+                        const imgUrl = assetPaths.serviceUrls?.[extraIdx + 3] || assetPaths.service3Url;
+                        return `
               <div class="bg-white rounded-3xl overflow-hidden shadow-lg border flex flex-col sm:flex-row items-stretch" style="border-color: #E2E8F0;">
                 <div class="w-full sm:w-48 h-48 sm:h-auto overflow-hidden flex-shrink-0">
                   <img src="${imgUrl}" alt="${escapeHtml(extraSvc.name)}" class="w-full h-full object-cover">
@@ -3173,7 +3208,7 @@ Return ONLY valid JSON matching this schema:
                 </div>
               </div>
             `;
-    }).join('')}
+                      }).join('')}
         </div>
       ` : ''}
     </div>
@@ -3306,7 +3341,7 @@ Return ONLY valid JSON matching this schema:
 </body>
 </html>`;
 
-    const servicesHtml = `<!DOCTYPE html>
+                      const servicesHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -3329,8 +3364,8 @@ Return ONLY valid JSON matching this schema:
 
     <div class="space-y-12">
       ${activeServices.map((s, idx) => {
-    const imgUrl = assetPaths.serviceUrls?.[idx] || (idx === 0 ? assetPaths.service1Url : idx === 1 ? assetPaths.service2Url : assetPaths.service3Url);
-    return `
+                        const imgUrl = assetPaths.serviceUrls?.[idx] || (idx === 0 ? assetPaths.service1Url : idx === 1 ? assetPaths.service2Url : assetPaths.service3Url);
+                        return `
           <div class="brand-surface-card rounded-3xl p-8 lg:p-12 flex flex-col md:flex-row items-center gap-10 shadow-xl">
             <div class="w-full md:w-5/12 h-64 rounded-2xl overflow-hidden shadow-md flex-shrink-0">
               <img src="${imgUrl}" alt="${escapeHtml(s.name)}" class="w-full h-full object-cover">
@@ -3347,14 +3382,14 @@ Return ONLY valid JSON matching this schema:
             </div>
           </div>
         `;
-  }).join('')}
+                      }).join('')}
     </div>
   </main>
   ${footerHtml}
 </body>
 </html>`;
 
-    const aboutHtml = `<!DOCTYPE html>
+                      const aboutHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -3397,7 +3432,7 @@ Return ONLY valid JSON matching this schema:
 </body>
 </html>`;
 
-    const contactHtml = `<!DOCTYPE html>
+                      const contactHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -3512,7 +3547,7 @@ Return ONLY valid JSON matching this schema:
 </body>
 </html>`;
 
-    const llmsTxt = `# ${bizName} — ${cp.displayTrade} (${city})
+                      const llmsTxt = `# ${bizName} — ${cp.displayTrade} (${city})
 
 > ${bizName} is a ${cp.summaryRole} serving ${serviceArea}.
 
@@ -3536,12 +3571,12 @@ ${activeServices.map((s, idx) => `${idx + 1}. **${s.name}:** ${s.desc}`).join('\
 - [Schedule Free On-Site Estimate](https://${slug}.pages.dev/contact.html)
 `;
 
-    const robotsTxt = `User-agent: *
+                      const robotsTxt = `User-agent: *
 Allow: /
 Sitemap: https://${slug}.pages.dev/sitemap.xml
 `;
 
-    const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+                      const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://${slug}.pages.dev/</loc><priority>1.0</priority></url>
   <url><loc>https://${slug}.pages.dev/services.html</loc><priority>0.8</priority></url>
@@ -3550,64 +3585,64 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
 </urlset>
 `;
 
-    const ardManifest = {
-      "@context": "https://agenticresourcediscovery.org/context/v1",
-      "entries": [
-        {
-          "@context": "https://agenticresourcediscovery.org/context/v1",
-          "identifier": `urn:air:${slug}.pages.dev:site:assistant`,
-          "displayName": `${bizName} Agentic Assistant`,
-          "type": "application/agent-card+json",
-          "description": `Autonomous discovery card and capabilities catalog for ${bizName}, providing dependable ${cp.displayTrade.toLowerCase()} services in ${city} and Northeast Wisconsin.`,
-          "url": `https://${slug}.pages.dev/llms.txt`,
-          "capabilities": [
-            `${cp.displayTrade.toLowerCase().replace(/[^a-z0-9]/g, '_')}_estimate`,
-            "service_inquiry",
-            "service_capabilities"
-          ],
-          "tags": [
-            cp.displayTrade.toLowerCase(),
-            `${cp.displayTrade.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-service`,
-            cityInfo.cityOnly.toLowerCase(),
-            "wisconsin"
-          ],
-          "representativeQueries": [
-            `Get a transparent quote for ${cp.displayTrade.toLowerCase()} services in ${city}`,
-            `Explore verified ${cp.displayTrade.toLowerCase()} services in ${cityInfo.regionShort}`,
-            `Contact ${bizName} for on-site assessment and estimates`
-          ],
-          "version": "1.0.0",
-          "updatedAt": new Date().toISOString()
-        }
-      ]
-    };
+                      const ardManifest = {
+                        "@context": "https://agenticresourcediscovery.org/context/v1",
+                        "entries": [
+                          {
+                            "@context": "https://agenticresourcediscovery.org/context/v1",
+                            "identifier": `urn:air:${slug}.pages.dev:site:assistant`,
+                            "displayName": `${bizName} Agentic Assistant`,
+                            "type": "application/agent-card+json",
+                            "description": `Autonomous discovery card and capabilities catalog for ${bizName}, providing dependable ${cp.displayTrade.toLowerCase()} services in ${city} and Northeast Wisconsin.`,
+                            "url": `https://${slug}.pages.dev/llms.txt`,
+                            "capabilities": [
+                              `${cp.displayTrade.toLowerCase().replace(/[^a-z0-9]/g, '_')}_estimate`,
+                              "service_inquiry",
+                              "service_capabilities"
+                            ],
+                            "tags": [
+                              cp.displayTrade.toLowerCase(),
+                              `${cp.displayTrade.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-service`,
+                              cityInfo.cityOnly.toLowerCase(),
+                              "wisconsin"
+                            ],
+                            "representativeQueries": [
+                              `Get a transparent quote for ${cp.displayTrade.toLowerCase()} services in ${city}`,
+                              `Explore verified ${cp.displayTrade.toLowerCase()} services in ${cityInfo.regionShort}`,
+                              `Contact ${bizName} for on-site assessment and estimates`
+                            ],
+                            "version": "1.0.0",
+                            "updatedAt": new Date().toISOString()
+                          }
+                        ]
+                      };
 
-    return {
-      'index.html': indexHtml,
-      'services.html': servicesHtml,
-      'about.html': aboutHtml,
-      'contact.html': contactHtml,
-      'llms.txt': llmsTxt,
-      'robots.txt': robotsTxt,
-      'sitemap.xml': sitemapXml,
-      '.well-known/ard.json': JSON.stringify(ardManifest, null, 2)
-    };
-  }
+                      return {
+                        'index.html': indexHtml,
+                        'services.html': servicesHtml,
+                        'about.html': aboutHtml,
+                        'contact.html': contactHtml,
+                        'llms.txt': llmsTxt,
+                        'robots.txt': robotsTxt,
+                        'sitemap.xml': sitemapXml,
+                        '.well-known/ard.json': JSON.stringify(ardManifest, null, 2)
+                      };
+                    }
 
-  function generatePitchEmailMarkup(lead, previewUrl, branding) {
-    const bizName = lead.businessName;
-    const rawCitySource = lead.serviceArea
-      ? lead.serviceArea.replace(/\(.*$/g, '').split(',')[0].trim()
-      : (branding?.city || 'Fox Valley');
-    const cityLabel = (rawCitySource || 'Fox Valley').replace(/\bfox\s+valley\b/gi, 'Fox Valley');
-    const contactGreeting = lead.contactName ? `Hi ${escapeHtml(lead.contactName.split(' ')[0])},` : `Hi ${escapeHtml(bizName)} team,`;
-    const claimUrl = `${claimBaseUrl}?business=${encodeURIComponent(bizName)}&preview=${encodeURIComponent(previewUrl)}`;
-    const slugForPitch = sanitizeSlug(bizName);
-    const trackedEmailUrl = `${previewUrl}${previewUrl.includes('?') ? '&' : '?'}utm_source=pitch&utm_medium=email&utm_campaign=${encodeURIComponent(slugForPitch)}`;
-    const trackedQrUrl = `${previewUrl}${previewUrl.includes('?') ? '&' : '?'}src=qr`;
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(trackedQrUrl)}`;
+                    function generatePitchEmailMarkup(lead, previewUrl, branding) {
+                      const bizName = lead.businessName;
+                      const rawCitySource = lead.serviceArea
+                        ? lead.serviceArea.replace(/\(.*$/g, '').split(',')[0].trim()
+                        : (branding?.city || 'Fox Valley');
+                      const cityLabel = (rawCitySource || 'Fox Valley').replace(/\bfox\s+valley\b/gi, 'Fox Valley');
+                      const contactGreeting = lead.contactName ? `Hi ${escapeHtml(lead.contactName.split(' ')[0])},` : `Hi ${escapeHtml(bizName)} team,`;
+                      const claimUrl = `${claimBaseUrl}?business=${encodeURIComponent(bizName)}&preview=${encodeURIComponent(previewUrl)}`;
+                      const slugForPitch = sanitizeSlug(bizName);
+                      const trackedEmailUrl = `${previewUrl}${previewUrl.includes('?') ? '&' : '?'}utm_source=pitch&utm_medium=email&utm_campaign=${encodeURIComponent(slugForPitch)}`;
+                      const trackedQrUrl = `${previewUrl}${previewUrl.includes('?') ? '&' : '?'}src=qr`;
+                      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(trackedQrUrl)}`;
 
-    const qrBlockHtml = `
+                      const qrBlockHtml = `
       <table cellpadding="0" cellspacing="0" border="0" style="margin: 18px 0 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; max-width: 480px; width: 100%;">
         <tr>
           <td style="padding-right: 16px; vertical-align: middle; width: 130px;">
@@ -3625,7 +3660,7 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
       </table>
     `;
 
-    return `
+                      return `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #18181b; max-width: 620px; line-height: 1.6; font-size: 15px;">
         <p style="margin: 0 0 14px 0; line-height: 1.6; color: #18181b; font-size: 15px;">${contactGreeting}</p>
 
@@ -3659,80 +3694,80 @@ Sitemap: https://${slug}.pages.dev/sitemap.xml
         </p>
       </div>
     `;
-  }
+                    }
 
-  function resolveLeadTradeAndCity(match, slug, specSitesRoot) {
-    const rawTrade = match.ratingReviews?.includes('-')
-      ? match.ratingReviews.split('-').slice(1).join('-').trim()
-      : (match.businessType || 'Contractor');
-    const tradeKey = getTradeCopyProfile(rawTrade, match.businessName, '').displayTrade;
+                    function resolveLeadTradeAndCity(match, slug, specSitesRoot) {
+                      const rawTrade = match.ratingReviews?.includes('-')
+                        ? match.ratingReviews.split('-').slice(1).join('-').trim()
+                        : (match.businessType || 'Contractor');
+                      const tradeKey = getTradeCopyProfile(rawTrade, match.businessName, '').displayTrade;
 
-    let city = '';
-    if (specSitesRoot) {
-      const targetSlug = slug || sanitizeSlug(match.businessName);
-      const existingIndex = path.join(specSitesRoot, targetSlug, 'index.html');
-      if (fs.existsSync(existingIndex)) {
-        try {
-          const html = fs.readFileSync(existingIndex, 'utf8');
-          const geoMatch = html.match(/<meta\s+name="geo\.placename"\s+content="([^"]+)"/i);
-          if (geoMatch && geoMatch[1]) {
-            city = formatCityState(geoMatch[1]).cityState;
-          }
-        } catch (_) {}
-      }
-    }
+                      let city = '';
+                      if (specSitesRoot) {
+                        const targetSlug = slug || sanitizeSlug(match.businessName);
+                        const existingIndex = path.join(specSitesRoot, targetSlug, 'index.html');
+                        if (fs.existsSync(existingIndex)) {
+                          try {
+                            const html = fs.readFileSync(existingIndex, 'utf8');
+                            const geoMatch = html.match(/<meta\s+name="geo\.placename"\s+content="([^"]+)"/i);
+                            if (geoMatch && geoMatch[1]) {
+                              city = formatCityState(geoMatch[1]).cityState;
+                            }
+                          } catch (_) { }
+                        }
+                      }
 
-    if (!city) {
-      if (match.city) {
-        city = formatCityState(match.city).cityState;
-      } else if (match.serviceArea?.includes('(')) {
-        city = formatCityState(match.serviceArea.split('(')[1].split(',')[0].trim()).cityState;
-      } else {
-        const matchedNiche = ROTATING_NICHES.find(n => getTradeKey(n.trade) === getTradeKey(tradeKey));
-        if (matchedNiche) {
-          city = matchedNiche.city;
-        } else if (match.serviceArea && !/fox valley|northeast wisconsin/i.test(match.serviceArea)) {
-          city = formatCityState(match.serviceArea.split(',')[0].trim()).cityState;
-        } else {
-          city = 'Appleton, WI';
-        }
-      }
-    }
+                      if (!city) {
+                        if (match.city) {
+                          city = formatCityState(match.city).cityState;
+                        } else if (match.serviceArea?.includes('(')) {
+                          city = formatCityState(match.serviceArea.split('(')[1].split(',')[0].trim()).cityState;
+                        } else {
+                          const matchedNiche = ROTATING_NICHES.find(n => getTradeKey(n.trade) === getTradeKey(tradeKey));
+                          if (matchedNiche) {
+                            city = matchedNiche.city;
+                          } else if (match.serviceArea && !/fox valley|northeast wisconsin/i.test(match.serviceArea)) {
+                            city = formatCityState(match.serviceArea.split(',')[0].trim()).cityState;
+                          } else {
+                            city = 'Appleton, WI';
+                          }
+                        }
+                      }
 
-    return { tradeKey, city };
-  }
+                      return { tradeKey, city };
+                    }
 
-  return {
-    researchBusinessOnline,
-    synthesizeBespokeBranding,
-    prepareProjectAssets,
-    generateBespokeSiteMarkup,
-    generatePitchEmailMarkup,
-    loadClientOverride,
-    resolveLeadTradeAndCity,
-    normalizeTradeCategory,
-    resolveContextualPhoto,
-    getComparisonFactors,
-    getTradeCopyProfile,
-    formatCityState,
-    getTradeKey,
-    hasRealCustomServices,
-    hasGenericPlaceholderVibe,
-    sanitizeSlug,
-    escapeHtml
-  };
-}
+                    return {
+                      researchBusinessOnline,
+                      synthesizeBespokeBranding,
+                      prepareProjectAssets,
+                      generateBespokeSiteMarkup,
+                      generatePitchEmailMarkup,
+                      loadClientOverride,
+                      resolveLeadTradeAndCity,
+                      normalizeTradeCategory,
+                      resolveContextualPhoto,
+                      getComparisonFactors,
+                      getTradeCopyProfile,
+                      formatCityState,
+                      getTradeKey,
+                      hasRealCustomServices,
+                      hasGenericPlaceholderVibe,
+                      sanitizeSlug,
+                      escapeHtml
+                    };
+                  }
 
-module.exports = {
-  ROTATING_NICHES,
-  createSiteBuilder,
-  normalizeTradeCategory,
-  sanitizeSlug,
-  escapeHtml,
-  formatCityState,
-  getTradeKey,
-  getDistinctiveBizTokens,
-  isJunkImageUrl,
-  isNonWorkGraphicUrl,
-  isTrustworthyResearchImage
-};
+                  module.exports = {
+                    ROTATING_NICHES,
+                    createSiteBuilder,
+                    normalizeTradeCategory,
+                    sanitizeSlug,
+                    escapeHtml,
+                    formatCityState,
+                    getTradeKey,
+                    getDistinctiveBizTokens,
+                    isJunkImageUrl,
+                    isNonWorkGraphicUrl,
+                    isTrustworthyResearchImage
+                  };
