@@ -152,6 +152,115 @@ function isBadWorkImage(fullSrc, alt, attrs) {
   return false;
 }
 
+function decodeHtmlAndObfuscatedEmails(raw) {
+  let s = String(raw || '');
+  if (!s) return '';
+  s = s.replace(/data-cfemail=["']([a-f0-9]{6,})["']/gi, (_, hex) => {
+    try {
+      const r = parseInt(hex.slice(0, 2), 16);
+      let decoded = '';
+      for (let i = 2; i < hex.length; i += 2) {
+        decoded += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ r);
+      }
+      return ` ${decoded} `;
+    } catch (_) {
+      return ' ';
+    }
+  });
+  return s
+    .replace(/&#(?:x40|0*64);|&commat;|%40/gi, '@')
+    .replace(/&#(?:x2e|0*46);|&period;|%2e/gi, '.')
+    .replace(/([a-zA-Z0-9._%+-]+)\s*(?:\[\s*at\s*\]|\(\s*at\s*\))\s*([a-zA-Z0-9.-]+)\s*(?:\[\s*dot\s*\]|\(\s*dot\s*\))\s*([a-zA-Z]{2,12})/gi, '$1@$2.$3')
+    .replace(/([a-zA-Z0-9._%+-]+)\s*(?:\[\s*at\s*\]|\(\s*at\s*\))\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi, '$1@$2');
+}
+
+function isValidBusinessEmail(email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!e || e.length < 6 || e.length > 80) return false;
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,12}$/i.test(e)) return false;
+  if (/\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf|eot|pdf|map|xml|json|xxx|local|internal|invalid|test)$/i.test(e)) return false;
+  if (/(sentry\.io|wixpress\.com|wix\.com|squarespace\.com|godaddy\.com|weebly\.com|wordpress\.com|wordpress\.org|automattic\.com|cloudflare\.com|example\.com|test\.com|domain\.com|email\.com|yoursite\.com|yourdomain\.com|companyname\.com|website\.com|mysite\.com|placeholder\.com|624siteworks\.com|bbb\.org|angi\.com|angieslist\.com|homeadvisor\.com|thumbtack\.com|yelp\.com|mapquest\.com|yellowpages\.com|manta\.com|buildzoom\.com|bizapedia\.com|zoominfo\.com|dnb\.com|nextdoor\.com|chamberofcommerce\.com|birdeye\.com|houzz\.com|porch\.com|facebook\.com|fb\.com|instagram\.com|linkedin\.com|google\.com)$/i.test(e)) {
+    return false;
+  }
+  const [local = '', dom = ''] = e.split('@');
+  const domBase = dom.split('.')[0] || '';
+  if (/^\d+x\d+/i.test(e)) return false;
+  if (/^[a-f0-9]{20,}$/i.test(local) || /^[a-f0-9]{16,}$/i.test(domBase)) return false;
+  if (/^([a-z0-9])\1{2,}$/i.test(local) || /^([a-z0-9])\1{2,}$/i.test(domBase)) return false;
+  if (/^(?:x{2,}|y{2,}|a{3,}|z{3,}|test\d*|testing|demo\d*|sample\d*|example\d*|placeholder|name|user\d*|username|yourname|youremail|myemail|someone|somebody|nobody|noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster|hostmaster|abuse|privacy|security)$/i.test(local)) {
+    return false;
+  }
+  if (/^(?:xxxx+|example|test|sample|placeholder|yourdomain|yoursite|domain|email|website|mysite|companyname|businessname)$/i.test(domBase)) {
+    return false;
+  }
+  if (/no-?reply|do-?not-?reply/i.test(local)) return false;
+  return true;
+}
+
+function normalizeFacebookUrl(rawUrl) {
+  let u = String(rawUrl || '').trim().replace(/[),.;"'\]>]+$/, '');
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  if (!/https?:\/\/(?:[a-z0-9-]+\.)?(?:facebook\.com|fb\.com)\//i.test(u)) return '';
+  if (/facebook\.com\/(?:groups|events|marketplace|watch|reel|reels|stories|gaming|login|help|policies|privacy|legal|ads|business|developers|sharer(?:\.php)?|share(?:\.php)?|plugins?|tr|dialog|hashtag|search|photo\.php|video\.php)(?:\/|$|\?)/i.test(u)) {
+    return '';
+  }
+  const lMatch = u.match(/[?&]u=([^&]+)/i);
+  if (/l\.facebook\.com\/l\.php/i.test(u) && lMatch) {
+    try { u = decodeURIComponent(lMatch[1]); } catch (_) {}
+  }
+  u = u.replace(/^https?:\/\/(?:m|mbasic|mobile|touch|web)\.(facebook\.com)/i, 'https://www.$1');
+  u = u.replace(/^http:\/\/(www\.)?facebook\.com/i, 'https://www.facebook.com');
+  u = u.replace(/^https:\/\/facebook\.com/i, 'https://www.facebook.com');
+
+  const pathPart = u.replace(/^https?:\/\/(?:www\.)?(?:facebook\.com|fb\.com)/i, '');
+  if (!pathPart || pathPart === '/' || /^\/\d{6,}\/(?:posts|photos|videos)\//i.test(pathPart)) return '';
+  if (/^\/profile\.php/i.test(pathPart)) {
+    const idMatch = pathPart.match(/[?&]id=(\d+)/i);
+    return idMatch ? `https://www.facebook.com/profile.php?id=${idMatch[1]}` : '';
+  }
+  let cleanPath = pathPart.split('?')[0].split('#')[0]
+    .replace(/\/(?:posts|photos|videos|about|reviews|mentions|reels)\b.*$/i, '')
+    .replace(/\/+$/, '');
+  if (!cleanPath || cleanPath === '/' || /^\/(?:pages|p|people|pg)$/i.test(cleanPath)) return '';
+  return `https://www.facebook.com${cleanPath}`;
+}
+
+function extractBestSiteEmail(htmlSource, websiteHost) {
+  const decoded = decodeHtmlAndObfuscatedEmails(htmlSource);
+  const hostClean = String(websiteHost || '').toLowerCase().replace(/^www\./, '');
+  const scores = new Map();
+
+  const scoreCandidate = (cand, isMailto) => {
+    const e = cand.trim().toLowerCase();
+    if (!isValidBusinessEmail(e)) return;
+    const [local = '', dom = ''] = e.split('@');
+    let sc = isMailto ? 110 : 80;
+    if (hostClean && (dom === hostClean || dom.endsWith(`.${hostClean}`) || hostClean.endsWith(`.${dom}`))) sc += 25;
+    if (/^(?:info|contact|office|estimates?|quotes?|sales|service|support|hello)$/i.test(local)) sc += 20;
+    if (/^(?:webmaster|hostmaster|admin)$/i.test(local)) sc -= 25;
+    const prev = scores.get(e) || -999;
+    if (sc > prev) scores.set(e, sc);
+  };
+
+  let mm;
+  const mailtoRe = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi;
+  while ((mm = mailtoRe.exec(decoded)) !== null) scoreCandidate(mm[1], true);
+
+  const rawMatches = decoded.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g) || [];
+  for (const rm of rawMatches) scoreCandidate(rm, false);
+
+  let best = null;
+  let bestScore = -999;
+  for (const [email, sc] of scores.entries()) {
+    if (sc > bestScore) {
+      bestScore = sc;
+      best = email;
+    }
+  }
+  return best;
+}
+
 async function scrapeProspectWebsite(targetUrl, options = {}) {
   let urlStr = (targetUrl || '').trim();
   if (!urlStr) return null;
@@ -196,6 +305,7 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
     metaDescription: '',
     phone: null,
     email: null,
+    facebook: null,
     address: null,
     city: null,
     yearEstablished: null,
@@ -289,15 +399,21 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
     }
   }
 
-  // 3b. Email
-  const emailMatches = allHtmlSources.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-  if (emailMatches) {
-    const cleanEmails = emailMatches.filter(e => {
-      const el = e.toLowerCase();
-      return !el.includes('sentry') && !el.includes('wix') && !el.includes('wordpress') && !el.includes('example.com') && !el.includes('domain.com') && !el.includes('.png') && !el.includes('.jpg');
-    });
-    if (cleanEmails.length) {
-      result.email = cleanEmails[0];
+  // 3b. Email (decodes Cloudflare email protection, HTML entities & obfuscation, blocks placeholders)
+  let siteHost = '';
+  try { siteHost = new URL(finalUrl).hostname; } catch (_) {}
+  const bestEmail = extractBestSiteEmail(allHtmlSources, siteHost);
+  if (bestEmail) {
+    result.email = bestEmail;
+  }
+
+  // 3c. Facebook Page (ignores sharer/groups/events/trackers)
+  const fbMatches = allHtmlSources.match(/https?:\/\/(?:[a-z]+\.)?facebook\.com\/[^\s"'<>()]+/gi) || [];
+  for (const fbRaw of fbMatches) {
+    const cleanFb = normalizeFacebookUrl(fbRaw);
+    if (cleanFb) {
+      result.facebook = cleanFb;
+      break;
     }
   }
 
@@ -582,7 +698,10 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
 module.exports = {
   scrapeProspectWebsite,
   isNeutralHex,
-  cleanHex
+  cleanHex,
+  isValidBusinessEmail,
+  normalizeFacebookUrl,
+  decodeHtmlAndObfuscatedEmails
 };
 
 if (require.main === module) {

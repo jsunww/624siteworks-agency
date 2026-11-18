@@ -11,6 +11,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const scraperUtilsPath = fs.existsSync(path.join(__dirname, 'prospect_web_scraper.cjs'))
+  ? path.join(__dirname, 'prospect_web_scraper.cjs')
+  : path.join(__dirname, '..', 'prospect_web_scraper.cjs');
+const { isValidBusinessEmail, normalizeFacebookUrl } = require(scraperUtilsPath);
+
 const ROTATING_NICHES = [
   { trade: 'Concrete', city: 'Appleton, WI', query: 'Concrete contractor, Appleton, WI' },
   { trade: 'Roofing', city: 'Neenah, WI', query: 'Roofing contractor, Neenah, WI' },
@@ -1260,13 +1265,18 @@ function isNonWorkGraphicUrl(url, alt = '') {
 
 function getDistinctiveBizTokens(bizName) {
   const generic = new Set([
-    'tree', 'trees', 'service', 'services', 'care', 'company', 'inc', 'llc', 'co', 'corp',
-    'wisconsin', 'wi', 'green', 'bay', 'appleton', 'oshkosh', 'neenah', 'menasha',
+    'tree', 'trees', 'service', 'services', 'care', 'company', 'inc', 'llc', 'co', 'corp', 'ltd',
+    'wisconsin', 'wi', 'green', 'bay', 'appleton', 'oshkosh', 'neenah', 'menasha', 'sherwood', 'brillion',
     'kaukauna', 'kimberly', 'little', 'chute', 'de', 'pere', 'fox', 'valley', 'north', 'east',
     'the', 'and', 'of', 'pro', 'pros', 'custom', 'quality', 'best', 'premier', 'elite',
-    'all', 'season', 'seasons', 'fencing', 'fence', 'roofing', 'roof', 'concrete',
-    'plumbing', 'heating', 'cooling', 'hvac', 'electric', 'electrical', 'landscaping',
-    'lawn', 'asphalt', 'paving', 'foundation'
+    'all', 'season', 'seasons', 'fencing', 'fence', 'deck', 'decks', 'siding', 'window', 'windows',
+    'door', 'doors', 'painting', 'painter', 'roofing', 'roof', 'concrete', 'sewer', 'drain',
+    'plumbing', 'plumber', 'heating', 'cooling', 'hvac', 'refrigeration', 'electric', 'electrical',
+    'landscaping', 'landscape', 'design', 'lawn', 'asphalt', 'paving', 'foundation', 'contractor',
+    'contracting', 'construction', 'builders', 'remodeling', 'drywall', 'flooring', 'masonry',
+    'excavating', 'excavation', 'septic', 'well', 'pump', 'stump', 'removal', 'trimming', 'pruning',
+    'snow', 'plow', 'plowing', 'supply', 'supplies', 'mechanical', 'system', 'systems', 'solutions',
+    'group', 'enterprises', 'industries', 'associates', 'brothers', 'bros', 'sons'
   ]);
   return (bizName || '')
     .toLowerCase()
@@ -1323,6 +1333,7 @@ function createSiteBuilder(options = {}) {
     agencyPhone = '(920) 234-5633',
     claimBaseUrl = 'https://624siteworks.com/claim.html',
     gaMeasurementId = process.env.DEMO_GA_MEASUREMENT_ID || 'G-07ZVHY3BBN',
+    serpApiKey = process.env.SERP_API_KEY || '',
     scrapeProspectWebsite,
     logger = {}
   } = options;
@@ -1534,9 +1545,15 @@ function createSiteBuilder(options = {}) {
 
     logSub(`Searching web & social media for "${bizName}" (${city})...`);
 
+    // Scrub invalid/placeholder sheet email (e.g. xxxx@xxxx.xxx) so discovery can replace it
+    if (lead.email && !isValidBusinessEmail(lead.email)) {
+      lead.email = 'No email found';
+    }
+
     let researchData = {
       socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
       discoveredWebsite: '',
+      discoveredEmail: '',
       websiteImages: [],
       imageDetails: [],
       extractedColors: [],
@@ -1557,8 +1574,22 @@ function createSiteBuilder(options = {}) {
       }
     }
 
+    // Validate & clean discovered Facebook links (drop /groups/, /events/, non-page posts)
+    if (researchData.socials?.facebook) {
+      const cleanFb = normalizeFacebookUrl(researchData.socials.facebook);
+      researchData.socials.facebook = cleanFb || '';
+    }
     if (lead.facebookUrl && !researchData.socials?.facebook) {
-      researchData.socials = { ...(researchData.socials || {}), facebook: lead.facebookUrl };
+      const cleanLeadFb = normalizeFacebookUrl(lead.facebookUrl);
+      if (cleanLeadFb) {
+        researchData.socials = { ...(researchData.socials || {}), facebook: cleanLeadFb };
+      }
+    }
+
+    // Adopt verified search-discovered email when lead has none
+    if (researchData.discoveredEmail && isValidBusinessEmail(researchData.discoveredEmail) && (!lead.email || lead.email === 'No email found')) {
+      lead.email = researchData.discoveredEmail.trim().toLowerCase();
+      logSuccess(`Discovered business email via search research: ${lead.email}`);
     }
 
     // Resolve target domain before filtering images so cleanDomain includes discovered websites
@@ -1589,7 +1620,11 @@ function createSiteBuilder(options = {}) {
           const cleanDm = dm.toLowerCase();
           const isExcluded = excludedDomains.some(ex => cleanDm === ex || cleanDm.endsWith('.' + ex) || cleanDm.includes(ex));
           const looksLikeBiz = bizTokens.length === 0 || bizTokens.some(t => cleanDm.includes(t));
-          if (!isExcluded && looksLikeBiz) {
+          const dmIdx = snippetText.toLowerCase().indexOf(cleanDm);
+          const dmWin = snippetText.slice(Math.max(0, dmIdx - 180), Math.min(snippetText.length, dmIdx + 180));
+          const hasWrongStateOrMetro = /\b(?:hawaii|mililani|las vegas|connecticut|south dakota|north carolina|texas|florida|ohio|michigan|minnesota|illinois|plover|madison|verona|milwaukee)\b|(?:,\s*(?:HI|NV|CT|SD|NC|TX|FL|OH|MI|MN|IL)\b)|\b(?:808|702|608|715|414|262)[-\s).]?\d{3}/i.test(dmWin)
+            && !/\b(?:appleton|kimberly|little chute|brillion|kaukauna|neenah|menasha|oshkosh|green bay|920)\b/i.test(dmWin);
+          if (!isExcluded && looksLikeBiz && !hasWrongStateOrMetro) {
             prospectDomain = `http://${cleanDm}`;
             break;
           }
@@ -1669,8 +1704,15 @@ function createSiteBuilder(options = {}) {
           if (scraped.phone && (!lead.phone || lead.phone.includes('234-5633'))) {
             lead.phone = scraped.phone;
           }
-          if (scraped.email && (!lead.email || lead.email === 'No email found')) {
-            lead.email = scraped.email;
+          if (scraped.email && isValidBusinessEmail(scraped.email)) {
+            lead.email = scraped.email.trim().toLowerCase();
+            researchData.discoveredEmail = lead.email;
+          }
+          if (scraped.facebook && !researchData.socials?.facebook) {
+            const cleanScrapedFb = normalizeFacebookUrl(scraped.facebook);
+            if (cleanScrapedFb) {
+              researchData.socials = { ...(researchData.socials || {}), facebook: cleanScrapedFb };
+            }
           }
           if (scraped.aboutSnippets && scraped.aboutSnippets.length > 0) {
             researchData.snippets.push(...scraped.aboutSnippets);
@@ -1684,6 +1726,80 @@ function createSiteBuilder(options = {}) {
         }
       } catch (scrapErr) {
         logWarn(`Prospect website deep-scrape notice: ${scrapErr.message}`);
+      }
+    }
+
+    // Fallback email extraction from search snippets + SerpApi Google AI Overview when still missing
+    if (!lead.email || lead.email === 'No email found' || !isValidBusinessEmail(lead.email)) {
+      const bizTokens = getDistinctiveBizTokens(bizName);
+      const snippetBlob = (researchData.snippets || []).join(' ');
+      const freeDomains = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'att.net', 'sbcglobal.net', 'charter.net', 'spectrum.net', 'new.rr.com', 'peoplepc.com']);
+      const pickBestEmail = (rawText, groundedTextLower) => {
+        const matches = String(rawText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g) || [];
+        const cityStr = String(city || 'Fox Valley, WI');
+        const stMatch = cityStr.match(/,\s*([A-Z]{2})\b/);
+        const tgtAbbr = (stMatch ? stMatch[1] : 'WI').toLowerCase();
+        let best = null;
+        let bestScore = -999;
+        for (const cand of matches) {
+          const e = cand.toLowerCase();
+          if (!isValidBusinessEmail(e)) continue;
+          const idx = String(rawText).toLowerCase().indexOf(e);
+          const win = String(rawText).slice(Math.max(0, idx - 220), Math.min(String(rawText).length, idx + 220));
+          const hasConflictingFullState = /\b(?:connecticut|south dakota|north carolina|texas|florida|ohio|michigan|minnesota|illinois|indiana|iowa|california|new york|pennsylvania|georgia|virginia)\b/i.test(win) && !/\b(?:wisconsin|appleton|neenah|menasha|kaukauna|kimberly|little chute|brillion|oshkosh|green bay)\b/i.test(win);
+          if (hasConflictingFullState) continue;
+          const [local = '', dom = ''] = e.split('@');
+          const domStem = (dom.split('.')[0] || '').toLowerCase();
+          if (domStem.length > 5 && /ct|tx|fl|oh|mi|mn|il|nc|sd|ca|ny|pa|ga|va$/i.test(domStem) && !domStem.endsWith(tgtAbbr) && !/\b(?:wisconsin|,?\s*wi)\b/i.test(win)) {
+            continue;
+          }
+          const domNoTld = dom.replace(/\.[a-z]{2,12}$/i, '').replace(/[^a-z0-9]/g, '');
+          const localClean = local.replace(/[^a-z0-9]/g, '');
+          const hits = bizTokens.filter(t => localClean.includes(t) || (!freeDomains.has(dom) && domNoTld.includes(t))).length;
+          const matchesHost = Boolean(cleanDomain && !freeDomains.has(dom) && (dom === cleanDomain || dom.endsWith(`.${cleanDomain}`)));
+          const isGrounded = Boolean(groundedTextLower && groundedTextLower.includes(e));
+          if (hits === 0 && !matchesHost && !isGrounded) continue;
+          const sc = (matchesHost ? 100 : 40) + hits * 35 + (isGrounded ? 20 : 0);
+          if (sc > bestScore) {
+            bestScore = sc;
+            best = e;
+          }
+        }
+        return best;
+      };
+
+      const snippetEmail = pickBestEmail(snippetBlob, '');
+      if (snippetEmail) {
+        lead.email = snippetEmail;
+        researchData.discoveredEmail = snippetEmail;
+        logSuccess(`Extracted business email from research snippets: ${snippetEmail}`);
+      } else if (serpApiKey) {
+        try {
+          const cityClean = city && !/fox valley|northeast wisconsin/i.test(city) ? city.replace(/,/g, '') : 'WI';
+          const q = `${bizName} ${cityClean} email`;
+          const sResp = await fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&gl=us&hl=en&api_key=${encodeURIComponent(serpApiKey)}`);
+          if (sResp.ok) {
+            const sData = await sResp.json();
+            let aioText = '';
+            if (sData.ai_overview) {
+              let aio = sData.ai_overview;
+              if (!aio.text_blocks && aio.serpapi_link) {
+                const aioR = await fetch(`${aio.serpapi_link}${aio.serpapi_link.includes('api_key=') ? '' : '&api_key=' + encodeURIComponent(serpApiKey)}`);
+                if (aioR.ok) aio = await aioR.json();
+              }
+              aioText = JSON.stringify(aio.text_blocks || aio);
+            }
+            const groundedLower = (JSON.stringify(sData.knowledge_graph || '') + ' ' + JSON.stringify((sData.organic_results || []).slice(0, 6))).toLowerCase();
+            const aioEmail = pickBestEmail(aioText, groundedLower) || pickBestEmail(groundedLower, '');
+            if (aioEmail) {
+              lead.email = aioEmail;
+              researchData.discoveredEmail = aioEmail;
+              logSuccess(`Recovered business email via Google AI Overview / Search: ${aioEmail}`);
+            }
+          }
+        } catch (serpErr) {
+          logWarn(`SerpApi fallback notice: ${serpErr.message}`);
+        }
       }
     }
 

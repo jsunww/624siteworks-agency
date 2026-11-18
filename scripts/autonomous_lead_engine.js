@@ -671,7 +671,8 @@ async function buildAndDeploySpecSite(lead, tradeInfo) {
       action: 'updateLead',
       rowNumber: lead.rowNumber,
       status: (lead.leadStatus && lead.leadStatus.toLowerCase().includes('draft')) ? lead.leadStatus : 'Ready to Email',
-      previewUrl: previewUrl
+      previewUrl: previewUrl,
+      email: (lead.email && lead.email !== 'No email found') ? lead.email : undefined
     })
   });
 

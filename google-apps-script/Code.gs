@@ -128,13 +128,20 @@ function handleLeadEngineApiRequest_(params) {
       res = researchBusinessSocialsAndWeb_(bizName, city, domain);
     } else if (action === 'researchCustomProspect') {
       res = researchCustomProspectCore(params);
+    } else if (action === 'refreshContacts') {
+      res = refreshLeadContactsCore(params);
     } else if (action === 'purgeUsableWebsites') {
       res = purgeUsableWebsitesCore();
     } else if (action === 'saveKeys') {
       const props = PropertiesService.getScriptProperties();
       if (params.serperKey) props.setProperty('SERPER_API_KEY', params.serperKey.trim());
       if (params.geminiKey) props.setProperty('GEMINI_API_KEY', params.geminiKey.trim());
-      res = { success: true, message: 'API keys saved successfully' };
+      if (params.serpapiKey) props.setProperty('SERPAPI_API_KEY', params.serpapiKey.trim());
+      res = {
+        success: true,
+        hasSerpApiKey: Boolean(props.getProperty('SERPAPI_API_KEY')),
+        message: 'API keys saved successfully'
+      };
     } else if (action === 'ping') {
       res = { success: true, status: 'online', timestamp: new Date().toISOString() };
     }
@@ -161,6 +168,7 @@ function getPipelineLeadsCore() {
   const configInfo = {
     hasSerperKey: Boolean(props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY')),
     hasGeminiKey: Boolean(props.getProperty('GEMINI_API_KEY')),
+    hasSerpApiKey: Boolean(props.getProperty('SERPAPI_API_KEY')),
     sheetName: CONFIG.SHEET_NAME,
     spreadsheetUrl: ss.getUrl()
   };
@@ -264,6 +272,12 @@ function updateLeadStatusCore(rowNumber, updates) {
   }
   if (updates.email !== undefined && updates.email !== null) {
     sheet.getRange(rowNumber, COL.EMAIL).setValue(updates.email);
+  }
+  if (updates.domainStatus !== undefined && updates.domainStatus !== null) {
+    sheet.getRange(rowNumber, COL.DOMAIN_STATUS).setValue(updates.domainStatus);
+  }
+  if (updates.businessName !== undefined && updates.businessName !== null) {
+    sheet.getRange(rowNumber, COL.BUSINESS_NAME).setValue(updates.businessName);
   }
   if (updates.notes !== undefined && updates.notes !== null) {
     sheet.getRange(rowNumber, COL.NOTES).setValue(updates.notes);
@@ -523,14 +537,17 @@ function scrapeAndAuditLeadsCore(query) {
     existingNames.add(bizName.toLowerCase());
 
     const siteUrl = (item.site || '').trim();
-    let fbUrl = (item.facebook || '').trim();
-    let email = (item.email || '').trim();
+    let fbUrl = normalizeFacebookUrl_(item.facebook || '') || '';
+    const itemCity = item.full_address ? extractCityFromAddress_(item.full_address, '') : '';
+    const targetLocation = itemCity || query.split(',').slice(1).join(',').trim() || CONFIG.DEFAULT_SERVICE_AREA;
+    let email = isValidBusinessEmail_(item.email || '') ? String(item.email).trim().toLowerCase() : '';
     const logoUrl = (item.logo || '').trim();
 
     const audit = auditWebsiteAndSeoPresence_({
       bizName: bizName,
       siteUrl: siteUrl,
       fbUrl: fbUrl,
+      location: targetLocation,
       reviewsCount: reviewsCount,
       rating: item.rating,
       workingHours: item.working_hours,
@@ -543,12 +560,32 @@ function scrapeAndAuditLeadsCore(query) {
       continue;
     }
 
-    if (!email && audit.email) {
+    if (!email && audit.email && isValidBusinessEmail_(audit.email)) {
       email = audit.email;
       crawledEmailCount++;
     }
     if (!fbUrl && audit.facebook) {
       fbUrl = audit.facebook;
+    }
+
+    // Search fallback for qualifying leads missing email or state-verified Facebook (No Website / Facebook-Only / JS sites)
+    if (serperKey && (!email || !fbUrl)) {
+      try {
+        const searchEnrich = discoverContactAndSocials_(bizName, targetLocation, siteUrl || fbUrl, {
+          serperKey: serperKey,
+          serpApiKey: '', // Save AI Overview quota for Gate 2 / Custom Research / Builder unless needed
+          existingEmail: email,
+          existingFacebook: fbUrl,
+          allowSerpApiAiOverview: false
+        });
+        if (!email && searchEnrich.discoveredEmail) {
+          email = searchEnrich.discoveredEmail;
+          crawledEmailCount++;
+        }
+        if (!fbUrl && searchEnrich.socials && searchEnrich.socials.facebook) {
+          fbUrl = searchEnrich.socials.facebook;
+        }
+      } catch (enrErr) {}
     }
 
     const domainStatus = audit.verifiedUrl || siteUrl || fbUrl || 'No Website Listed';
@@ -560,7 +597,7 @@ function scrapeAndAuditLeadsCore(query) {
     const row = new Array(TOTAL_COLS).fill('');
     row[COL.TIMESTAMP - 1] = new Date();
     row[COL.BUSINESS_NAME - 1] = bizName;
-    row[COL.SERVICE_AREA - 1] = CONFIG.DEFAULT_SERVICE_AREA;
+    row[COL.SERVICE_AREA - 1] = itemCity || CONFIG.DEFAULT_SERVICE_AREA;
     row[COL.PHONE - 1] = item.phone || '';
     row[COL.LOGO_URL - 1] = logoUrl;
     row[COL.DOMAIN_STATUS - 1] = domainStatus;
@@ -788,10 +825,15 @@ function auditWebsiteAndSeoPresence_(info) {
   const ignoredDomains = /(sentry\.io|wixpress\.com|example\.com|domain\.com|email\.com|yoursite\.com|wordpress\.org|w3\.org|schema\.org|googleapis\.com)/i;
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g;
   const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi;
-  const fbRegex = /https?:\/\/(?:www\.)?facebook\.com\/[a-zA-Z0-9._-]+/i;
+  const fbRegex = /https?:\/\/(?:[a-z]+\.)?facebook\.com\/[^\s"'<>()]+/gi;
+  const contactExtractCtx = {
+    bizName: info.bizName || '',
+    websiteHost: cleanDomain.replace(/^www\./i, '').split('/')[0],
+    location: info.location || info.query || CONFIG.DEFAULT_SERVICE_AREA
+  };
 
   if (homeHtml) {
-    const extractedHome = extractContactFromHtml_(homeHtml, ignoredExtensions, ignoredDomains, emailRegex, mailtoRegex, fbRegex);
+    const extractedHome = extractContactFromHtml_(homeHtml, ignoredExtensions, ignoredDomains, emailRegex, mailtoRegex, fbRegex, contactExtractCtx);
     foundEmail = extractedHome.email;
     foundFacebook = extractedHome.facebook;
   }
@@ -818,6 +860,10 @@ function auditWebsiteAndSeoPresence_(info) {
   let extractedBizName = ogSiteName || '';
   if (!extractedBizName && rawTitleTag) {
     extractedBizName = rawTitleTag.split(/\s+(?:\||\u2014|\u2013|-)\s+/)[0].trim();
+  }
+  // Guard against bare state/region names being extracted as a business name
+  if (extractedBizName && /^(?:wisconsin|wi|fox valley|northeast wisconsin|home|welcome|untitled)$/i.test(extractedBizName.trim())) {
+    extractedBizName = '';
   }
   const phoneMatchHtml = homeHtml.match(/(?:href=["']tel:([^"']+)["'])|(?:\(?([2-9]\d{2})\)?[-.\s]?(\d{3})[-.\s]?(\d{4}))/i);
   let extractedPhone = '';
@@ -970,28 +1016,29 @@ function auditWebsiteAndSeoPresence_(info) {
     issues.unshift('USABLE WEBSITE (HTTPS + Mobile Ready)');
   }
 
-  // Crawl /contact or /about to find email when missing
-  if (!foundEmail) {
-    const subpaths = ['/contact', '/contact-us', '/about'];
+  // Crawl /contact or /about pages to find email/Facebook when missing
+  if (!foundEmail || !foundFacebook) {
+    const subpaths = ['/contact', '/contact-us', '/about', '/about-us', '/quote', '/estimate'];
     for (let i = 0; i < subpaths.length; i++) {
       try {
         const subResp = tryFetchUrl(baseUrl + subpaths[i], false);
-        if (subResp.getResponseCode() === 200) {
+        if (subResp.getResponseCode() >= 200 && subResp.getResponseCode() < 300) {
           const subExtracted = extractContactFromHtml_(
             subResp.getContentText() || '',
             ignoredExtensions,
             ignoredDomains,
             emailRegex,
             mailtoRegex,
-            fbRegex
+            fbRegex,
+            contactExtractCtx
           );
-          if (subExtracted.email) {
+          if (!foundEmail && subExtracted.email) {
             foundEmail = subExtracted.email;
-            break;
           }
           if (!foundFacebook && subExtracted.facebook) {
             foundFacebook = subExtracted.facebook;
           }
+          if (foundEmail && foundFacebook) break;
         }
       } catch (e) {}
     }
@@ -1103,33 +1150,36 @@ function purgeUsableWebsitesCore() {
   };
 }
 
-function extractContactFromHtml_(html, ignoredExtensions, ignoredDomains, emailRegex, mailtoRegex, fbRegex) {
+function extractContactFromHtml_(html, ignoredExtensions, ignoredDomains, emailRegex, mailtoRegex, fbRegex, ctx) {
   const out = { email: '', facebook: '' };
   if (!html) return out;
 
-  const fbMatch = html.match(fbRegex);
-  if (fbMatch && !fbMatch[0].includes('facebook.com/sharer') && !fbMatch[0].includes('facebook.com/tr')) {
-    out.facebook = fbMatch[0];
-  }
-
-  let mailtoMatch;
-  mailtoRegex.lastIndex = 0;
-  while ((mailtoMatch = mailtoRegex.exec(html)) !== null) {
-    const candidate = mailtoMatch[1].trim().toLowerCase();
-    if (isValidBusinessEmail_(candidate, ignoredExtensions, ignoredDomains)) {
-      out.email = candidate;
-      return out;
+  const meta = ctx || {};
+  const fbMatches = html.match(/https?:\/\/(?:[a-z]+\.)?facebook\.com\/[^\s"'<>()]+/gi) || [];
+  let bestFb = '';
+  let bestFbScore = -1;
+  for (let i = 0; i < fbMatches.length; i++) {
+    const scoredFb = scoreFacebookCandidate_(fbMatches[i], {
+      bizName: meta.bizName || '',
+      location: meta.location || CONFIG.DEFAULT_SERVICE_AREA,
+      title: meta.bizName || '',
+      snippet: '',
+      sourceType: 'website'
+    });
+    if (scoredFb.url && scoredFb.score > bestFbScore) {
+      bestFb = scoredFb.url;
+      bestFbScore = scoredFb.score;
     }
   }
+  out.facebook = bestFb;
 
-  const matches = html.match(emailRegex) || [];
-  for (let j = 0; j < matches.length; j++) {
-    const candidate = matches[j].trim().toLowerCase();
-    if (isValidBusinessEmail_(candidate, ignoredExtensions, ignoredDomains)) {
-      out.email = candidate;
-      return out;
-    }
-  }
+  const emailSources = [{ text: html, sourceType: 'website' }];
+  const picked = selectBestEmailFromSources_(emailSources, {
+    bizName: meta.bizName || '',
+    websiteHost: meta.websiteHost || '',
+    location: meta.location || CONFIG.DEFAULT_SERVICE_AREA
+  });
+  out.email = picked ? picked.email : '';
 
   return out;
 }
@@ -1260,7 +1310,10 @@ function enrichApprovedLeadsWithAI() {
  * Core Gate 2 implementation: Callable both from spreadsheet UI and from Web App API.
  */
 function enrichApprovedLeadsCore() {
-  const geminiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
+  const props = PropertiesService.getScriptProperties();
+  const geminiKey = props.getProperty('GEMINI_API_KEY') || '';
+  const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '';
+  const serpApiKey = props.getProperty('SERPAPI_API_KEY') || '';
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
   if (!sheet || sheet.getLastRow() < 2) {
@@ -1299,10 +1352,38 @@ function enrichApprovedLeadsCore() {
 
     const serviceArea = String(row[COL.SERVICE_AREA - 1] || CONFIG.DEFAULT_SERVICE_AREA).trim();
     const ratingBadge = String(row[COL.RATING_REVIEWS - 1] || '').trim();
-    const domainStatus = String(row[COL.DOMAIN_STATUS - 1] || '').trim();
-    const existingEmail = String(row[COL.EMAIL - 1] || '').trim();
+    let domainStatus = String(row[COL.DOMAIN_STATUS - 1] || '').trim();
+    let existingEmail = String(row[COL.EMAIL - 1] || '').trim();
 
     try {
+      // Enrich missing/placeholder email or missing/invalid Facebook before writing prompt fields
+      const hasValidExistingEmail = isValidBusinessEmail_(existingEmail);
+      const hasMissingOrBadDomain = !domainStatus || /no website|\/groups\/|facebook\.com\/share/i.test(domainStatus);
+      if ((serperKey || serpApiKey) && (!hasValidExistingEmail || hasMissingOrBadDomain)) {
+        const contactRes = discoverContactAndSocials_(bizName, serviceArea, domainStatus, {
+          serperKey: serperKey,
+          serpApiKey: serpApiKey,
+          existingEmail: hasValidExistingEmail ? existingEmail : '',
+          allowSerpApiAiOverview: true
+        });
+        if (!hasValidExistingEmail && contactRes.discoveredEmail) {
+          existingEmail = contactRes.discoveredEmail;
+          sheet.getRange(rowNumber, COL.EMAIL).setValue(existingEmail);
+        } else if (!hasValidExistingEmail) {
+          existingEmail = 'No email found';
+        }
+        if (hasMissingOrBadDomain) {
+          const betterDomain = contactRes.discoveredWebsite || (contactRes.socials && contactRes.socials.facebook) || '';
+          if (betterDomain) {
+            domainStatus = betterDomain;
+            sheet.getRange(rowNumber, COL.DOMAIN_STATUS).setValue(domainStatus);
+          } else if (/\/groups\/|facebook\.com\/share/i.test(domainStatus)) {
+            domainStatus = 'No Website Listed';
+            sheet.getRange(rowNumber, COL.DOMAIN_STATUS).setValue(domainStatus);
+          }
+        }
+      }
+
       const aiData = callGeminiForLeadEnrichment_(geminiKey, {
         bizName: bizName,
         serviceArea: serviceArea,
@@ -1318,7 +1399,7 @@ function enrichApprovedLeadsCore() {
       sheet.getRange(rowNumber, COL.SERVICE_3_NAME).setValue(aiData.service3Name || '');
       sheet.getRange(rowNumber, COL.SERVICE_3_DESC).setValue(aiData.service3Desc || '');
 
-      if (!existingEmail || existingEmail === 'No email found') {
+      if (!existingEmail || existingEmail === 'No email found' || !isValidBusinessEmail_(existingEmail)) {
         sheet.getRange(rowNumber, COL.EMAIL).setValue('No email found');
       }
 
@@ -1370,7 +1451,7 @@ function callGeminiForLeadEnrichment_(apiKey, context) {
       }
     };
 
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const modelsToTry = [CONFIG.GEMINI_MODEL || 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-2.5-flash'];
     for (let m = 0; m < modelsToTry.length; m++) {
       try {
         const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelsToTry[m] + ':generateContent?key=' + encodeURIComponent(apiKey);
@@ -1754,12 +1835,944 @@ function formatFriendlyWebsiteImprovements_(siteIssues, domainStatus) {
   return points.slice(0, 3);
 }
 
+const US_STATES_MAP_ = {
+  AL: 'alabama', AK: 'alaska', AZ: 'arizona', AR: 'arkansas', CA: 'california',
+  CO: 'colorado', CT: 'connecticut', DE: 'delaware', FL: 'florida', GA: 'georgia',
+  HI: 'hawaii', ID: 'idaho', IL: 'illinois', IN: 'indiana', IA: 'iowa',
+  KS: 'kansas', KY: 'kentucky', LA: 'louisiana', ME: 'maine', MD: 'maryland',
+  MA: 'massachusetts', MI: 'michigan', MN: 'minnesota', MS: 'mississippi', MO: 'missouri',
+  MT: 'montana', NE: 'nebraska', NV: 'nevada', NH: 'new hampshire', NJ: 'new jersey',
+  NM: 'new mexico', NY: 'new york', NC: 'north carolina', ND: 'north dakota', OH: 'ohio',
+  OK: 'oklahoma', OR: 'oregon', PA: 'pennsylvania', RI: 'rhode island', SC: 'south carolina',
+  SD: 'south dakota', TN: 'tennessee', TX: 'texas', UT: 'utah', VT: 'vermont',
+  VA: 'virginia', WA: 'washington', WV: 'west virginia', WI: 'wisconsin', WY: 'wyoming',
+  DC: 'district of columbia'
+};
+
+const WI_FOX_VALLEY_CITIES_ = [
+  'appleton', 'neenah', 'menasha', 'kaukauna', 'kimberly', 'little chute', 'brillion',
+  'chilton', 'oshkosh', 'green bay', 'de pere', 'depere', 'hortonville', 'greenville',
+  'new london', 'seymour', 'wrightstown', 'combined locks', 'freedom', 'grand chute',
+  'omro', 'winneconne', 'fond du lac', 'sherwood', 'stockbridge', 'hilbert', 'reedsville',
+  'pulaski', 'suamico', 'howard', 'ashwaubenon', 'bellevue', 'allouez', 'larsen', 'shiocton'
+];
+
+const FREE_EMAIL_DOMAINS_SET_ = {
+  'gmail.com': 1, 'yahoo.com': 1, 'outlook.com': 1, 'hotmail.com': 1, 'aol.com': 1,
+  'icloud.com': 1, 'live.com': 1, 'msn.com': 1, 'att.net': 1, 'sbcglobal.net': 1,
+  'charter.net': 1, 'spectrum.net': 1, 'comcast.net': 1, 'new.rr.com': 1,
+  'centurytel.net': 1, 'tds.net': 1, 'ymail.com': 1, 'rocketmail.com': 1,
+  'proton.me': 1, 'protonmail.com': 1, 'me.com': 1, 'mac.com': 1
+};
+
+const DEFAULT_IGNORED_EMAIL_EXT_ = /\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf|eot|pdf|map|xml|json|xxx|local|internal|invalid|test)$/i;
+const DEFAULT_IGNORED_EMAIL_DOM_ = /(?:\.gov|\.edu|sentry\.io|wixpress\.com|wix\.com|squarespace\.com|godaddy\.com|weebly\.com|wordpress\.com|wordpress\.org|automattic\.com|cloudflare\.com|example\.com|test\.com|domain\.com|email\.com|yoursite\.com|yourdomain\.com|companyname\.com|website\.com|mysite\.com|placeholder\.com|624siteworks\.com|bbb\.org|angi\.com|angieslist\.com|homeadvisor\.com|thumbtack\.com|yelp\.com|mapquest\.com|yellowpages\.com|manta\.com|buildzoom\.com|bizapedia\.com|zoominfo\.com|dnb\.com|nextdoor\.com|chamberofcommerce\.com|birdeye\.com|houzz\.com|porch\.com|facebook\.com|fb\.com|instagram\.com|linkedin\.com|google\.com)$/i;
+
+function getDistinctiveBizTokens_(bizName) {
+  const genericWords = {
+    tree: 1, trees: 1, service: 1, services: 1, care: 1, company: 1, inc: 1, llc: 1, co: 1, corp: 1,
+    ltd: 1, wisconsin: 1, wi: 1, fox: 1, valley: 1, cities: 1, appleton: 1, neenah: 1, menasha: 1,
+    kaukauna: 1, kimberly: 1, little: 1, chute: 1, oshkosh: 1, green: 1, bay: 1, de: 1, pere: 1,
+    brillion: 1, sherwood: 1, the: 1, and: 1, of: 1, electric: 1, electrical: 1, plumbing: 1, plumber: 1,
+    heating: 1, cooling: 1, hvac: 1, refrigeration: 1, sewer: 1, drain: 1, concrete: 1, roofing: 1, roof: 1,
+    fencing: 1, fence: 1, deck: 1, decks: 1, siding: 1, window: 1, windows: 1, door: 1, doors: 1,
+    painting: 1, painter: 1, landscaping: 1, landscape: 1, design: 1, lawn: 1, paving: 1, contractor: 1,
+    contracting: 1, construction: 1, builders: 1, remodeling: 1, drywall: 1, flooring: 1, masonry: 1,
+    excavating: 1, excavation: 1, septic: 1, well: 1, pump: 1, stump: 1, removal: 1, trimming: 1,
+    pruning: 1, snow: 1, plow: 1, plowing: 1, supply: 1, supplies: 1, mechanical: 1, system: 1, systems: 1,
+    solutions: 1, group: 1, enterprises: 1, industries: 1, associates: 1, brothers: 1, bros: 1, sons: 1,
+    home: 1, residential: 1, commercial: 1, pro: 1, pros: 1, all: 1, season: 1, seasons: 1, custom: 1,
+    quality: 1, best: 1, premier: 1, elite: 1, local: 1, northeast: 1, midwest: 1
+  };
+  const clean = String(bizName || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  const rawTokens = clean.split(/\s+/).filter(function(t) { return t.length >= 2; });
+  const distinct = rawTokens.filter(function(t) { return !genericWords[t]; });
+  return distinct.length ? distinct : rawTokens.filter(function(t) { return t !== 'the' && t !== 'and' && t !== 'llc' && t !== 'inc'; });
+}
+
+function decodeHtmlAndObfuscatedEmails_(raw) {
+  let s = String(raw || '');
+  if (!s) return '';
+
+  // Decode Cloudflare email protection hex strings (data-cfemail="...")
+  s = s.replace(/data-cfemail=["']([a-f0-9]{6,})["']/gi, function(_, hex) {
+    try {
+      const r = parseInt(hex.slice(0, 2), 16);
+      let decoded = '';
+      for (let i = 2; i < hex.length; i += 2) {
+        decoded += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ r);
+      }
+      return ' ' + decoded + ' ';
+    } catch (e) {
+      return ' ';
+    }
+  });
+
+  return s
+    .replace(/&#(?:x40|0*64);|&commat;|%40/gi, '@')
+    .replace(/&#(?:x2e|0*46);|&period;|%2e/gi, '.')
+    .replace(/([a-zA-Z0-9._%+-]+)\s*(?:\[\s*at\s*\]|\(\s*at\s*\))\s*([a-zA-Z0-9.-]+)\s*(?:\[\s*dot\s*\]|\(\s*dot\s*\))\s*([a-zA-Z]{2,12})/gi, '$1@$2.$3')
+    .replace(/([a-zA-Z0-9._%+-]+)\s*(?:\[\s*at\s*\]|\(\s*at\s*\))\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi, '$1@$2');
+}
+
 function isValidBusinessEmail_(email, ignoredExtensions, ignoredDomains) {
-  if (!email || email.length > 80) return false;
-  if (ignoredExtensions.test(email)) return false;
-  if (ignoredDomains.test(email)) return false;
-  if (/^\d+x\d+/i.test(email)) return false;
+  const e = String(email || '').trim().toLowerCase();
+  if (!e || e.length < 6 || e.length > 80) return false;
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,12}$/i.test(e)) return false;
+
+  const extRe = ignoredExtensions || DEFAULT_IGNORED_EMAIL_EXT_;
+  const domRe = ignoredDomains || DEFAULT_IGNORED_EMAIL_DOM_;
+  if (extRe.test(e) || DEFAULT_IGNORED_EMAIL_EXT_.test(e)) return false;
+  if (domRe.test(e) || DEFAULT_IGNORED_EMAIL_DOM_.test(e)) return false;
+
+  const parts = e.split('@');
+  const local = parts[0] || '';
+  const dom = parts[1] || '';
+  const domBase = dom.split('.')[0] || '';
+
+  if (/^\d+x\d+/i.test(e)) return false;
+  if (/^[a-f0-9]{20,}$/i.test(local) || /^[a-f0-9]{16,}$/i.test(domBase)) return false;
+
+  // Reject placeholder / repeated character / bot trap addresses like xxxx@xxxx.xxx, your@email.com, noreply@
+  if (/^([a-z0-9])\1{2,}$/i.test(local) || /^([a-z0-9])\1{2,}$/i.test(domBase)) return false;
+  if (/^(?:x{2,}|y{2,}|a{3,}|z{3,}|test\d*|testing|demo\d*|sample\d*|example\d*|placeholder|name|user\d*|username|yourname|youremail|myemail|someone|somebody|nobody|noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster|hostmaster|abuse|privacy|security)$/i.test(local)) {
+    return false;
+  }
+  if (/^(?:xxxx+|example|test|sample|placeholder|yourdomain|yoursite|domain|email|website|mysite|companyname|businessname)$/i.test(domBase)) {
+    return false;
+  }
+  if (/no-?reply|do-?not-?reply/i.test(local)) return false;
+
   return true;
+}
+
+function parseGeoTarget_(locationStr) {
+  const raw = String(locationStr || CONFIG.DEFAULT_SERVICE_AREA || 'Fox Valley, WI').trim();
+  const lower = raw.toLowerCase();
+
+  let targetStateAbbr = 'WI';
+  let targetStateName = 'wisconsin';
+
+  const abbrMatch = raw.match(/(?:,\s*|\b)([A-Z]{2})\b(?:\s+\d{5})?$/);
+  if (abbrMatch && US_STATES_MAP_[abbrMatch[1]]) {
+    targetStateAbbr = abbrMatch[1];
+    targetStateName = US_STATES_MAP_[abbrMatch[1]];
+  } else {
+    const abbrList = Object.keys(US_STATES_MAP_);
+    for (let i = 0; i < abbrList.length; i++) {
+      const code = abbrList[i];
+      const full = US_STATES_MAP_[code];
+      if (new RegExp('\\b' + full.replace(/\s+/g, '\\s+') + '\\b', 'i').test(lower)) {
+        targetStateAbbr = code;
+        targetStateName = full;
+        break;
+      }
+    }
+  }
+
+  const cityPart = raw
+    .replace(/,\s*[A-Z]{2}\b.*$/i, '')
+    .replace(/\b(?:wisconsin|fox valley|fox cities|northeast wi|northeast wisconsin|and surrounding areas)\b/gi, ' ')
+    .replace(/[&/()]/g, ' ')
+    .trim()
+    .toLowerCase();
+  const cityWords = cityPart.split(/\s+/).filter(function(w) { return w.length >= 3 && w !== 'and' && w !== 'area'; });
+
+  return {
+    targetStateAbbr: targetStateAbbr,
+    targetStateName: targetStateName,
+    cityPhrase: cityPart,
+    cityWords: cityWords
+  };
+}
+
+function detectGeoAlignment_(text, geoTarget) {
+  const raw = String(text || '');
+  const lower = raw.toLowerCase();
+  const tgtAbbr = (geoTarget && geoTarget.targetStateAbbr) || 'WI';
+  const tgtName = (geoTarget && geoTarget.targetStateName) || 'wisconsin';
+  const cityWords = (geoTarget && geoTarget.cityWords) || [];
+
+  let hasTargetCityMatch = false;
+  if (geoTarget && geoTarget.cityPhrase && geoTarget.cityPhrase.length >= 4 && lower.indexOf(geoTarget.cityPhrase) !== -1) {
+    hasTargetCityMatch = true;
+  } else if (cityWords.length) {
+    hasTargetCityMatch = cityWords.some(function(cw) { return new RegExp('\\b' + cw + '\\b', 'i').test(lower); });
+  }
+  if (!hasTargetCityMatch && tgtAbbr === 'WI') {
+    for (let i = 0; i < WI_FOX_VALLEY_CITIES_.length; i++) {
+      if (new RegExp('\\b' + WI_FOX_VALLEY_CITIES_[i] + '\\b', 'i').test(lower)) {
+        hasTargetCityMatch = true;
+        break;
+      }
+    }
+  }
+
+  let hasTargetStateMatch = false;
+  if (new RegExp('\\b' + tgtName + '\\b', 'i').test(lower)) hasTargetStateMatch = true;
+  if (new RegExp('(?:,\\s*|\\b)' + tgtAbbr + '\\b(?:\\s+\\d{5}|\\s|$|[.,|·)])').test(raw)) hasTargetStateMatch = true;
+  if (tgtAbbr === 'WI' && /\b(?:920|715|608|414|262|534)[-\s).]?\d{3}[-\s.]?\d{4}\b/.test(raw)) hasTargetStateMatch = true;
+  if (tgtAbbr === 'WI' && /\b5[34]\d{3}\b/.test(raw)) hasTargetStateMatch = true;
+
+  const conflictingStates = [];
+  const stateEntries = Object.keys(US_STATES_MAP_);
+  for (let i = 0; i < stateEntries.length; i++) {
+    const abbr = stateEntries[i];
+    const name = US_STATES_MAP_[abbr];
+    if (abbr === tgtAbbr) continue;
+    // Avoid false-positives on street names ("Washington Ave") and English words ("HEATING, AIR, OR PLUMBING")
+    const nameSlug = name.replace(/\s+/g, '[-\\s]+');
+    const hasFullOtherState = new RegExp('\\b' + nameSlug + '\\b(?!\\s+(?:st|street|ave|avenue|rd|road|blvd|dr|drive|ct|court|ln|lane)\\b)', 'i').test(lower);
+    const hasCommaAbbr = new RegExp(',\\s*' + abbr + '\\b(?=\\s+\\d{5}\\b|$|[.,|·)\\-\\/])').test(raw);
+    const hasZipAbbr = new RegExp('\\b' + abbr + '\\s+\\d{5}\\b').test(raw);
+    if (hasFullOtherState || hasCommaAbbr || hasZipAbbr) {
+      conflictingStates.push(abbr);
+    }
+  }
+
+  if (tgtAbbr === 'WI') {
+    const wiCodes = { '262': 1, '414': 1, '534': 1, '608': 1, '715': 1, '920': 1 };
+    const tollFree = { '800': 1, '888': 1, '877': 1, '866': 1, '855': 1, '844': 1, '833': 1 };
+    const phoneAreaMatches = raw.match(/(?:\(([2-9]\d{2})\)\s*\d{3}[-.\s]\d{4}|\b([2-9]\d{2})[-.\s]\d{3}[-.\s]\d{4}\b)/g) || [];
+    for (let p = 0; p < phoneAreaMatches.length; p++) {
+      const codeMatch = phoneAreaMatches[p].match(/\d{3}/);
+      if (codeMatch) {
+        const ac = codeMatch[0];
+        if (!wiCodes[ac] && !tollFree[ac] && conflictingStates.indexOf('PHONE_' + ac) === -1) {
+          conflictingStates.push('PHONE_' + ac);
+        }
+      }
+    }
+  }
+
+  const hasArea920 = tgtAbbr === 'WI' && /(?:\(\s*920\s*\)\s*|\b920[-\s.])\d{3}[-\s.]\d{4}\b/.test(raw);
+  const targetIsFoxValley = tgtAbbr === 'WI' && (cityWords.length === 0 || cityWords.some(function(cw) {
+    return WI_FOX_VALLEY_CITIES_.some(function(fv) { return fv.indexOf(cw) !== -1; });
+  }) || /fox/i.test((geoTarget && geoTarget.cityPhrase) || ''));
+
+  const distantWiMetros = /\b(?:plover|stevens point|cambridge|cottage grove|stoughton|waunakee|verona|madison|milwaukee|waukesha|brookfield|kenosha|racine|janesville|beloit|wausau|eau claire|la crosse|west bend|sun prairie|middleton|fitchburg|sheboygan|manitowoc|watertown|beaver dam|whitewater|pewaukee|oconomowoc|menomonee falls|mequon|cedarburg|grafton|port washington|west allis|wauwatosa|oak creek)\b/i;
+  const nonFvPhone = /(?:\(\s*(?:608|414|262|715|534)\s*\)\s*|\b(?:608|414|262|715|534)[-\s.])\d{3}[-\s.]\d{4}\b/.test(raw);
+  const conflictingMetro = Boolean(targetIsFoxValley && !hasArea920 && !hasTargetCityMatch && (nonFvPhone || distantWiMetros.test(lower)));
+
+  return {
+    hasTargetCityMatch: hasTargetCityMatch,
+    hasTargetStateMatch: hasTargetStateMatch,
+    conflictingStates: conflictingStates,
+    conflictingMetro: conflictingMetro
+  };
+}
+
+function normalizeFacebookUrl_(rawUrl) {
+  let u = String(rawUrl || '').trim().replace(/[),.;"'\]>]+$/, '');
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  if (!/https?:\/\/(?:[a-z0-9-]+\.)?(?:facebook\.com|fb\.com)\//i.test(u)) return '';
+
+  // Reject junk non-page paths before normalization
+  if (/facebook\.com\/(?:groups|events|marketplace|watch|reel|reels|stories|gaming|login|help|policies|privacy|legal|ads|business|developers|sharer(?:\.php)?|share(?:\.php)?|plugins?|tr|dialog|hashtag|search|photo\.php|video\.php)(?:\/|$|\?)/i.test(u)) {
+    return '';
+  }
+
+  // Unwrap l.facebook.com/l.php?u=... redirect links if seen
+  const lMatch = u.match(/[?&]u=([^&]+)/i);
+  if (/l\.facebook\.com\/l\.php/i.test(u) && lMatch) {
+    try { u = decodeURIComponent(lMatch[1]); } catch (e) {}
+  }
+
+  // Standardize mobile/web subdomain to www.facebook.com
+  u = u.replace(/^https?:\/\/(?:m|mbasic|mobile|touch|web)\.(facebook\.com)/i, 'https://www.$1');
+  u = u.replace(/^http:\/\/(www\.)?facebook\.com/i, 'https://www.facebook.com');
+  u = u.replace(/^https:\/\/facebook\.com/i, 'https://www.facebook.com');
+
+  const pathPart = u.replace(/^https?:\/\/(?:www\.)?(?:facebook\.com|fb\.com)/i, '');
+  if (!pathPart || pathPart === '/') return '';
+
+  // Reject raw personal ID posts like /100057474249553/posts/... (wrong-state post spam source)
+  if (/^\/\d{6,}\/(?:posts|photos|videos)\//i.test(pathPart)) return '';
+
+  // Preserve /profile.php?id=... without tracking noise
+  if (/^\/profile\.php/i.test(pathPart)) {
+    const idMatch = pathPart.match(/[?&]id=(\d+)/i);
+    return idMatch ? ('https://www.facebook.com/profile.php?id=' + idMatch[1]) : '';
+  }
+
+  // Strip query parameters on standard page paths
+  let cleanPath = pathPart.split('?')[0].split('#')[0];
+
+  // Normalize sub-tabs back to clean page root for named/pages/p URLs
+  cleanPath = cleanPath.replace(/\/(?:posts|photos|videos|about|reviews|mentions|reels)\b.*$/i, '');
+  cleanPath = cleanPath.replace(/\/+$/, '');
+  if (!cleanPath || cleanPath === '/' || /^\/(?:pages|p|people|pg)$/i.test(cleanPath)) return '';
+
+  return 'https://www.facebook.com' + cleanPath;
+}
+
+function scoreFacebookCandidate_(rawUrl, ctx) {
+  const normUrl = normalizeFacebookUrl_(rawUrl);
+  if (!normUrl) return { url: '', score: -1000 };
+
+  const meta = ctx || {};
+  const bizName = String(meta.bizName || '').trim();
+  const title = String(meta.title || '').trim();
+  const snippet = String(meta.snippet || '').trim();
+  const geoTarget = parseGeoTarget_(meta.location || CONFIG.DEFAULT_SERVICE_AREA);
+
+  const bizTokens = getDistinctiveBizTokens_(bizName);
+  const pathPart = normUrl.replace(/^https?:\/\/www\.facebook\.com/i, '');
+  const titleAndSlug = (title + ' ' + pathPart).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  let titleMatches = 0;
+  for (let i = 0; i < bizTokens.length; i++) {
+    if (titleAndSlug.indexOf(bizTokens[i]) !== -1) titleMatches++;
+  }
+
+  // Never accept an unrelated Facebook page whose title and slug share zero tokens with the business
+  if (meta.sourceType !== 'website' && bizTokens.length > 0 && titleMatches === 0) {
+    return { url: '', score: -1000 };
+  }
+
+  const combinedText = [normUrl, title, snippet].join(' ');
+  const geoAll = detectGeoAlignment_(combinedText, geoTarget);
+  const geoTitle = detectGeoAlignment_(title + ' ' + normUrl, geoTarget);
+
+  // Reject out-of-state or wrong-WI-metro Facebook pages (e.g., Madison SD, Ohio, Texas, or 608 Cambridge vs 920 Fox Valley)
+  if (geoAll.conflictingStates.length > 0 && !(geoTitle.conflictingStates.length === 0 && (geoAll.hasTargetCityMatch || geoTitle.hasTargetStateMatch))) {
+    return { url: '', score: -1000 };
+  }
+  if (geoTitle.conflictingStates.length > 0) {
+    return { url: '', score: -1000 };
+  }
+  if ((geoAll.conflictingMetro || geoTitle.conflictingMetro) && !geoAll.hasTargetCityMatch) {
+    return { url: '', score: -1000 };
+  }
+
+  let score = meta.sourceType === 'website' ? 60 : 20;
+  score += Math.min(titleMatches, 3) * 25;
+  if (geoAll.hasTargetCityMatch) score += 50;
+  if (geoAll.hasTargetStateMatch) score += 35;
+  if (/\/profile\.php\?id=/i.test(normUrl)) score -= 15;
+
+  // For search-discovered Facebook results, require local state/city proof unless company name is multi-token unique and no conflict
+  const hasGeoProof = geoAll.hasTargetCityMatch || geoAll.hasTargetStateMatch;
+  if (meta.sourceType !== 'website' && !hasGeoProof) {
+    return { url: '', score: -200 };
+  }
+
+  return { url: normUrl, score: score };
+}
+
+function scoreEmailCandidate_(email, ctx) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!isValidBusinessEmail_(e)) return -1000;
+
+  const meta = ctx || {};
+  const parts = e.split('@');
+  const local = parts[0] || '';
+  const dom = parts[1] || '';
+  const domNoTld = dom.replace(/\.[a-z]{2,12}$/i, '').replace(/[^a-z0-9]/g, '');
+  const localClean = local.replace(/[^a-z0-9]/g, '');
+
+  const isFreeMail = Boolean(FREE_EMAIL_DOMAINS_SET_[dom]);
+  const bizName = String(meta.bizName || '').trim();
+  const bizTokens = getDistinctiveBizTokens_(bizName);
+  const websiteHost = String(meta.websiteHost || '').toLowerCase().replace(/^www\./, '');
+  const sourceType = meta.sourceType || 'organic_snippet';
+  const contextText = String(meta.contextText || '');
+  const titleText = String(meta.title || '');
+  const linkText = String(meta.link || '');
+  const geoTarget = parseGeoTarget_(meta.location || CONFIG.DEFAULT_SERVICE_AREA);
+
+  // Detect out-of-state suffix glued directly onto custom domain (e.g., a1treeservicect.com when target is WI)
+  if (!isFreeMail && bizTokens.length) {
+    const domLetters = dom.split('.')[0].toLowerCase();
+    const tgtLower = geoTarget.targetStateAbbr.toLowerCase();
+    const otherAbbrs = Object.keys(US_STATES_MAP_);
+    for (let s = 0; s < otherAbbrs.length; s++) {
+      const ab = otherAbbrs[s].toLowerCase();
+      if (ab === tgtLower) continue;
+      if (domLetters.length > 5 && domLetters.endsWith(ab)) {
+        // Check if removing the 2-letter state abbr leaves the company slug and Wisconsin wasn't explicitly confirmed in link+title
+        const stem = domLetters.slice(0, -2);
+        const matchesStem = bizTokens.some(function(t) { return stem.indexOf(t) !== -1; });
+        const titleGeo = detectGeoAlignment_(titleText + ' ' + linkText, geoTarget);
+        if (matchesStem && titleGeo.conflictingStates.indexOf(otherAbbrs[s]) !== -1) {
+          return -1000;
+        }
+        if (matchesStem && !titleGeo.hasTargetCityMatch && !titleGeo.hasTargetStateMatch) {
+          return -1000;
+        }
+      }
+    }
+  }
+
+  let tokenHitsInEmail = 0;
+  for (let i = 0; i < bizTokens.length; i++) {
+    const tk = bizTokens[i];
+    if (localClean.indexOf(tk) !== -1 || (!isFreeMail && domNoTld.indexOf(tk) !== -1)) {
+      tokenHitsInEmail++;
+    }
+  }
+
+  const matchesWebsiteHost = Boolean(websiteHost && !isFreeMail && (dom === websiteHost || dom.endsWith('.' + websiteHost) || websiteHost.endsWith('.' + dom)));
+
+  let score = 0;
+  if (sourceType === 'website') {
+    score = 90;
+    if (meta.isMailto) score += 25;
+    if (matchesWebsiteHost) score += 25;
+    if (tokenHitsInEmail > 0) score += 15;
+    if (/^(?:info|contact|office|estimates?|quotes?|sales|service|support|hello|team)$/i.test(local)) score += 20;
+    if (/^(?:webmaster|hostmaster|postmaster|admin)$/i.test(local)) score -= 25;
+    return score;
+  }
+
+  // Web search sources (AI Overview, Knowledge Graph, Organic Snippets) require strict anti-competitor & geo validation
+  const windowGeo = detectGeoAlignment_(titleText + ' ' + contextText + ' ' + linkText, geoTarget);
+  if (windowGeo.conflictingStates.length > 0 && !windowGeo.hasTargetCityMatch && !matchesWebsiteHost) {
+    return -1000;
+  }
+  if (windowGeo.conflictingMetro && !windowGeo.hasTargetCityMatch && !matchesWebsiteHost) {
+    return -1000;
+  }
+  if (sourceType === 'organic_snippet' && !windowGeo.hasTargetCityMatch && !windowGeo.hasTargetStateMatch && !matchesWebsiteHost) {
+    return -200;
+  }
+
+  const combinedMetaLower = (titleText + ' ' + contextText).toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  let bizMentionCount = 0;
+  for (let i = 0; i < bizTokens.length; i++) {
+    if (combinedMetaLower.indexOf(bizTokens[i]) !== -1) bizMentionCount++;
+  }
+
+  const titleLowerClean = titleText.toLowerCase().replace(/[^a-z0-9]/g, '');
+  let titleBizHits = 0;
+  for (let i = 0; i < bizTokens.length; i++) {
+    if (titleLowerClean.indexOf(bizTokens[i]) !== -1) titleBizHits++;
+  }
+
+  if (sourceType === 'ai_overview' || sourceType === 'knowledge_graph' || sourceType === 'answer_box') {
+    if (bizTokens.length > 0 && bizMentionCount === 0 && tokenHitsInEmail === 0 && !matchesWebsiteHost) {
+      return -500;
+    }
+    score = 65;
+  } else {
+    score = 20;
+  }
+
+  if (matchesWebsiteHost) score += 60;
+  if (tokenHitsInEmail > 0) score += Math.min(tokenHitsInEmail, 2) * 35;
+  if (titleBizHits > 0 && windowGeo.conflictingStates.length === 0) score += 30;
+  if (windowGeo.hasTargetCityMatch) score += 25;
+  else if (windowGeo.hasTargetStateMatch) score += 15;
+
+  // Reject custom-domain emails from search snippets when neither domain nor prefix shares a token with bizName/websiteHost
+  if (!isFreeMail && !matchesWebsiteHost && tokenHitsInEmail === 0) {
+    return -200;
+  }
+
+  // For free-mail addresses (@gmail, @yahoo, @hotmail, @peoplepc) without business token inside the email address itself,
+  // never trust ungrounded AI-Overview-only guesses or pure organic directory table dumps without AI Overview / KG grounding
+  if (isFreeMail && tokenHitsInEmail === 0 && !matchesWebsiteHost) {
+    const isGroundedInOrganic = Boolean(meta.groundedEmails && meta.groundedEmails[e]);
+    if (sourceType === 'ai_overview') {
+      if (!isGroundedInOrganic) return -500;
+    } else if (sourceType !== 'knowledge_graph') {
+      // For organic_snippet / answer_box, require explicit single-page ownership (never multi-company PDF/directory lists)
+      // AND require that NO unrelated company phone/city sits closer than the target business
+      if (!meta.groundedEmails || !(titleBizHits >= Math.min(bizTokens.length, 2) && titleText.toLowerCase().indexOf(bizTokens[0] || '') !== -1 && (websiteHost || contextText.toLowerCase().indexOf(bizName.toLowerCase()) !== -1))) {
+        return -200;
+      }
+      if (/gov\.|forum|petition|memo|housing|board|minutes|pdf/i.test(titleText + ' ' + linkText + ' ' + contextText)) {
+        return -500;
+      }
+    }
+    const preWindow = contextText.slice(Math.max(0, Math.floor(contextText.length / 2) - 180), Math.ceil(contextText.length / 2) + 80).toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+    const nearBizHit = bizTokens.length === 0 || bizTokens.some(function(t) { return preWindow.indexOf(t) !== -1; });
+    const hasLocalGeo = windowGeo.hasTargetCityMatch || windowGeo.hasTargetStateMatch;
+    if (windowGeo.conflictingStates.length > 0 || !hasLocalGeo || !nearBizHit) {
+      return -200;
+    }
+    const dedicatedPageMatch = (sourceType === 'ai_overview' || sourceType === 'knowledge_graph')
+      ? (bizMentionCount > 0)
+      : (titleBizHits > 0);
+    if (!dedicatedPageMatch) return -200;
+  }
+
+  if (/^(?:info|contact|office|estimates?|quotes?|sales|service|hello)$/i.test(local)) score += 15;
+  if (/^(?:webmaster|hostmaster|admin)$/i.test(local)) score -= 25;
+
+  return score;
+}
+
+function selectBestEmailFromSources_(sources, ctx) {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}/g;
+  const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12})/gi;
+  const bestByEmail = {};
+  const groundedEmails = {};
+
+  // Pre-collect emails seen in non-AI-Overview sources so AI Overview hallucinations of unrelated free-mails can be filtered out
+  for (let sIdx = 0; sIdx < (sources || []).length; sIdx++) {
+    const src = sources[sIdx];
+    if (!src || !src.text || src.sourceType === 'ai_overview') continue;
+    const dec = decodeHtmlAndObfuscatedEmails_(src.text);
+    const hits = dec.match(emailRegex) || [];
+    for (let h = 0; h < hits.length; h++) {
+      groundedEmails[hits[h].trim().toLowerCase()] = true;
+    }
+  }
+
+  const enrichedCtx = Object.assign({}, ctx, { groundedEmails: groundedEmails });
+
+  for (let sIdx = 0; sIdx < (sources || []).length; sIdx++) {
+    const src = sources[sIdx];
+    if (!src || !src.text) continue;
+    const decoded = decodeHtmlAndObfuscatedEmails_(src.text);
+
+    // Check explicit mailto: occurrences first
+    mailtoRegex.lastIndex = 0;
+    let mMatch;
+    while ((mMatch = mailtoRegex.exec(decoded)) !== null) {
+      const candidate = mMatch[1].trim().toLowerCase();
+      const idx = mMatch.index;
+      const winStart = Math.max(0, idx - 220);
+      const winEnd = Math.min(decoded.length, idx + 220);
+      const sc = scoreEmailCandidate_(candidate, Object.assign({}, enrichedCtx, {
+        sourceType: src.sourceType || 'organic_snippet',
+        title: src.title || '',
+        link: src.link || '',
+        contextText: decoded.slice(winStart, winEnd),
+        isMailto: true
+      }));
+      if (sc >= 50 && (!bestByEmail[candidate] || sc > bestByEmail[candidate].score)) {
+        bestByEmail[candidate] = { email: candidate, score: sc, sourceType: src.sourceType || 'organic_snippet' };
+      }
+    }
+
+    emailRegex.lastIndex = 0;
+    let match;
+    while ((match = emailRegex.exec(decoded)) !== null) {
+      const candidate = match[0].trim().toLowerCase();
+      const idx = match.index;
+      const winStart = Math.max(0, idx - 220);
+      const winEnd = Math.min(decoded.length, idx + 220);
+      const sc = scoreEmailCandidate_(candidate, Object.assign({}, enrichedCtx, {
+        sourceType: src.sourceType || 'organic_snippet',
+        title: src.title || '',
+        link: src.link || '',
+        contextText: decoded.slice(winStart, winEnd),
+        isMailto: false
+      }));
+      if (sc >= 50 && (!bestByEmail[candidate] || sc > bestByEmail[candidate].score)) {
+        bestByEmail[candidate] = { email: candidate, score: sc, sourceType: src.sourceType || 'organic_snippet' };
+      }
+    }
+  }
+
+  let winner = null;
+  const keys = Object.keys(bestByEmail);
+  for (let k = 0; k < keys.length; k++) {
+    const item = bestByEmail[keys[k]];
+    if (!winner || item.score > winner.score) {
+      winner = item;
+    }
+  }
+  return winner;
+}
+
+function extractSerpApiTextRecursive_(node, outArr) {
+  if (!node) return;
+  if (typeof node === 'string') {
+    if (node.trim()) outArr.push(node.trim());
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) extractSerpApiTextRecursive_(node[i], outArr);
+    return;
+  }
+  if (typeof node === 'object') {
+    const priorityKeys = ['text', 'snippet', 'title', 'answer', 'markdown', 'list', 'text_blocks', 'items', 'description'];
+    for (let p = 0; p < priorityKeys.length; p++) {
+      if (node[priorityKeys[p]] !== undefined) {
+        extractSerpApiTextRecursive_(node[priorityKeys[p]], outArr);
+      }
+    }
+    const keys = Object.keys(node);
+    for (let k = 0; k < keys.length; k++) {
+      const key = keys[k];
+      if (priorityKeys.indexOf(key) !== -1 || key === 'serpapi_link' || key === 'link' || key === 'thumbnail' || key === 'search_metadata') continue;
+      extractSerpApiTextRecursive_(node[key], outArr);
+    }
+  }
+}
+
+function fetchSerpApiGoogleEmailAndFb_(serpApiKey, query, ctx) {
+  const out = { emailSources: [], fbCandidates: [] };
+  if (!serpApiKey || !query) return out;
+
+  try {
+    const endpoint = 'https://serpapi.com/search.json?engine=google&q=' + encodeURIComponent(query) + '&gl=us&hl=en&api_key=' + encodeURIComponent(serpApiKey);
+    const resp = UrlFetchApp.fetch(endpoint, { method: 'get', muteHttpExceptions: true });
+    if (resp.getResponseCode() < 200 || resp.getResponseCode() >= 300) return out;
+
+    const data = JSON.parse(resp.getContentText());
+
+    if (data.ai_overview) {
+      let aio = data.ai_overview;
+      if (!aio.text_blocks && aio.serpapi_link) {
+        try {
+          const aioUrl = aio.serpapi_link + (aio.serpapi_link.indexOf('api_key=') === -1 ? '&api_key=' + encodeURIComponent(serpApiKey) : '');
+          const aioResp = UrlFetchApp.fetch(aioUrl, { method: 'get', muteHttpExceptions: true });
+          if (aioResp.getResponseCode() >= 200 && aioResp.getResponseCode() < 300) {
+            aio = JSON.parse(aioResp.getContentText());
+          }
+        } catch (e) {}
+      }
+      const aioChunks = [];
+      extractSerpApiTextRecursive_(aio.text_blocks || aio, aioChunks);
+      const aioText = aioChunks.join(' ');
+      if (aioText) {
+        out.emailSources.push({ text: aioText, sourceType: 'ai_overview', title: ctx.bizName || '' });
+      }
+    }
+
+    if (data.answer_box) {
+      const abChunks = [];
+      extractSerpApiTextRecursive_(data.answer_box, abChunks);
+      if (abChunks.length) {
+        out.emailSources.push({ text: abChunks.join(' '), sourceType: 'answer_box', title: ctx.bizName || '' });
+      }
+    }
+
+    if (data.knowledge_graph) {
+      const kgChunks = [];
+      extractSerpApiTextRecursive_(data.knowledge_graph, kgChunks);
+      if (kgChunks.length) {
+        out.emailSources.push({ text: kgChunks.join(' '), sourceType: 'knowledge_graph', title: data.knowledge_graph.title || ctx.bizName || '' });
+      }
+    }
+
+    const organic = Array.isArray(data.organic_results) ? data.organic_results : [];
+    for (let i = 0; i < organic.length; i++) {
+      const item = organic[i];
+      const link = item.link || '';
+      const title = item.title || '';
+      const snippet = item.snippet || '';
+      if (snippet || title) {
+        out.emailSources.push({ text: title + ' ' + snippet, sourceType: 'organic_snippet', title: title, link: link });
+      }
+      if (/facebook\.com\//i.test(link)) {
+        out.fbCandidates.push({ link: link, title: title, snippet: snippet, sourceType: 'organic' });
+      }
+    }
+  } catch (err) {}
+
+  return out;
+}
+
+function collectSerperSearchSignals_(serperKey, searchQuery, excludeDomains, bizTokens, bizName, targetGeo, opts) {
+  const signalOpts = opts || {};
+  const allowWebsiteDiscovery = signalOpts.allowWebsiteDiscovery !== false;
+  const collected = {
+    organic: [],
+    emailSources: [],
+    fbCandidates: [],
+    socials: { instagram: '', linkedin: '', bbb: '', yelp: '' },
+    discoveredWebsite: '',
+    knowledgeGraph: null,
+    snippets: []
+  };
+  if (!serperKey || !searchQuery) return collected;
+
+  try {
+    const resp = UrlFetchApp.fetch('https://google.serper.dev/search', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'X-API-KEY': serperKey },
+      payload: JSON.stringify({ q: searchQuery, gl: 'us', hl: 'en', num: 10 }),
+      muteHttpExceptions: true
+    });
+    if (resp.getResponseCode() < 200 || resp.getResponseCode() >= 300) return collected;
+
+    const data = JSON.parse(resp.getContentText());
+
+    if (data.answerBox) {
+      const abChunks = [];
+      extractSerpApiTextRecursive_(data.answerBox, abChunks);
+      if (abChunks.length) {
+        collected.emailSources.push({ text: abChunks.join(' '), sourceType: 'answer_box', title: bizName });
+      }
+    }
+
+    if (data.knowledgeGraph) {
+      collected.knowledgeGraph = data.knowledgeGraph;
+      const kgChunks = [];
+      extractSerpApiTextRecursive_(data.knowledgeGraph, kgChunks);
+      if (kgChunks.length) {
+        collected.emailSources.push({ text: kgChunks.join(' '), sourceType: 'knowledge_graph', title: data.knowledgeGraph.title || bizName });
+      }
+      if (data.knowledgeGraph.website) {
+        const kgHost = normalizeHost_(data.knowledgeGraph.website);
+        const isDirKg = (excludeDomains || []).some(function(ex) { return kgHost === ex || kgHost.endsWith('.' + ex); });
+        if (/facebook\.com\//i.test(data.knowledgeGraph.website)) {
+          collected.fbCandidates.push({ link: data.knowledgeGraph.website, title: data.knowledgeGraph.title || bizName, snippet: data.knowledgeGraph.type || '', sourceType: 'knowledge_graph' });
+        } else if (kgHost && !isDirKg) {
+          collected.discoveredWebsite = data.knowledgeGraph.website;
+        }
+      }
+    }
+
+    if (Array.isArray(data.peopleAlsoAsk)) {
+      for (let p = 0; p < data.peopleAlsoAsk.length; p++) {
+        const paa = data.peopleAlsoAsk[p];
+        if (paa && paa.snippet) {
+          collected.emailSources.push({ text: (paa.question || '') + ' ' + paa.snippet, sourceType: 'answer_box', title: bizName });
+        }
+      }
+    }
+
+    const organic = Array.isArray(data.organic) ? data.organic : [];
+    collected.organic = organic;
+    for (let i = 0; i < organic.length; i++) {
+      const item = organic[i];
+      const link = item.link || '';
+      const rawTitle = item.title || '';
+      const titleLower = rawTitle.toLowerCase();
+      const snippet = item.snippet || '';
+      if (snippet) collected.snippets.push(snippet);
+
+      collected.emailSources.push({
+        text: rawTitle + ' ' + snippet,
+        sourceType: 'organic_snippet',
+        title: rawTitle,
+        link: link
+      });
+
+      if (/facebook\.com\//i.test(link)) {
+        collected.fbCandidates.push({ link: link, title: rawTitle, snippet: snippet, sourceType: 'organic' });
+      } else if (/instagram\.com\/[a-zA-Z0-9._-]+/i.test(link) && !collected.socials.instagram) {
+        collected.socials.instagram = link;
+      } else if (/linkedin\.com\/(?:company|in)\/[a-zA-Z0-9._-]+/i.test(link) && !collected.socials.linkedin) {
+        collected.socials.linkedin = link;
+      } else if (/bbb\.org\//i.test(link) && !collected.socials.bbb) {
+        collected.socials.bbb = link;
+      } else if (/yelp\.com\/biz\//i.test(link) && !collected.socials.yelp) {
+        collected.socials.yelp = link;
+      } else if (allowWebsiteDiscovery && !collected.discoveredWebsite && /^https?:\/\//i.test(link)) {
+        const host = link.toLowerCase().replace(/^https?:\/\/(www\.)?/i, '').split('/')[0];
+        const isDir = /\.(?:gov|edu)$/i.test(host)
+          || /\/(?:listings|directory|businesses|profile)\//i.test(link)
+          || (excludeDomains || []).some(function(ex) { return host === ex || host.endsWith('.' + ex); });
+        const hostClean = host.replace(/[^a-z0-9]/g, '');
+        const itemGeo = detectGeoAlignment_(rawTitle + ' ' + snippet, targetGeo);
+        const matchesName = bizTokens.length === 0
+          ? titleLower.indexOf(bizName.toLowerCase().split(/\s+/)[0]) !== -1
+          : bizTokens.some(function(t) { return hostClean.indexOf(t) !== -1; });
+        const hasGeoProof = itemGeo.hasTargetCityMatch || itemGeo.hasTargetStateMatch;
+        const notWrongState = !(itemGeo.conflictingStates.length > 0 && !itemGeo.hasTargetCityMatch && !itemGeo.hasTargetStateMatch);
+        const notWrongMetro = !(itemGeo.conflictingMetro && !itemGeo.hasTargetCityMatch);
+        if (!isDir && matchesName && hasGeoProof && notWrongState && notWrongMetro) {
+          collected.discoveredWebsite = link.split('#')[0];
+        }
+      }
+    }
+  } catch (err) {}
+
+  return collected;
+}
+
+function discoverContactAndSocials_(bizName, cityOrArea, websiteOrDomain, opts) {
+  const options = opts || {};
+  const props = PropertiesService.getScriptProperties();
+  const serperKey = options.serperKey !== undefined ? options.serperKey : (props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '');
+  const serpApiKey = options.serpApiKey !== undefined ? options.serpApiKey : (props.getProperty('SERPAPI_API_KEY') || '');
+  const allowSerpApiAiOverview = options.allowSerpApiAiOverview !== false;
+
+  const excludedDirectoryDomains = [
+    'facebook.com', 'instagram.com', 'linkedin.com', 'bbb.org', 'yelp.com', 'yellowpages.com',
+    'mapquest.com', 'angi.com', 'angieslist.com', 'homeadvisor.com', 'thumbtack.com', 'porch.com',
+    'houzz.com', 'nextdoor.com', 'manta.com', 'chamberofcommerce.com', 'birdeye.com', 'superpages.com',
+    'buildzoom.com', 'bizapedia.com', 'zoominfo.com', 'dnb.com', 'opencorporates.com', 'expertise.com',
+    'threebestrated.com', 'bestprosintown.com', 'experience.com', 'constructiondirectory.us',
+    'findtreeservice.com', 'treeservice.com', 'bark.com', 'networx.com', 'homeyou.com', 'fixr.com',
+    'wiseintro.com', 'wisconsin.gov', 'usa.gov', 'mapq.st', 'google.com', 'youtube.com', 'wikipedia.org',
+    'whitepages.com', 'spokeo.com', 'apple.com'
+  ];
+
+  const bizTokens = getDistinctiveBizTokens_(bizName);
+  const geoTarget = parseGeoTarget_(cityOrArea || CONFIG.DEFAULT_SERVICE_AREA);
+  const cleanCityLabel = (geoTarget.cityWords.length && !/fox|valley|northeast/i.test(geoTarget.cityPhrase))
+    ? (geoTarget.cityPhrase.replace(/\b\w/g, function(c) { return c.toUpperCase(); }) + ', ' + geoTarget.targetStateAbbr)
+    : geoTarget.targetStateName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  const websiteHost = (websiteOrDomain && !/no website|facebook\.com|fb\.com/i.test(websiteOrDomain))
+    ? normalizeHost_(websiteOrDomain)
+    : '';
+
+  const out = {
+    discoveredWebsite: '',
+    discoveredEmail: isValidBusinessEmail_(options.existingEmail || '') ? String(options.existingEmail).trim().toLowerCase() : '',
+    emailSource: options.existingEmail && isValidBusinessEmail_(options.existingEmail) ? 'existing' : '',
+    socials: {
+      facebook: '',
+      instagram: '',
+      linkedin: '',
+      bbb: '',
+      yelp: ''
+    },
+    knowledgeGraph: null,
+    snippets: [],
+    kgImageUrl: ''
+  };
+
+  if (options.existingFacebook) {
+    const scoredPreFb = scoreFacebookCandidate_(options.existingFacebook, {
+      bizName: bizName,
+      location: cityOrArea || CONFIG.DEFAULT_SERVICE_AREA,
+      title: bizName,
+      snippet: cleanCityLabel,
+      sourceType: 'organic'
+    });
+    if (scoredPreFb.url && scoredPreFb.score >= 45) {
+      out.socials.facebook = scoredPreFb.url;
+    }
+  }
+
+  const emailSources = [];
+  const fbCandidates = [];
+
+  // Stage 2: Primary Serper web search
+  if (serperKey && bizName) {
+    const pass1 = collectSerperSearchSignals_(serperKey, '"' + bizName + '" ' + cleanCityLabel, excludedDirectoryDomains, bizTokens, bizName, geoTarget);
+    if (pass1.discoveredWebsite && !out.discoveredWebsite) out.discoveredWebsite = pass1.discoveredWebsite;
+    if (pass1.knowledgeGraph) {
+      out.knowledgeGraph = pass1.knowledgeGraph;
+      if (pass1.knowledgeGraph.imageUrl) out.kgImageUrl = pass1.knowledgeGraph.imageUrl;
+    }
+    if (pass1.snippets.length) out.snippets.push(...pass1.snippets);
+    ['instagram', 'linkedin', 'bbb', 'yelp'].forEach(function(k) {
+      if (pass1.socials[k] && !out.socials[k]) out.socials[k] = pass1.socials[k];
+    });
+    emailSources.push(...pass1.emailSources);
+    fbCandidates.push(...pass1.fbCandidates);
+
+    const activeHost = websiteHost || normalizeHost_(out.discoveredWebsite);
+
+    // Evaluate Stage 2 email right away before firing extra queries
+    if (!out.discoveredEmail && emailSources.length) {
+      const winner1 = selectBestEmailFromSources_(emailSources, { bizName: bizName, websiteHost: activeHost, location: cleanCityLabel });
+      if (winner1 && winner1.email) {
+        out.discoveredEmail = winner1.email;
+        out.emailSource = 'serper_' + winner1.sourceType;
+      }
+    }
+
+    // Score Stage 2 Facebook candidates right away
+    let bestFbScore = -1;
+    for (let i = 0; i < fbCandidates.length; i++) {
+      const scored = scoreFacebookCandidate_(fbCandidates[i].link, {
+        bizName: bizName,
+        location: cleanCityLabel,
+        title: fbCandidates[i].title,
+        snippet: fbCandidates[i].snippet,
+        sourceType: fbCandidates[i].sourceType
+      });
+      if (scored.url && scored.score > bestFbScore && scored.score >= 60) {
+        bestFbScore = scored.score;
+        out.socials.facebook = scored.url;
+      }
+    }
+
+    // Stage 3A: Targeted unquoted Serper email search if email still missing
+    if (!out.discoveredEmail) {
+      const cityTokenStr = geoTarget.cityWords.length ? geoTarget.cityWords.join(' ') + ' ' + geoTarget.targetStateAbbr : geoTarget.targetStateName;
+      const emailQ = activeHost
+        ? (bizName + ' ' + cityTokenStr + ' email OR site:' + activeHost)
+        : (bizName + ' ' + cityTokenStr + ' email');
+      const passEmail = collectSerperSearchSignals_(serperKey, emailQ, excludedDirectoryDomains, bizTokens, bizName, geoTarget, { allowWebsiteDiscovery: false });
+      if (passEmail.snippets.length) {
+        passEmail.snippets.forEach(function(s) {
+          if (out.snippets.indexOf(s) === -1) out.snippets.push(s);
+        });
+      }
+      fbCandidates.push(...passEmail.fbCandidates);
+      const winner2 = selectBestEmailFromSources_(emailSources.concat(passEmail.emailSources), {
+        bizName: bizName,
+        websiteHost: websiteHost || normalizeHost_(out.discoveredWebsite),
+        location: cleanCityLabel
+      });
+      if (winner2 && winner2.email) {
+        out.discoveredEmail = winner2.email;
+        out.emailSource = 'serper_email_' + winner2.sourceType;
+      }
+    }
+
+    // Stage 3B: Targeted Facebook page search (state-filtered) if verified WI Facebook page still missing
+    if (!out.socials.facebook) {
+      const stateTitle = geoTarget.targetStateName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+      const fbQuery = 'site:facebook.com "' + bizName + '" ' + stateTitle;
+      const passFb = collectSerperSearchSignals_(serperKey, fbQuery, excludedDirectoryDomains, bizTokens, bizName, geoTarget, { allowWebsiteDiscovery: false });
+      const allFbCands = fbCandidates.concat(passFb.fbCandidates);
+      for (let i = 0; i < allFbCands.length; i++) {
+        const scored = scoreFacebookCandidate_(allFbCands[i].link, {
+          bizName: bizName,
+          location: cleanCityLabel,
+          title: allFbCands[i].title,
+          snippet: allFbCands[i].snippet,
+          sourceType: allFbCands[i].sourceType
+        });
+        if (scored.url && scored.score > bestFbScore && scored.score >= 60) {
+          bestFbScore = scored.score;
+          out.socials.facebook = scored.url;
+        }
+      }
+      if (!out.discoveredEmail && passFb.emailSources.length) {
+        const winnerFbEmail = selectBestEmailFromSources_(passFb.emailSources, {
+          bizName: bizName,
+          websiteHost: websiteHost || normalizeHost_(out.discoveredWebsite),
+          location: cleanCityLabel
+        });
+        if (winnerFbEmail && winnerFbEmail.email) {
+          out.discoveredEmail = winnerFbEmail.email;
+          out.emailSource = 'serper_fb_' + winnerFbEmail.sourceType;
+        }
+      }
+    }
+  }
+
+  // Stage 4: Google AI Overview fallback via SerpApi (catches AI-summary-only emails when Serper found none)
+  if (!out.discoveredEmail && allowSerpApiAiOverview && serpApiKey && bizName) {
+    const cityTokenStr = geoTarget.cityWords.length ? geoTarget.cityWords.join(' ') + ' ' + geoTarget.targetStateAbbr : geoTarget.targetStateAbbr;
+    const serpQuery = bizName + ' ' + cityTokenStr + ' email';
+    const serpData = fetchSerpApiGoogleEmailAndFb_(serpApiKey, serpQuery, { bizName: bizName, location: cleanCityLabel });
+    if (serpData.emailSources.length) {
+      const winnerAio = selectBestEmailFromSources_(serpData.emailSources, {
+        bizName: bizName,
+        websiteHost: websiteHost || normalizeHost_(out.discoveredWebsite),
+        location: cleanCityLabel
+      });
+      if (winnerAio && winnerAio.email) {
+        out.discoveredEmail = winnerAio.email;
+        out.emailSource = 'serpapi_' + winnerAio.sourceType;
+      }
+    }
+    if (!out.socials.facebook && serpData.fbCandidates.length) {
+      let bestFbScore = -1;
+      for (let i = 0; i < serpData.fbCandidates.length; i++) {
+        const scored = scoreFacebookCandidate_(serpData.fbCandidates[i].link, {
+          bizName: bizName,
+          location: cleanCityLabel,
+          title: serpData.fbCandidates[i].title,
+          snippet: serpData.fbCandidates[i].snippet,
+          sourceType: serpData.fbCandidates[i].sourceType
+        });
+        if (scored.url && scored.score > bestFbScore && scored.score >= 60) {
+          bestFbScore = scored.score;
+          out.socials.facebook = scored.url;
+        }
+      }
+    }
+  }
+
+  return out;
 }
 
 function formatWorkingHours_(workingHours) {
@@ -1779,17 +2792,20 @@ function buildFallbackEmail_(bizName, domainStatus) {
 }
 
 /**
- * Researches social profiles, real website images, brand colors, and company facts
+ * Researches social profiles, verified email, real website images, brand colors, and company facts
  * for deep bespoke spec-site generation.
  */
 function researchBusinessSocialsAndWeb_(bizName, city, domain) {
   const props = PropertiesService.getScriptProperties();
-  const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY');
-  
+  const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '';
+  const serpApiKey = props.getProperty('SERPAPI_API_KEY') || '';
+
   const result = {
     success: true,
     bizName: bizName,
     discoveredWebsite: '',
+    discoveredEmail: '',
+    emailSource: '',
     socials: { facebook: '', instagram: '', linkedin: '', bbb: '', yelp: '' },
     websiteImages: [],
     imageDetails: [],
@@ -1797,96 +2813,155 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
     snippets: []
   };
 
-  if (!bizName) return result;
+  if (!bizName || /^(?:wisconsin|wi|fox valley|northeast wisconsin|home|welcome|untitled)$/i.test(String(bizName).trim())) {
+    return result;
+  }
 
-  const excludedDirectoryDomains = [
-    'facebook.com', 'instagram.com', 'linkedin.com', 'bbb.org', 'yelp.com', 'yellowpages.com',
-    'mapquest.com', 'angi.com', 'angieslist.com', 'homeadvisor.com', 'thumbtack.com', 'porch.com',
-    'houzz.com', 'nextdoor.com', 'manta.com', 'chamberofcommerce.com', 'birdeye.com', 'superpages.com',
-    'buildzoom.com', 'bizapedia.com', 'zoominfo.com', 'dnb.com', 'opencorporates.com', 'expertise.com',
-    'threebestrated.com', 'bestprosintown.com', 'experience.com', 'constructiondirectory.us',
-    'mapq.st', 'google.com', 'youtube.com', 'wikipedia.org', 'whitepages.com', 'spokeo.com', 'apple.com'
-  ];
-  const genericBizWords = {
-    tree: 1, trees: 1, service: 1, services: 1, care: 1, company: 1, inc: 1, llc: 1, co: 1, corp: 1,
-    wisconsin: 1, wi: 1, fox: 1, valley: 1, appleton: 1, neenah: 1, menasha: 1, kaukauna: 1,
-    kimberly: 1, little: 1, chute: 1, oshkosh: 1, green: 1, bay: 1, the: 1, and: 1, of: 1,
-    electric: 1, electrical: 1, plumbing: 1, heating: 1, cooling: 1, hvac: 1, concrete: 1,
-    roofing: 1, fencing: 1, fence: 1, landscaping: 1, lawn: 1, paving: 1, contractor: 1
+  // 1. Direct Website + Subpage Scrape FIRST if a custom website domain was provided
+  const initialScrapeTarget = (domain && !/no website|facebook\.com|fb\.com/i.test(domain)) ? domain : '';
+  const cleanCity = city || 'Fox Valley, WI';
+  const websiteCtx = {
+    bizName: bizName,
+    websiteHost: initialScrapeTarget ? normalizeHost_(initialScrapeTarget) : '',
+    location: cleanCity
   };
-  const bizTokens = bizName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(function(t) {
-    return t.length >= 2 && !genericBizWords[t];
-  });
 
-  // 1. Google Serper Search for Social Profiles, Company Website & Reviews
-  if (serperKey) {
-    try {
-      const cleanCity = city || 'Fox Valley, WI';
-      const searchQuery = '"' + bizName + '" ' + cleanCity;
-      const searchResp = UrlFetchApp.fetch('https://google.serper.dev/search', {
-        method: 'post',
-        contentType: 'application/json',
-        headers: { 'X-API-KEY': serperKey },
-        payload: JSON.stringify({ q: searchQuery, gl: 'us', hl: 'en', num: 10 }),
-        muteHttpExceptions: true
-      });
+  const scrapeSiteForMediaAndContact = function(siteTargetUrl, verifyTargetGeo) {
+    if (!siteTargetUrl) return;
+    const baseClean = siteTargetUrl.startsWith('http') ? siteTargetUrl : 'https://' + siteTargetUrl;
+    const originMatch = baseClean.match(/^(https?:\/\/[^\/]+)/i);
+    const originBase = originMatch ? originMatch[1] : baseClean.replace(/\/+$/, '');
+    const subpaths = ['', '/contact', '/contact-us', '/about', '/about-us', '/quote'];
+    const seenImgs = new Set(result.websiteImages);
+    const siteGeoTarget = parseGeoTarget_(cleanCity);
 
-      if (searchResp.getResponseCode() >= 200 && searchResp.getResponseCode() < 300) {
-        const data = JSON.parse(searchResp.getContentText());
-        const organic = Array.isArray(data.organic) ? data.organic : [];
-        for (let i = 0; i < organic.length; i++) {
-          const item = organic[i];
-          const link = item.link || '';
-          const title = (item.title || '').toLowerCase();
-          const snippet = item.snippet || '';
-          if (snippet) result.snippets.push(snippet);
+    for (let s = 0; s < subpaths.length; s++) {
+      try {
+        const fetchUrl = s === 0 ? baseClean : (originBase + subpaths[s]);
+        const resp = UrlFetchApp.fetch(fetchUrl, {
+          method: 'get',
+          muteHttpExceptions: true,
+          followRedirects: true,
+          validateHttpsCertificates: false
+        });
+        if (resp.getResponseCode() < 200 || resp.getResponseCode() >= 400) continue;
+        const html = resp.getContentText() || '';
+        if (!html) continue;
 
-          if (/facebook\.com\/[a-zA-Z0-9._-]+/i.test(link) && !link.includes('sharer') && !result.socials.facebook) {
-            result.socials.facebook = link;
-          } else if (/instagram\.com\/[a-zA-Z0-9._-]+/i.test(link) && !result.socials.instagram) {
-            result.socials.instagram = link;
-          } else if (/linkedin\.com\/(?:company|in)\/[a-zA-Z0-9._-]+/i.test(link) && !result.socials.linkedin) {
-            result.socials.linkedin = link;
-          } else if (/bbb\.org\//i.test(link) && !result.socials.bbb) {
-            result.socials.bbb = link;
-          } else if (/yelp\.com\/biz\//i.test(link) && !result.socials.yelp) {
-            result.socials.yelp = link;
-          } else if (!result.discoveredWebsite && /^https?:\/\//i.test(link)) {
-            const host = link.toLowerCase().replace(/^https?:\/\/(www\.)?/i, '').split('/')[0];
-            const isDir = excludedDirectoryDomains.some(function(ex) { return host === ex || host.endsWith('.' + ex); });
-            const hostClean = host.replace(/[^a-z0-9]/g, '');
-            const matchesName = bizTokens.length === 0
-              ? title.indexOf(bizName.toLowerCase().split(/\s+/)[0]) !== -1
-              : bizTokens.some(function(t) { return hostClean.indexOf(t) !== -1; });
-            if (!isDir && matchesName) {
-              result.discoveredWebsite = link.split('#')[0];
+        if (verifyTargetGeo && s === 0) {
+          const visibleText = html
+            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ');
+          const siteGeo = detectGeoAlignment_(visibleText, siteGeoTarget);
+          const wrongState = siteGeo.conflictingStates.length > 0 && !siteGeo.hasTargetCityMatch && !siteGeo.hasTargetStateMatch;
+          const wrongMetro = siteGeo.conflictingMetro && !siteGeo.hasTargetCityMatch;
+          const missingGeoProof = !siteGeo.hasTargetCityMatch && !siteGeo.hasTargetStateMatch;
+          if (wrongState || wrongMetro || missingGeoProof) {
+            result.discoveredWebsite = '';
+            return;
+          }
+        }
+
+        if (!result.discoveredEmail || !result.socials.facebook) {
+          const ext = extractContactFromHtml_(html, DEFAULT_IGNORED_EMAIL_EXT_, DEFAULT_IGNORED_EMAIL_DOM_, null, null, null, websiteCtx);
+          if (!result.discoveredEmail && ext.email) {
+            result.discoveredEmail = ext.email;
+            result.emailSource = s === 0 ? 'website_home' : 'website_' + subpaths[s].replace('/', '');
+          }
+          if (!result.socials.facebook && ext.facebook) {
+            result.socials.facebook = ext.facebook;
+          }
+        }
+
+        if (s === 0) {
+          const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+          let match;
+          while ((match = imgRegex.exec(html)) !== null && seenImgs.size < 12) {
+            let src = match[1].trim();
+            if (!src || src.startsWith('data:') || src.includes('.svg') || src.includes('icon') || src.includes('pixel')) continue;
+            if (src.startsWith('//')) src = 'https:' + src;
+            else if (src.startsWith('/')) src = originBase + src;
+            else if (!src.startsWith('http')) {
+              const urlPath = baseClean.slice(originBase.length);
+              const dirPath = urlPath.indexOf('/') === -1 ? '/' : urlPath.replace(/[^\/]*$/, '');
+              src = originBase + (dirPath.startsWith('/') ? dirPath : '/' + dirPath) + src.replace(/^\.\//, '');
+            }
+            if (!seenImgs.has(src)) {
+              seenImgs.add(src);
+              result.websiteImages.push(src);
             }
           }
-        }
 
-        if (data.knowledgeGraph) {
-          result.knowledgeGraph = {
-            title: data.knowledgeGraph.title || '',
-            type: data.knowledgeGraph.type || '',
-            imageUrl: data.knowledgeGraph.imageUrl || '',
-            description: data.knowledgeGraph.description || ''
-          };
-          if (data.knowledgeGraph.imageUrl) {
-            result.websiteImages.unshift(data.knowledgeGraph.imageUrl);
+          const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+          if (ogMatch && ogMatch[1] && !seenImgs.has(ogMatch[1].trim())) {
+            seenImgs.add(ogMatch[1].trim());
+            result.websiteImages.unshift(ogMatch[1].trim());
           }
-          if (!result.discoveredWebsite && data.knowledgeGraph.website) {
-            result.discoveredWebsite = data.knowledgeGraph.website;
-          }
-        }
-      }
-    } catch (err) {}
 
-    // 1b. Real Business Google Images Search (Serper Images API)
-    const siteTarget = (domain && !domain.toLowerCase().includes('facebook.com') && !domain.toLowerCase().includes('no website'))
-      ? domain
-      : result.discoveredWebsite;
+          const themeMatch = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i);
+          if (themeMatch && themeMatch[1]) result.extractedColors.push(themeMatch[1].trim());
+
+          const colorMatches = html.match(/#(?:[0-9a-fA-F]{3}){1,2}\b/g) || [];
+          const uniqueColors = [...new Set(colorMatches.map(c => c.toLowerCase()))];
+          const brandHexes = uniqueColors.filter(c => !['#fff', '#ffffff', '#000', '#000000', '#eee', '#eeeeee', '#ccc', '#cccccc'].includes(c));
+          result.extractedColors.push(...brandHexes.slice(0, 8));
+
+          const igMatch = html.match(/https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._-]+/i);
+          if (igMatch && !result.socials.instagram) result.socials.instagram = igMatch[0];
+        }
+        if (s > 0 && result.discoveredEmail && result.socials.facebook) break;
+      } catch (err) {}
+    }
+  };
+
+  if (initialScrapeTarget) {
+    scrapeSiteForMediaAndContact(initialScrapeTarget);
+  }
+
+  // 2. Multi-stage Web, Social, Email (including AI Overview fallback) Discovery
+  const contactAndSocials = discoverContactAndSocials_(bizName, cleanCity, domain, {
+    serperKey: serperKey,
+    serpApiKey: serpApiKey,
+    existingEmail: result.discoveredEmail,
+    existingFacebook: result.socials.facebook,
+    allowSerpApiAiOverview: true
+  });
+
+  if (contactAndSocials.discoveredWebsite) result.discoveredWebsite = contactAndSocials.discoveredWebsite;
+  if (!result.discoveredEmail && contactAndSocials.discoveredEmail) {
+    result.discoveredEmail = contactAndSocials.discoveredEmail;
+    result.emailSource = contactAndSocials.emailSource;
+  }
+  ['facebook', 'instagram', 'linkedin', 'bbb', 'yelp'].forEach(function(k) {
+    if (contactAndSocials.socials[k] && !result.socials[k]) result.socials[k] = contactAndSocials.socials[k];
+  });
+  if (contactAndSocials.knowledgeGraph) {
+    result.knowledgeGraph = {
+      title: contactAndSocials.knowledgeGraph.title || '',
+      type: contactAndSocials.knowledgeGraph.type || '',
+      imageUrl: contactAndSocials.knowledgeGraph.imageUrl || '',
+      description: contactAndSocials.knowledgeGraph.description || ''
+    };
+    if (contactAndSocials.knowledgeGraph.imageUrl) {
+      result.websiteImages.unshift(contactAndSocials.knowledgeGraph.imageUrl);
+    }
+  }
+  if (contactAndSocials.snippets.length) {
+    result.snippets.push(...contactAndSocials.snippets);
+  }
+
+  // If Serper discovered a website we hadn't scraped yet, verify its HTML location BEFORE adopting images/colors/email
+  if (!initialScrapeTarget && result.discoveredWebsite) {
+    websiteCtx.websiteHost = normalizeHost_(result.discoveredWebsite);
+    scrapeSiteForMediaAndContact(result.discoveredWebsite, true);
+  }
+
+  // 3. Real Business Google Images Search (Serper Images API)
+  const siteTarget = initialScrapeTarget || result.discoveredWebsite;
+  if (serperKey) {
     try {
-      const cleanCity = city || 'Fox Valley, WI';
       const queriesToTry = ['"' + bizName + '" ' + cleanCity];
       if (siteTarget) {
         const cleanDomain = siteTarget.replace(/^https?:\/\//i, '').split('/')[0];
@@ -1916,73 +2991,6 @@ function researchBusinessSocialsAndWeb_(bizName, city, domain) {
           }
         }
         if (result.websiteImages.length >= 8) break;
-      }
-    } catch (err) {}
-  }
-
-  // 2. If domain (or Serper-discovered website) provided, fetch homepage to extract real images and colors
-  const scrapeTarget = (domain && !domain.toLowerCase().includes('no website') && !domain.toLowerCase().includes('facebook.com'))
-    ? domain
-    : result.discoveredWebsite;
-  if (scrapeTarget) {
-    try {
-      const cleanUrl = scrapeTarget.startsWith('http') ? scrapeTarget : 'https://' + scrapeTarget;
-      const originMatch = cleanUrl.match(/^(https?:\/\/[^\/]+)/i);
-      const originBase = originMatch ? originMatch[1] : cleanUrl.replace(/\/+$/, '');
-      const resp = UrlFetchApp.fetch(cleanUrl, {
-        method: 'get',
-        muteHttpExceptions: true,
-        followRedirects: true,
-        validateHttpsCertificates: false
-      });
-
-      if (resp.getResponseCode() >= 200 && resp.getResponseCode() < 400) {
-        const html = resp.getContentText() || '';
-
-        // Extract images
-        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-        let match;
-        const seenImgs = new Set();
-        while ((match = imgRegex.exec(html)) !== null && seenImgs.size < 12) {
-          let src = match[1].trim();
-          if (!src || src.startsWith('data:') || src.includes('.svg') || src.includes('icon') || src.includes('pixel')) continue;
-          if (src.startsWith('//')) src = 'https:' + src;
-          else if (src.startsWith('/')) {
-            src = originBase + src;
-          } else if (!src.startsWith('http')) {
-            const urlPath = cleanUrl.slice(originBase.length);
-            const dirPath = urlPath.indexOf('/') === -1 ? '/' : urlPath.replace(/[^\/]*$/, '');
-            src = originBase + (dirPath.startsWith('/') ? dirPath : '/' + dirPath) + src.replace(/^\.\//, '');
-          }
-          if (!seenImgs.has(src)) {
-            seenImgs.add(src);
-            result.websiteImages.push(src);
-          }
-        }
-
-        // Extract og:image
-        const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-        if (ogMatch && ogMatch[1]) {
-          result.websiteImages.unshift(ogMatch[1].trim());
-        }
-
-        // Extract brand colors
-        const themeMatch = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i);
-        if (themeMatch && themeMatch[1]) {
-          result.extractedColors.push(themeMatch[1].trim());
-        }
-
-        const colorMatches = html.match(/#(?:[0-9a-fA-F]{3}){1,2}\b/g) || [];
-        const uniqueColors = [...new Set(colorMatches.map(c => c.toLowerCase()))];
-        const brandHexes = uniqueColors.filter(c => !['#fff', '#ffffff', '#000', '#000000', '#eee', '#eeeeee', '#ccc', '#cccccc'].includes(c));
-        result.extractedColors.push(...brandHexes.slice(0, 8));
-
-        // Extract any social links on homepage
-        const fbMatch = html.match(/https?:\/\/(?:www\.)?facebook\.com\/[a-zA-Z0-9._-]+/i);
-        if (fbMatch && !result.socials.facebook) result.socials.facebook = fbMatch[0];
-
-        const igMatch = html.match(/https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._-]+/i);
-        if (igMatch && !result.socials.instagram) result.socials.instagram = igMatch[0];
       }
     } catch (err) {}
   }
@@ -2036,7 +3044,8 @@ function inferTradeLabel_(bizName, titleText, metaDesc, mapsType) {
 function findBestMapsPlace_(places, targetName, targetHost) {
   if (!Array.isArray(places) || !places.length) return null;
   const cleanName = String(targetName || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
-  const nameTokens = cleanName.split(/\s+/).filter(t => t.length >= 2);
+  const distinctiveTokens = getDistinctiveBizTokens_(targetName);
+  const nameTokens = distinctiveTokens.length ? distinctiveTokens : cleanName.split(/\s+/).filter(t => t.length >= 2);
   let best = null;
   let bestScore = -1;
 
@@ -2047,13 +3056,17 @@ function findBestMapsPlace_(places, targetName, targetHost) {
       return { place: p, index: i };
     }
     const pName = String(p.title || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+    const pWords = pName.split(/\s+/).filter(Boolean);
     let matchScore = 0;
     if (cleanName && pName === cleanName) matchScore += 100;
-    else if (cleanName && (pName.includes(cleanName) || cleanName.includes(pName))) matchScore += 70;
+    else if (cleanName && (pName.includes(cleanName) || cleanName.includes(pName))) matchScore += 80;
     else if (nameTokens.length) {
       let hits = 0;
       for (let t = 0; t < nameTokens.length; t++) {
-        if (pName.includes(nameTokens[t])) hits++;
+        const tk = nameTokens[t];
+        if (pWords.indexOf(tk) !== -1 || (tk.length >= 4 && pName.includes(tk) && !pWords.some(w => w !== tk && tk.startsWith(w)))) {
+          hits++;
+        }
       }
       matchScore += Math.round((hits / nameTokens.length) * 60);
     } else if (i === 0) {
@@ -2064,7 +3077,8 @@ function findBestMapsPlace_(places, targetName, targetHost) {
       best = { place: p, index: i };
     }
   }
-  return (bestScore >= 30 || !cleanName) ? best : { place: places[0], index: 0 };
+  if (!cleanName) return { place: places[0], index: 0 };
+  return bestScore >= 40 ? best : null;
 }
 
 function fetchSerperMapsSinglePage_(apiKey, query, pageNum) {
@@ -2183,8 +3197,11 @@ function upsertCustomLeadRow_(sheet, fields) {
     if (fields.phone && !curValues[COL.PHONE - 1]) sheet.getRange(existingRowNum, COL.PHONE).setValue(fields.phone);
     if (fields.logoUrl && !curValues[COL.LOGO_URL - 1]) sheet.getRange(existingRowNum, COL.LOGO_URL).setValue(fields.logoUrl);
     if (fields.domainStatus) sheet.getRange(existingRowNum, COL.DOMAIN_STATUS).setValue(fields.domainStatus);
-    if (fields.email && (!curValues[COL.EMAIL - 1] || String(curValues[COL.EMAIL - 1]).trim() === 'No email found')) {
+    const curEmail = String(curValues[COL.EMAIL - 1] || '').trim();
+    if (fields.email && (!curEmail || curEmail === 'No email found' || !isValidBusinessEmail_(curEmail))) {
       sheet.getRange(existingRowNum, COL.EMAIL).setValue(fields.email);
+    } else if (curEmail && curEmail !== 'No email found' && !isValidBusinessEmail_(curEmail)) {
+      sheet.getRange(existingRowNum, COL.EMAIL).setValue('No email found');
     }
     if (fields.hours && !curValues[COL.HOURS - 1]) sheet.getRange(existingRowNum, COL.HOURS).setValue(fields.hours);
     if (fields.ratingReviews) sheet.getRange(existingRowNum, COL.RATING_REVIEWS).setValue(fields.ratingReviews);
@@ -2264,16 +3281,45 @@ function buildCustomResearchIssueReport_(audit, rankInfo, metrics) {
 }
 
 function researchCustomProspectCore(params) {
-  const rawName = String(params.businessName || '').trim();
-  const rawLocation = String(params.location || '').trim();
-  const rawUrl = String(params.url || '').trim();
+  let rawName = String(params.businessName || '').trim();
+  let rawLocation = String(params.location || '').trim();
+  let rawUrl = String(params.url || '').trim();
+  let providedEmail = '';
+
+  const bareEmailRe = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}$/i;
+  if (bareEmailRe.test(rawUrl)) {
+    providedEmail = rawUrl.toLowerCase();
+    rawUrl = '';
+  }
+  if (bareEmailRe.test(rawName)) {
+    if (!providedEmail) providedEmail = rawName.toLowerCase();
+    rawName = '';
+  }
+
+  // Treat bare state/region strings mistakenly entered in Name as location if location is empty
+  if (rawName && /^(?:wisconsin|wi|fox valley|northeast wisconsin)$/i.test(rawName)) {
+    if (!rawLocation) rawLocation = rawName;
+    rawName = '';
+  }
 
   const props = PropertiesService.getScriptProperties();
   const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '';
+  const serpApiKey = props.getProperty('SERPAPI_API_KEY') || '';
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME) || initializeProspectPipelineSheet();
   if (String(sheet.getRange(1, COL.SITE_ISSUES).getValue()).trim() === '') {
     initializeProspectPipelineSheet();
+  }
+
+  // If only an email was provided (no businessName and no url), derive a lookup name/site from the email
+  if (providedEmail && !rawName && !rawUrl) {
+    const emailDom = providedEmail.split('@')[1] || '';
+    const emailLocal = (providedEmail.split('@')[0] || '').replace(/\d{3,}$/g, '');
+    if (emailDom && !FREE_EMAIL_DOMAINS_SET_[emailDom]) {
+      rawUrl = 'https://' + emailDom;
+    } else if (emailLocal.length >= 3) {
+      rawName = emailLocal.replace(/[._-]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    }
   }
 
   // BRANCH B: No businessName and no url (Location-only or completely blank -> discover & rank top local prospects)
@@ -2301,6 +3347,7 @@ function researchCustomProspectCore(params) {
     const auditedItems = [];
     let insertedCount = 0;
     let updatedCount = 0;
+    let aioCallsUsed = 0;
     const limit = Math.min(places.length, 8);
 
     for (let i = 0; i < limit; i++) {
@@ -2308,24 +3355,44 @@ function researchCustomProspectCore(params) {
       const bizName = String(p.title || '').trim();
       if (!bizName) continue;
 
+      const serviceArea = extractCityFromAddress_(p.address || rawLocation, rawLocation || 'Fox Valley, WI');
       const siteUrl = String(p.website || '').trim();
-      const fbUrl = /facebook\.com|fb\.com/i.test(siteUrl) ? siteUrl : '';
+      let fbUrl = /facebook\.com|fb\.com/i.test(siteUrl) ? (normalizeFacebookUrl_(siteUrl) || siteUrl) : '';
       const reviewsCount = Number(p.ratingCount || 0);
       const audit = auditWebsiteAndSeoPresence_({
         bizName: bizName,
         siteUrl: siteUrl,
         fbUrl: fbUrl,
+        location: serviceArea,
         reviewsCount: reviewsCount,
         rating: p.rating,
         includeFullBreakdown: true
       });
 
-      const email = audit.email || 'No email found';
+      let email = isValidBusinessEmail_(audit.email || '') ? audit.email : '';
+      if (!fbUrl && audit.facebook) fbUrl = audit.facebook;
+
+      if (!email || !fbUrl) {
+        try {
+          const allowAio = !email && aioCallsUsed < 3 && Boolean(serpApiKey);
+          if (allowAio) aioCallsUsed++;
+          const enr = discoverContactAndSocials_(bizName, serviceArea, siteUrl || fbUrl, {
+            serperKey: serperKey,
+            serpApiKey: serpApiKey,
+            existingEmail: email,
+            existingFacebook: fbUrl,
+            allowSerpApiAiOverview: allowAio
+          });
+          if (!email && enr.discoveredEmail) email = enr.discoveredEmail;
+          if (!fbUrl && enr.socials && enr.socials.facebook) fbUrl = enr.socials.facebook;
+        } catch (e) {}
+      }
+
+      const finalEmail = email || 'No email found';
       const domainStatus = audit.verifiedUrl || siteUrl || fbUrl || 'No Website Listed';
       const ratingVal = p.rating ? Number(p.rating).toFixed(1) : null;
       const tradeType = p.type || (hasTradeKeyword ? discoveryQuery.split(',')[0].trim() : 'Home Service Contractor');
       const ratingBadge = (ratingVal ? (ratingVal + ' \u2605 (' + reviewsCount + ' reviews)') : ('No reviews listed')) + ' - ' + tradeType;
-      const serviceArea = extractCityFromAddress_(p.address || rawLocation, rawLocation || 'Fox Valley, WI');
       const rankInfo = { query: discoveryQuery, mapsRank: i + 1, mapsTotal: places.length, organicRank: null };
       const reportText = buildCustomResearchIssueReport_(audit, rankInfo, audit.metrics);
 
@@ -2335,7 +3402,7 @@ function researchCustomProspectCore(params) {
         phone: p.phoneNumber || (audit.metrics && audit.metrics.extractedPhone) || '',
         logoUrl: p.thumbnailUrl || '',
         domainStatus: domainStatus,
-        email: email,
+        email: finalEmail,
         hours: formatWorkingHours_(p.openingHours),
         ratingReviews: ratingBadge,
         siteIssues: reportText,
@@ -2351,9 +3418,9 @@ function researchCustomProspectCore(params) {
         businessName: bizName,
         serviceArea: serviceArea,
         phone: p.phoneNumber || (audit.metrics && audit.metrics.extractedPhone) || '',
-        email: email,
+        email: finalEmail,
         domainStatus: domainStatus,
-        facebookUrl: fbUrl || audit.facebook || '',
+        facebookUrl: fbUrl || '',
         ratingReviews: ratingBadge,
         previewUrl: upsertRes.previewUrl,
         leadStatus: upsertRes.leadStatus,
@@ -2391,7 +3458,8 @@ function researchCustomProspectCore(params) {
     preAudit = auditWebsiteAndSeoPresence_({
       bizName: rawName,
       siteUrl: rawUrl,
-      fbUrl: inputIsSocial ? rawUrl : '',
+      fbUrl: inputIsSocial ? (normalizeFacebookUrl_(rawUrl) || rawUrl) : '',
+      location: rawLocation || 'Fox Valley, WI',
       includeFullBreakdown: true
     });
     if (preAudit.verifiedUrl && !initialHost) {
@@ -2401,7 +3469,10 @@ function researchCustomProspectCore(params) {
 
   let resolvedBizName = rawName;
   if (!resolvedBizName && preAudit && preAudit.metrics && preAudit.metrics.extractedBizName) {
-    resolvedBizName = preAudit.metrics.extractedBizName;
+    const extName = String(preAudit.metrics.extractedBizName).trim();
+    if (!/^(?:wisconsin|wi|fox valley|northeast wisconsin|home|welcome)$/i.test(extName)) {
+      resolvedBizName = extName;
+    }
   }
   if (!resolvedBizName && initialHost) {
     resolvedBizName = initialHost.split('.')[0].replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -2412,10 +3483,11 @@ function researchCustomProspectCore(params) {
 
   // Lookup business on Google Maps for rating, reviews, phone, address, hours, and official site
   let matchedPlace = null;
-  if (serperKey && resolvedBizName) {
+  if (serperKey && (resolvedBizName || providedEmail)) {
     const mapsQueries = [];
     if (resolvedLocation) mapsQueries.push(resolvedBizName + ' ' + resolvedLocation);
     else mapsQueries.push(resolvedBizName + ' Wisconsin', resolvedBizName);
+    if (providedEmail) mapsQueries.push(providedEmail);
 
     for (let q = 0; q < mapsQueries.length; q++) {
       const candidates = fetchSerperMapsSinglePage_(serperKey, mapsQueries[q], 1);
@@ -2440,7 +3512,7 @@ function researchCustomProspectCore(params) {
   const mapsSiteUrl = matchedPlace ? String(matchedPlace.website || '').trim() : '';
   let effectiveUrl = rawUrl || mapsSiteUrl;
 
-  // Web & Social Discovery (finds website + FB/IG/BBB/Yelp if still missing)
+  // Web & Social Discovery (finds website + state-verified FB/IG/BBB/Yelp + email including AI Overview fallback)
   const researchCityForWeb = extractCityFromAddress_(resolvedLocation, resolvedLocation);
   const researchData = researchBusinessSocialsAndWeb_(resolvedBizName, researchCityForWeb, effectiveUrl || '');
   if (!effectiveUrl && researchData.discoveredWebsite) {
@@ -2448,9 +3520,14 @@ function researchCustomProspectCore(params) {
   }
 
   const effectiveHost = normalizeHost_(effectiveUrl);
-  const effectiveFbUrl = (matchedPlace && /facebook\.com|fb\.com/i.test(mapsSiteUrl))
-    ? mapsSiteUrl
-    : (researchData.socials && researchData.socials.facebook) || (inputIsSocial ? rawUrl : '');
+  let effectiveFbUrl = '';
+  if (matchedPlace && /facebook\.com|fb\.com/i.test(mapsSiteUrl)) {
+    effectiveFbUrl = normalizeFacebookUrl_(mapsSiteUrl) || mapsSiteUrl;
+  } else if (researchData.socials && researchData.socials.facebook) {
+    effectiveFbUrl = researchData.socials.facebook;
+  } else if (inputIsSocial) {
+    effectiveFbUrl = normalizeFacebookUrl_(rawUrl) || rawUrl;
+  }
 
   const reviewsCount = matchedPlace ? Number(matchedPlace.ratingCount || 0) : null;
   const ratingNum = (matchedPlace && matchedPlace.rating) ? Number(matchedPlace.rating) : null;
@@ -2464,6 +3541,7 @@ function researchCustomProspectCore(params) {
       bizName: resolvedBizName,
       siteUrl: effectiveUrl || '',
       fbUrl: effectiveFbUrl || '',
+      location: researchCityForWeb || resolvedLocation,
       reviewsCount: reviewsCount,
       rating: ratingNum,
       includeFullBreakdown: true
@@ -2490,7 +3568,10 @@ function researchCustomProspectCore(params) {
   }
 
   const phone = (matchedPlace && matchedPlace.phoneNumber) || siteMetrics.extractedPhone || '';
-  const email = audit.email || 'No email found';
+  const email = (isValidBusinessEmail_(audit.email || '') ? audit.email : '')
+    || (isValidBusinessEmail_(researchData.discoveredEmail || '') ? researchData.discoveredEmail : '')
+    || (isValidBusinessEmail_(providedEmail) ? providedEmail : '')
+    || 'No email found';
   const domainStatus = audit.verifiedUrl || effectiveUrl || effectiveFbUrl || 'No Website Listed';
   const ratingBadge = (ratingNum !== null
     ? (ratingNum.toFixed(1) + ' \u2605 (' + (reviewsCount || 0) + ' reviews)')
@@ -2557,5 +3638,165 @@ function researchCustomProspectCore(params) {
     researchData: researchData,
     results: [Object.assign({}, resultLead, { metrics: fullMetrics })],
     message: (upsertRes.existingUpdated ? 'Updated row #' : 'Added row #') + upsertRes.rowNumber + ' for "' + resolvedBizName + '" (' + audit.badnessScore + '/100).'
+  };
+}
+
+/**
+ * Re-scans existing sheet rows missing valid emails or holding invalid/out-of-state Facebook links.
+ * Accepts optional params.rowNumber or params.limit (defaults to 12 per pass).
+ */
+function refreshLeadContactsCore(params) {
+  const opts = params || {};
+  const props = PropertiesService.getScriptProperties();
+  const serperKey = props.getProperty('SERPER_API_KEY') || props.getProperty('OUTSCRAPER_API_KEY') || '';
+  const serpApiKey = props.getProperty('SERPAPI_API_KEY') || '';
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return { success: true, processedCount: 0, updatedEmailCount: 0, updatedDomainCount: 0, updates: [] };
+  }
+
+  const targetRowNum = opts.rowNumber ? Number(opts.rowNumber) : null;
+  const startRow = opts.startRow ? Number(opts.startRow) : 2;
+  const maxBatch = Math.min(Number(opts.limit || 12), 25);
+  const startTimeMs = new Date().getTime();
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, TOTAL_COLS).getValues();
+
+  const updates = [];
+  let processedCount = 0;
+  let updatedEmailCount = 0;
+  let updatedDomainCount = 0;
+  let nextStartRow = null;
+
+  for (let i = 0; i < values.length; i++) {
+    const rowNum = i + 2;
+    if (targetRowNum && rowNum !== targetRowNum) continue;
+    if (!targetRowNum && rowNum < startRow) continue;
+    if (processedCount >= maxBatch || new Date().getTime() - startTimeMs > 160000) {
+      nextStartRow = rowNum;
+      break;
+    }
+
+    const row = values[i];
+    const bizName = String(row[COL.BUSINESS_NAME - 1] || '').trim();
+    const status = String(row[COL.LEAD_STATUS - 1] || '').trim();
+    if (!bizName) continue;
+    if (!targetRowNum && /skip|disqualified/i.test(status)) continue;
+
+    const serviceArea = String(row[COL.SERVICE_AREA - 1] || CONFIG.DEFAULT_SERVICE_AREA).trim();
+    let curDomain = String(row[COL.DOMAIN_STATUS - 1] || '').trim();
+    const curEmail = String(row[COL.EMAIL - 1] || '').trim();
+
+    // Fix rows where an email was mistakenly stored in domainStatus (e.g. Row 34)
+    if (curDomain && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,12}$/i.test(curDomain)) {
+      const recoveredEmail = curDomain.toLowerCase();
+      if (isValidBusinessEmail_(recoveredEmail) && (!curEmail || curEmail === 'No email found' || !isValidBusinessEmail_(curEmail))) {
+        sheet.getRange(rowNum, COL.EMAIL).setValue(recoveredEmail);
+        updatedEmailCount++;
+      }
+      sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue('No Website Listed');
+      curDomain = 'No Website Listed';
+      updatedDomainCount++;
+    }
+
+    const emailIsMissingOrInvalid = !curEmail || curEmail === 'No email found' || !isValidBusinessEmail_(curEmail);
+    const domainNeedsCheck = !curDomain
+      || /no website/i.test(curDomain)
+      || (/facebook\.com|fb\.com/i.test(curDomain) && !normalizeFacebookUrl_(curDomain))
+      || (/facebook\.com|fb\.com/i.test(curDomain) && !/^https:\/\/www\.facebook\.com\//i.test(curDomain));
+
+    // Also scrub explicitly invalid placeholder email like xxxx@xxxx.xxx even if nothing else runs
+    if (curEmail && curEmail !== 'No email found' && !isValidBusinessEmail_(curEmail)) {
+      sheet.getRange(rowNum, COL.EMAIL).setValue('No email found');
+    }
+
+    if (!targetRowNum && !emailIsMissingOrInvalid && !domainNeedsCheck) continue;
+
+    processedCount++;
+    const rowChanges = { rowNumber: rowNum, businessName: bizName, prevEmail: curEmail, prevDomain: curDomain };
+
+    // Use Google Maps lookup to get exact city/website/phone when row only had regional label or bare state name
+    let lookupName = bizName;
+    let lookupCity = serviceArea;
+    if (/^(?:wisconsin|wi)$/i.test(lookupName)) {
+      const effectiveCurEmail = String(sheet.getRange(rowNum, COL.EMAIL).getValue() || curEmail || '').trim();
+      const emailLocal = (effectiveCurEmail && effectiveCurEmail.includes('@') && isValidBusinessEmail_(effectiveCurEmail))
+        ? effectiveCurEmail.split('@')[0].replace(/\d+$/, '')
+        : '';
+      if (emailLocal) {
+        lookupName = emailLocal.replace(/construction$/i, ' Construction').replace(/[._-]+/g, ' ').trim();
+        lookupName = lookupName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        sheet.getRange(rowNum, COL.BUSINESS_NAME).setValue(lookupName);
+      }
+    }
+
+    if (serperKey && (/fox valley|northeast wisconsin/i.test(lookupCity) || lookupName !== bizName || /no website/i.test(curDomain))) {
+      try {
+        const mapsCandidates = fetchSerperMapsSinglePage_(serperKey, lookupName + ' Wisconsin', 1);
+        const hit = findBestMapsPlace_(mapsCandidates, lookupName, normalizeHost_(curDomain));
+        if (hit && hit.place) {
+          if (hit.place.address) {
+            const c = extractCityFromAddress_(hit.place.address, '');
+            if (c) lookupCity = c;
+          }
+          if (/^(?:wisconsin|wi)$/i.test(bizName) && hit.place.title) {
+            lookupName = hit.place.title.trim();
+            sheet.getRange(rowNum, COL.BUSINESS_NAME).setValue(lookupName);
+          }
+          if ((!curDomain || /no website/i.test(curDomain)) && hit.place.website) {
+            curDomain = hit.place.website.trim();
+            sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue(curDomain);
+            updatedDomainCount++;
+            rowChanges.newDomain = curDomain;
+          }
+          if (!row[COL.PHONE - 1] && hit.place.phoneNumber) {
+            sheet.getRange(rowNum, COL.PHONE).setValue(hit.place.phoneNumber);
+          }
+        }
+      } catch (e) {}
+    }
+
+    const res = researchBusinessSocialsAndWeb_(lookupName, lookupCity, curDomain);
+    if (emailIsMissingOrInvalid && res.discoveredEmail && isValidBusinessEmail_(res.discoveredEmail)) {
+      sheet.getRange(rowNum, COL.EMAIL).setValue(res.discoveredEmail);
+      updatedEmailCount++;
+      rowChanges.newEmail = res.discoveredEmail;
+      rowChanges.emailSource = res.emailSource || '';
+    }
+
+    const curDomainAfter = String(sheet.getRange(rowNum, COL.DOMAIN_STATUS).getValue() || '').trim();
+    if (!curDomainAfter || /no website/i.test(curDomainAfter) || /\/groups\/|facebook\.com\/share/i.test(curDomainAfter)) {
+      const betterSite = res.discoveredWebsite || (res.socials && res.socials.facebook) || '';
+      if (betterSite) {
+        sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue(betterSite);
+        updatedDomainCount++;
+        rowChanges.newDomain = betterSite;
+      } else if (/\/groups\/|facebook\.com\/share/i.test(curDomainAfter)) {
+        sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue('No Website Listed');
+        updatedDomainCount++;
+        rowChanges.newDomain = 'No Website Listed';
+      }
+    } else if (/facebook\.com|fb\.com/i.test(curDomainAfter)) {
+      const norm = normalizeFacebookUrl_(curDomainAfter);
+      if (norm && norm !== curDomainAfter) {
+        sheet.getRange(rowNum, COL.DOMAIN_STATUS).setValue(norm);
+        updatedDomainCount++;
+        rowChanges.newDomain = norm;
+      }
+    }
+
+    updates.push(rowChanges);
+  }
+
+  SpreadsheetApp.flush();
+  return {
+    success: true,
+    processedCount: processedCount,
+    updatedEmailCount: updatedEmailCount,
+    updatedDomainCount: updatedDomainCount,
+    nextStartRow: nextStartRow,
+    updates: updates,
+    message: 'Refreshed ' + processedCount + ' lead(s): ' + updatedEmailCount + ' email(s) recovered, ' + updatedDomainCount + ' domain/FB link(s) improved.'
   };
 }
