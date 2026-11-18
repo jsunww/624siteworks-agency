@@ -340,6 +340,29 @@ function isMatchingCompanyFacebook(fbUrl, bizName, extraText = '') {
   return true;
 }
 
+const DIRECTORY_HOST_FRAGMENTS = [
+  'facebook.com', 'fb.com', 'instagram.com', 'linkedin.com', 'bbb.org', 'yelp.com', 'yelpcdn.com',
+  'yellowpages.com', 'mapquest.com', 'mapq.st', 'angi.com', 'angieslist.com', 'homeadvisor.com',
+  'thumbtack.com', 'porch.com', 'houzz.com', 'nextdoor.com', 'manta.com', 'chamberofcommerce.com',
+  'birdeye.com', 'superpages.com', 'buildzoom.com', 'bizapedia.com', 'zoominfo.com', 'dnb.com',
+  'opencorporates.com', 'expertise.com', 'threebestrated.com', 'bestprosintown.com', 'experience.com',
+  'constructiondirectory.us', 'findtreeservice.com', 'bark.com', 'networx.com', 'homeyou.com', 'fixr.com',
+  'wiseintro.com', 'alignable.com', 'hotfrog.com', 'brownbook.net', 'cylex.us.com', 'merchantcircle.com',
+  'showmelocal.com', 'citysearch.com', 'insiderpages.com', 'ezlocal.com', 'whitepages.com', 'spokeo.com',
+  'allbiz.com', 'local.com', 'ebusinesspages.com', 'cybo.com', 'fyple.com', 'yasabe.com', 'judysbook.com',
+  'townplanner.com', 'oshkoshdirect.us', 'appletondirect.us'
+];
+
+function isDirectoryHostOrUrl(rawUrlOrHost) {
+  const s = String(rawUrlOrHost || '').trim().toLowerCase();
+  if (!s) return false;
+  const host = s.replace(/^https?:\/\//i, '').split('/')[0].split('?')[0].replace(/^www\./i, '');
+  if (!host) return false;
+  if (/(?:^|\.)[a-z0-9-]+direct\.us$/i.test(host)) return true;
+  if (/(?:\.(?:gov|edu)|\/(?:listings|directory|businesses|profile)\/)/i.test(s)) return true;
+  return DIRECTORY_HOST_FRAGMENTS.some(dir => host === dir || host.endsWith('.' + dir));
+}
+
 function extractBestSiteEmail(htmlSource, websiteHost) {
   const decoded = decodeHtmlAndObfuscatedEmails(htmlSource);
   const hostClean = String(websiteHost || '').toLowerCase().replace(/^www\./, '');
@@ -380,6 +403,10 @@ async function scrapeProspectWebsite(targetUrl, options = {}) {
   if (!urlStr) return null;
   if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
     urlStr = 'https://' + urlStr;
+  }
+  if (isDirectoryHostOrUrl(urlStr)) {
+    console.warn(`[Scraper Agent] Skipping directory/social listing URL (${urlStr}).`);
+    return null;
   }
 
   console.log(`[Scraper Agent] Initiating scrape for: ${urlStr}`);
@@ -821,7 +848,8 @@ module.exports = {
   matchesBusinessIdentity,
   isMatchingCompanyFacebook,
   normalizePhone10,
-  evaluateCompanyPhoneMatch
+  evaluateCompanyPhoneMatch,
+  isDirectoryHostOrUrl
 };
 
 if (require.main === module) {

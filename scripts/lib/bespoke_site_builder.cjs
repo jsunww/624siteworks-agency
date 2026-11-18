@@ -20,7 +20,8 @@ const {
   matchesBusinessIdentity,
   isMatchingCompanyFacebook,
   getBrandStems,
-  evaluateCompanyPhoneMatch
+  evaluateCompanyPhoneMatch,
+  isDirectoryHostOrUrl
 } = require(scraperUtilsPath);
 
 const ROTATING_NICHES = [
@@ -1243,14 +1244,17 @@ function isJunkImageUrl(url) {
     'shopify.com', 'f-cdn.com', 'freelancer.com', 'mementor.no', 'sanity.io',
     '99static.com', '99designs.com', 'ghost.io', 'novacare', 'wixstatic.com/media/generic',
     'shutterstock', 'istockphoto', 'gettyimages', 'stock.adobe', 'facebook.com',
-    'fbsbx.com', 'lookaside', 'instagram.com', 'linkedin.com', 'yelp.com',
-    'yellowpages.com', 'bbb.org', 'usegalaxy.', 'wud.no', 'wikipedia.org',
-    'wikimedia.org', 'youtube.com', 'youtu.be', 'pinterest.com', 'dreamstime.com',
-    'vecteezy.com', 'alamy.com', '123rf.com', 'depositphotos.com', 'freepik.com',
-    'canva.com', 'tenor.com', 'giphy.com', 'yimg.com', 'yahoo.com',
-    'experience.com/noimage', 'constructiondirectory.us'
+    'fbsbx.com', 'lookaside', 'instagram.com', 'linkedin.com', 'yelp.com', 'yelpcdn.com',
+    'yellowpages.com', 'mapquest.com', 'mapq.st', 'bbb.org', 'usegalaxy.', 'wud.no',
+    'wikipedia.org', 'wikimedia.org', 'youtube.com', 'youtu.be', 'pinterest.com',
+    'dreamstime.com', 'vecteezy.com', 'alamy.com', '123rf.com', 'depositphotos.com',
+    'freepik.com', 'canva.com', 'tenor.com', 'giphy.com', 'yimg.com', 'yahoo.com',
+    'experience.com/noimage', 'constructiondirectory.us', 'angi.com', 'angieslist.com',
+    'homeadvisor.com', 'thumbtack.com', 'nextdoor.com', 'manta.com', 'birdeye.com',
+    'superpages.com', 'buildzoom.com', 'porch.com', 'houzz.com', 'oshkoshdirect.us',
+    'showmelocal.com', 'appletondirect.us', 'citydirect', 'streetviewpixels-pa.googleapis.com'
   ];
-  if (/\.no(?:\/|$)|\/favicon|sprite|spacer|1x1|tracking|pixel/i.test(u)) return true;
+  if (/\.no(?:\/|$)|\/favicon|sprite|spacer|1x1|tracking|pixel|pwa-app\/logo-default/i.test(u)) return true;
   if (/^https?:\/\/images\//i.test(u)) return true;
   return junkHosts.some(host => u.includes(host));
 }
@@ -1296,38 +1300,71 @@ function getDistinctiveBizTokens(bizName) {
     .filter(tok => tok.length >= 2 && !generic.has(tok));
 }
 
-function isTrustworthyResearchImage(url, detail, bizName, cleanDomain) {
-  if (isJunkImageUrl(url)) return false;
+function isTrustworthyResearchImage(url, detail, bizName, cleanDomain, expectedPhone = '') {
+  if (isJunkImageUrl(url) || isDirectoryHostOrUrl(url)) return false;
   const u = url.toLowerCase();
-  const alt = detail?.title || detail?.alt || '';
-  if (cleanDomain && u.includes(cleanDomain.toLowerCase())) {
-    if (/(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u)) return true;
-    return !isNonWorkGraphicUrl(url, alt);
+  const title = detail?.title || detail?.alt || '';
+  const source = detail?.source || '';
+  const pageLink = detail?.link || '';
+  const titleLower = title.toLowerCase();
+  const sourceLower = source.toLowerCase();
+  const pageLinkLower = pageLink.toLowerCase();
+  const combined = `${titleLower} ${sourceLower} ${pageLinkLower} ${u}`;
+
+  if (pageLink && isDirectoryHostOrUrl(pageLink) && !/(?:facebook\.com|fb\.com)/i.test(pageLink)) {
+    return false;
   }
-  if (u.includes('googleusercontent.com/gps-cs-s') || u.includes('googleusercontent.com/grass-cs') || u.includes('googleusercontent.com/p/')) return true;
-
-  const title = (detail?.title || '').toLowerCase();
-  const source = (detail?.source || '').toLowerCase();
-  const combined = `${title} ${source} ${u}`;
-  const bizTokens = getDistinctiveBizTokens(bizName);
-  const hostClean = u.replace(/^https?:\/\/(www\.)?/i, '').split('/')[0].replace(/[^a-z0-9]/g, '');
-  const hostedByBiz = bizTokens.length > 0 && bizTokens.some(t => t.length >= 3 && hostClean.includes(t));
-  const isDirectoryPhoto = u.includes('yelpcdn.com/bphoto') || u.includes('fbcdn.net') || source.includes('yelp') || source.includes('facebook') || source.includes('bbb.org');
-
-  if (!isDirectoryPhoto && !hostedByBiz) return false;
-  if (isNonWorkGraphicUrl(url, title) && !/(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u)) return false;
-
-  if (/\b(?:top\s*\d+\s*best|best\s+.+\s+near)\b/i.test(title)) {
-    if (!bizTokens.some(t => title.includes(t))) return false;
+  if (/\b(?:mapquest|yelp|yellow\s*pages|manta|angi|angies\s*list|homeadvisor|thumbtack|nextdoor|porch|houzz|bbb|better business bureau|birdeye|superpages|buildzoom|chamber\s*of\s*commerce|oshkoshdirect|citydirect|direct\.us|expertise|threebestrated|bestprosintown|alignable|hotfrog|cylex|brownbook|citysearch|showmelocal)\b/i.test(`${sourceLower} ${titleLower}`)) {
+    return false;
   }
-
-  if (bizTokens.length > 0 && title) {
-    const mentionsOtherTradeBiz = /\b(tree|fenc|roof|plumb|hvac|concrete|asphalt|landscap|electric|inc\.|llc)\b/i.test(title);
-    const hasOwnToken = bizTokens.some(t => combined.includes(t));
-    if (mentionsOtherTradeBiz && !hasOwnToken) return false;
+  if (/\b(?:top\s*\d+|best\s+\d+|the\s+best\s+\d+|best\s+.+\s+near)\b/i.test(titleLower)
+    || /(?:site is undergoing maintenance|under construction|coming soon|404 not found|domain (?:for sale|expired)|default web site page)/i.test(titleLower)) {
+    return false;
+  }
+  if (expectedPhone && evaluateCompanyPhoneMatch(`${title} ${source}`, expectedPhone) === 'conflict') {
+    return false;
+  }
+  if (isNonWorkGraphicUrl(url, title) && !/(?:^|[/\-_])logo(?:[/\-_.]|$)/i.test(u)) {
+    return false;
   }
 
-  return true;
+  const safeCleanDomain = (cleanDomain && !isDirectoryHostOrUrl(cleanDomain)) ? cleanDomain.toLowerCase() : '';
+  const imgHost = u.replace(/^https?:\/\/(?:www\.)?/i, '').split('/')[0].split('?')[0];
+  const pageHost = pageLinkLower.replace(/^https?:\/\/(?:www\.)?/i, '').split('/')[0].split('?')[0];
+
+  // Block third-party trade mentions not matching this company (e.g. Vick's Lawncare on concrete site)
+  const bizLower = String(bizName || '').toLowerCase();
+  const foreignTradeMatch = titleLower.match(/\b(lawncare|lawn\s*care|landscap\w*|glass|auto\s*repair|salon|restaurant|roof\w*|tree\s*service|fenc\w*|plumb\w*|hvac|heating|cooling|electric\w*|concrete|asphalt|paving|waterproof\w*|excavat\w*)\b/i);
+  if (foreignTradeMatch) {
+    const mentionedTrade = foreignTradeMatch[1].toLowerCase().slice(0, 4);
+    const isConstructionOrFlatwork = /construct|build|contract|conc|flat|side|patio|drive|slab|mason|found|waterproof|cement|pave/.test(bizLower);
+    const matchesBizTrade = bizLower.includes(mentionedTrade)
+      || (isConstructionOrFlatwork && /conc|cement|pave|mason|found|water|excav|asph|roof|fenc/.test(mentionedTrade));
+    if (!matchesBizTrade && (!safeCleanDomain || (imgHost !== safeCleanDomain && pageHost !== safeCleanDomain))) {
+      return false;
+    }
+  }
+
+  // Require positive ownership proof:
+  // 1. Hosted on / linked directly from verified company website domain
+  if (safeCleanDomain && ((imgHost === safeCleanDomain || imgHost.endsWith('.' + safeCleanDomain)) || (pageHost === safeCleanDomain || pageHost.endsWith('.' + safeCleanDomain)))) {
+    return true;
+  }
+  // 2. Direct Google Maps Business Profile photo (only without conflicting brand/trade text)
+  if (u.includes('googleusercontent.com/gps-cs-s') || u.includes('googleusercontent.com/grass-cs') || u.includes('googleusercontent.com/p/') || u.includes('lh3.googleusercontent.com/places')) {
+    return !titleLower || matchesBusinessIdentity(combined, bizName);
+  }
+  // 3. Verified matching Facebook business page photo (never unverified crawler / post links)
+  if (pageLink && /(?:facebook\.com|fb\.com)/i.test(pageLink) && isMatchingCompanyFacebook(pageLink, bizName, title)) {
+    return true;
+  }
+  // 4. Image/page host itself matches the company brand identity
+  const hostClean = (pageHost || imgHost).replace(/[^a-z0-9]/g, '');
+  if (hostClean && matchesBusinessIdentity(hostClean, bizName) && (!titleLower || matchesBusinessIdentity(titleLower + ' ' + pageLinkLower, bizName))) {
+    return true;
+  }
+
+  return false;
 }
 
 function createSiteBuilder(options = {}) {
@@ -1626,13 +1663,22 @@ function createSiteBuilder(options = {}) {
       logSuccess(`Discovered business email via search research: ${lead.email}`);
     }
 
+    if (researchData.socials?.instagram && /(?:citydirect|oshkoshdirect|appletondirect|mapquest|yelp|yellowpages|bbb|angi|homeadvisor|thumbtack|manta)/i.test(researchData.socials.instagram)) {
+      logWarn(`Rejected directory Instagram URL ("${researchData.socials.instagram}") for "${bizName}"`);
+      researchData.socials.instagram = '';
+    }
+
     // Resolve target domain before filtering images so cleanDomain includes discovered websites
     let prospectDomain = domain;
+    if (prospectDomain && isDirectoryHostOrUrl(prospectDomain) && !/facebook\.com|fb\.com/i.test(prospectDomain)) {
+      logWarn(`Ignoring directory listing URL ("${prospectDomain}") as website for "${bizName}"`);
+      prospectDomain = 'No Website Listed';
+    }
     const noListedWebsite = !prospectDomain || prospectDomain.toLowerCase().includes('no website') || prospectDomain.toLowerCase().includes('facebook.com');
     if (noListedWebsite) {
       if (bizName.toLowerCase().includes('berken')) {
         prospectDomain = 'http://www.berkenheating.com';
-      } else if (researchData.discoveredWebsite && /^https?:\/\//i.test(researchData.discoveredWebsite)) {
+      } else if (researchData.discoveredWebsite && /^https?:\/\//i.test(researchData.discoveredWebsite) && !isDirectoryHostOrUrl(researchData.discoveredWebsite)) {
         prospectDomain = researchData.discoveredWebsite;
         logSuccess(`Discovered company website via web search: ${prospectDomain}`);
       } else {
@@ -1647,22 +1693,26 @@ function createSiteBuilder(options = {}) {
           'homeadvisor.com', 'thumbtack.com', 'porch.com', 'houzz.com', 'nextdoor.com',
           'manta.com', 'chamberofcommerce.com', 'birdeye.com', 'superpages.com',
           'buildzoom.com', 'bizapedia.com', 'zoominfo.com', 'dnb.com', 'opencorporates.com',
-          'expertise.com', 'threebestrated.com', 'bestprosintown.com', 'snowlawn.com'
+          'expertise.com', 'threebestrated.com', 'bestprosintown.com', 'snowlawn.com',
+          'oshkoshdirect.us', 'appletondirect.us', 'alignable.com', 'hotfrog.com', 'brownbook.net'
         ];
         const bizTokens = getDistinctiveBizTokens(bizName);
         const brandStems = getBrandStems(bizName);
         for (const dm of domainMatches) {
           const cleanDm = dm.toLowerCase();
-          const isExcluded = excludedDomains.some(ex => cleanDm === ex || cleanDm.endsWith('.' + ex) || cleanDm.includes(ex));
+          const isExcluded = isDirectoryHostOrUrl(cleanDm) || excludedDomains.some(ex => cleanDm === ex || cleanDm.endsWith('.' + ex) || cleanDm.includes(ex));
           const looksLikeBiz = bizTokens.length > 0
             ? bizTokens.some(t => cleanDm.includes(t))
             : brandStems.some(st => cleanDm.includes(st));
           const dmIdx = snippetText.toLowerCase().indexOf(cleanDm);
           const dmWin = snippetText.slice(Math.max(0, dmIdx - 180), Math.min(snippetText.length, dmIdx + 180));
+          const domStemOnly = cleanDm.split('.')[0].replace(/[^a-z0-9]/g, '');
+          const endsWithOtherState = /(?:mn|il|mi|ia|ct|tx|fl|oh|nc|sd|ca|ny|pa|ga|va|in|mo|ks|ne|wa|or|az|co)$/i.test(domStemOnly)
+            && !/\b(?:wisconsin|,?\s*wi|appleton|oshkosh|neenah|menasha|kaukauna|kimberly|little chute|green bay|fox valley)\b/i.test(dmWin);
           const phoneStatus = evaluateCompanyPhoneMatch(dmWin, lead.phone || '');
           const hasWrongStateOrMetro = /\b(?:hawaii|mililani|las vegas|connecticut|south dakota|north carolina|texas|florida|ohio|michigan|minnesota|illinois|plover|madison|verona|milwaukee)\b|(?:,\s*(?:HI|NV|CT|SD|NC|TX|FL|OH|MI|MN|IL)\b)|\b(?:808|702|608|715|414|262)[-\s).]?\d{3}/i.test(dmWin)
             && !/\b(?:appleton|kimberly|little chute|brillion|kaukauna|neenah|menasha|oshkosh|green bay|920)\b/i.test(dmWin);
-          if (!isExcluded && looksLikeBiz && phoneStatus !== 'conflict' && !hasWrongStateOrMetro) {
+          if (!isExcluded && looksLikeBiz && !endsWithOtherState && phoneStatus !== 'conflict' && !hasWrongStateOrMetro) {
             prospectDomain = `http://${cleanDm}`;
             break;
           }
@@ -1670,9 +1720,9 @@ function createSiteBuilder(options = {}) {
       }
     }
 
-    const activeDomainForHost = (prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com'))
+    const activeDomainForHost = (prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com') && !isDirectoryHostOrUrl(prospectDomain))
       ? prospectDomain
-      : domain;
+      : (domain && !isDirectoryHostOrUrl(domain) ? domain : '');
     const cleanDomain = (activeDomainForHost && !activeDomainForHost.toLowerCase().includes('no website') && !activeDomainForHost.toLowerCase().includes('facebook.com'))
       ? activeDomainForHost.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0]
       : '';
@@ -1681,12 +1731,12 @@ function createSiteBuilder(options = {}) {
     const imageMetaMap = new Map();
     for (const d of (researchData.imageDetails || [])) {
       if (d && d.url) {
-        imageMetaMap.set(d.url, { alt: d.title || '', context: d.source || '' });
+        imageMetaMap.set(d.url, { alt: d.title || '', context: d.source || '', link: d.link || '' });
       }
     }
 
     researchData.websiteImages = (researchData.websiteImages || [])
-      .filter(u => isTrustworthyResearchImage(u, detailByUrl.get(u), bizName, cleanDomain));
+      .filter(u => isTrustworthyResearchImage(u, detailByUrl.get(u), bizName, cleanDomain, lead.phone || ''));
 
     // Identify explicit logo URL in search results if scraper doesn't yield one later
     if (!researchData.logo) {
@@ -1695,17 +1745,30 @@ function createSiteBuilder(options = {}) {
     }
 
     // Include Google Places field photo if present
-    if (lead.logoUrl && !isJunkImageUrl(lead.logoUrl) && !researchData.websiteImages.includes(lead.logoUrl)) {
+    if (lead.logoUrl && !isJunkImageUrl(lead.logoUrl) && !isDirectoryHostOrUrl(lead.logoUrl) && !researchData.websiteImages.includes(lead.logoUrl)) {
       researchData.websiteImages.unshift(lead.logoUrl);
     }
 
     // Deep Website Scraper Agent
-    if (scrapeProspectWebsite && prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com')) {
+    if (scrapeProspectWebsite && prospectDomain && !prospectDomain.toLowerCase().includes('no website') && !prospectDomain.toLowerCase().includes('facebook.com') && !isDirectoryHostOrUrl(prospectDomain)) {
       try {
         logSub(`Deep-scraping prospect website (${prospectDomain}) for authentic colors, logo, and work photos...`);
         const scraped = await scrapeProspectWebsite(prospectDomain);
         const isParkedOrMissingSite = !scraped || /site not found|domain (?:for sale|expired)|coming soon|404 not found|error 404/i.test(scraped.title || '');
-        if (scraped && !isParkedOrMissingSite) {
+        const scrapedPhoneConflict = scraped && evaluateCompanyPhoneMatch(`${scraped.phone || ''} ${scraped.address || ''}`, lead.phone || '') === 'conflict';
+        const scrapedStateBlob = scraped ? `${scraped.title || ''} ${scraped.address || ''} ${scraped.metaDescription || ''}` : '';
+        const scrapedWrongState = scraped && /\b(?:minnesota|illinois|michigan|iowa|connecticut|texas|florida|ohio|indiana|south dakota|north carolina|california|new york)\b|,\s*(?:MN|IL|MI|IA|CT|TX|FL|OH|IN|SD|NC|CA|NY)\b/i.test(scrapedStateBlob)
+          && !/\b(?:wisconsin|,?\s*WI|appleton|oshkosh|neenah|menasha|kaukauna|kimberly|little chute|green bay)\b/i.test(scrapedStateBlob);
+        if (scraped && !isParkedOrMissingSite && (scrapedPhoneConflict || scrapedWrongState)) {
+          logWarn(`Ignoring mismatched scraped website ${prospectDomain} (phone=${scraped.phone || 'none'}, address=${scraped.address || 'none'}).`);
+          if (cleanDomain) {
+            researchData.websiteImages = researchData.websiteImages.filter(u => !u.toLowerCase().includes(cleanDomain.toLowerCase()));
+          }
+          if (researchData.discoveredWebsite && researchData.discoveredWebsite.includes(cleanDomain)) {
+            researchData.discoveredWebsite = '';
+          }
+          researchData.logo = '';
+        } else if (scraped && !isParkedOrMissingSite) {
           if (scraped.colors?.primary) {
             researchData.extractedColors = [
               scraped.colors.primary,
@@ -1713,7 +1776,7 @@ function createSiteBuilder(options = {}) {
             ];
             logSuccess(`Extracted authentic brand color palette: ${researchData.extractedColors.slice(0, 5).join(', ')}`);
           }
-          if (scraped.logo && !isJunkImageUrl(scraped.logo)) {
+          if (scraped.logo && !isJunkImageUrl(scraped.logo) && !isDirectoryHostOrUrl(scraped.logo)) {
             researchData.logo = scraped.logo;
             if (!researchData.websiteImages.includes(scraped.logo)) {
               researchData.websiteImages.unshift(scraped.logo);
@@ -1724,7 +1787,7 @@ function createSiteBuilder(options = {}) {
             const authenticImgs = [];
             for (const imgObj of scraped.images) {
               const u = typeof imgObj === 'string' ? imgObj : imgObj?.url;
-              if (!u || isJunkImageUrl(u) || isNonWorkGraphicUrl(u, imgObj?.alt || '')) continue;
+              if (!u || isJunkImageUrl(u) || isDirectoryHostOrUrl(u) || isNonWorkGraphicUrl(u, imgObj?.alt || '')) continue;
               authenticImgs.push(u);
               if (typeof imgObj === 'object') {
                 imageMetaMap.set(u, { alt: imgObj.alt || '', context: imgObj.context || '' });
